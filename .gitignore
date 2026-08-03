@@ -1,1 +1,3 @@
-internal/
+/internal/*.md
+
+.env

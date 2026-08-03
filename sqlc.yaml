@@ -1,0 +1,12 @@
+version: "2"
+sql:
+  - engine: postgresql
+    schema: migrations
+    queries: queries
+    gen:
+      go:
+        package: db
+        out: internal/db
+        sql_package: pgx/v5
+        # json-тегов нет намеренно: модель users содержит password_hash, и структура
+        # с тегами провоцирует отдать её из хэндлера как есть. DTO пишутся в API-слое.
