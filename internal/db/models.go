@@ -174,10 +174,10 @@ type Item struct {
 	CategoryID  int16
 	Title       string
 	Description string
-	PhotoUrl    pgtype.Text
 	Status      ItemStatus
 	CreatedAt   pgtype.Timestamptz
 	UpdatedAt   pgtype.Timestamptz
+	PhotoUrls   []string
 }
 
 type ItemWant struct {
