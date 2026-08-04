@@ -9,6 +9,7 @@ import (
 type User struct {
 	ID             uuid.UUID
 	Nickname       string
+	PasswordHash   string
 	PhotoURL       *string
 	Description    string
 	DealsCompleted int32

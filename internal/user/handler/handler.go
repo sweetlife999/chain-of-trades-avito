@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	authcontext "github.com/sweetlife999/chain-of-trades-avito/internal/auth/authcontext"
 	userdto "github.com/sweetlife999/chain-of-trades-avito/internal/user/dto"
 	usermodel "github.com/sweetlife999/chain-of-trades-avito/internal/user/model"
 	userservice "github.com/sweetlife999/chain-of-trades-avito/internal/user/service"
@@ -32,10 +33,10 @@ func New(service Service) *Handler {
 	return &Handler{service: service}
 }
 
-func (h *Handler) RegisterRoutes(router chi.Router) {
+func (h *Handler) RegisterRoutes(router chi.Router, requireAuth func(http.Handler) http.Handler) {
 	router.Post("/users", h.create)
 	router.Get("/users/{id}", h.getByID)
-	router.Patch("/users/{id}", h.update)
+	router.With(requireAuth).Patch("/users/{id}", h.update)
 }
 
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
@@ -78,6 +79,16 @@ func (h *Handler) getByID(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 	id, ok := parseID(w, r)
 	if !ok {
+		return
+	}
+
+	currentUserID, ok := authcontext.UserID(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	if currentUserID != id {
+		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}
 

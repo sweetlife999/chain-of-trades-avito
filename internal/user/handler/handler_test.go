@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	authcontext "github.com/sweetlife999/chain-of-trades-avito/internal/auth/authcontext"
 	usermodel "github.com/sweetlife999/chain-of-trades-avito/internal/user/model"
 	userservice "github.com/sweetlife999/chain-of-trades-avito/internal/user/service"
 )
@@ -102,6 +103,50 @@ func TestUpdateReturns200(t *testing.T) {
 	}
 }
 
+func TestUpdateReturns401WithoutAuthenticatedUser(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeService{
+		update: func(context.Context, uuid.UUID, userservice.UpdateInput) (usermodel.User, error) {
+			t.Fatal("Update() must not be called")
+			return usermodel.User{}, nil
+		},
+	}
+
+	response := performRequestWithAuth(
+		service,
+		http.MethodPatch,
+		"/users/"+uuid.New().String(),
+		`{"description":"new description"}`,
+		passThroughAuth,
+	)
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d; body = %s", response.Code, http.StatusUnauthorized, response.Body.String())
+	}
+}
+
+func TestUpdateReturns403ForDifferentUser(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeService{
+		update: func(context.Context, uuid.UUID, userservice.UpdateInput) (usermodel.User, error) {
+			t.Fatal("Update() must not be called")
+			return usermodel.User{}, nil
+		},
+	}
+
+	response := performRequestWithAuth(
+		service,
+		http.MethodPatch,
+		"/users/"+uuid.New().String(),
+		`{"description":"new description"}`,
+		authenticateAs(uuid.New()),
+	)
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body = %s", response.Code, http.StatusForbidden, response.Body.String())
+	}
+}
+
 func TestHandlerErrorStatuses(t *testing.T) {
 	t.Parallel()
 
@@ -147,12 +192,45 @@ func TestHandlerErrorStatuses(t *testing.T) {
 }
 
 func performRequest(service Service, method, path, body string) *httptest.ResponseRecorder {
+	return performRequestWithAuth(service, method, path, body, authenticateAsPathUser)
+}
+
+func performRequestWithAuth(
+	service Service,
+	method string,
+	path string,
+	body string,
+	requireAuth func(http.Handler) http.Handler,
+) *httptest.ResponseRecorder {
 	router := chi.NewRouter()
-	New(service).RegisterRoutes(router)
+	New(service).RegisterRoutes(router, requireAuth)
 
 	request := httptest.NewRequest(method, path, strings.NewReader(body))
 	request.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, request)
 	return response
+}
+
+func authenticateAs(userID uuid.UUID) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r = r.WithContext(authcontext.WithUserID(r.Context(), userID))
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func passThroughAuth(next http.Handler) http.Handler {
+	return next
+}
+
+func authenticateAsPathUser(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		userID, err := uuid.Parse(chi.URLParam(r, "id"))
+		if err == nil {
+			r = r.WithContext(authcontext.WithUserID(r.Context(), userID))
+		}
+		next.ServeHTTP(w, r)
+	})
 }

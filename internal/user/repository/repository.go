@@ -50,6 +50,15 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (usermodel.User,
 	return toModel(found)
 }
 
+func (r *Repository) GetByNickname(ctx context.Context, nickname string) (usermodel.User, error) {
+	found, err := r.queries.GetUserByNickname(ctx, nickname)
+	if err != nil {
+		return usermodel.User{}, fmt.Errorf("get user by nickname: %w", translateError(err))
+	}
+
+	return toModel(found)
+}
+
 func (r *Repository) Update(ctx context.Context, id uuid.UUID, changes usermodel.Changes) (usermodel.User, error) {
 	updated, err := r.queries.UpdateUserProfile(ctx, db.UpdateUserProfileParams{
 		Nickname:    optionalText(changes.Nickname),
@@ -98,6 +107,7 @@ func toModel(user db.User) (usermodel.User, error) {
 	return usermodel.User{
 		ID:             uuid.UUID(user.ID.Bytes),
 		Nickname:       user.Nickname,
+		PasswordHash:   user.PasswordHash,
 		PhotoURL:       photoURL,
 		Description:    user.Description,
 		DealsCompleted: user.DealsCompleted,

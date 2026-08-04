@@ -9,6 +9,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	authhandler "github.com/sweetlife999/chain-of-trades-avito/internal/auth/handler"
+	authmiddleware "github.com/sweetlife999/chain-of-trades-avito/internal/auth/middleware"
+	authservice "github.com/sweetlife999/chain-of-trades-avito/internal/auth/service"
+	authtoken "github.com/sweetlife999/chain-of-trades-avito/internal/auth/token"
 	"github.com/sweetlife999/chain-of-trades-avito/internal/config"
 	"github.com/sweetlife999/chain-of-trades-avito/internal/database"
 	db "github.com/sweetlife999/chain-of-trades-avito/internal/db"
@@ -16,6 +20,8 @@ import (
 	userrepository "github.com/sweetlife999/chain-of-trades-avito/internal/user/repository"
 	userservice "github.com/sweetlife999/chain-of-trades-avito/internal/user/service"
 )
+
+const authTokenTTL = 12 * time.Hour
 
 func main() {
 	cfg, err := config.Load()
@@ -36,8 +42,16 @@ func main() {
 	router.Use(middleware.Recoverer)
 
 	queries := db.New(pool)
-	users := userservice.New(userrepository.New(queries))
-	userhandler.New(users).RegisterRoutes(router)
+	usersRepository := userrepository.New(queries)
+	users := userservice.New(usersRepository)
+
+	tokens := authtoken.NewManager(cfg.JWTSecret, authTokenTTL)
+	authenticator := authmiddleware.New(tokens)
+	auth := authservice.New(usersRepository, tokens)
+
+	userhandler.New(users).RegisterRoutes(router, authenticator.RequireAuthentication)
+	authhandler.New(auth, cfg.CookieSecure, authTokenTTL).
+		RegisterRoutes(router, authenticator.RequireAuthentication)
 
 	router.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
