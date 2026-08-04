@@ -51,10 +51,10 @@ func (h *Handler) RegisterRoutes(router chi.Router, requireAuth func(http.Handle
 // @Accept      json
 // @Produce     json
 // @Param       request body     itemdto.CreateItemRequest true "Данные объявления"
-// @Success     201     {object} itemdto.ItemResponse      "Создано, ссылка на объявление в заголовке Location"
-// @Failure     400     {object} itemdto.ErrorResponse     "Некорректное тело запроса, нет фото или желаний, неизвестная категория"
-// @Failure     401     {object} itemdto.ErrorResponse     "Нет или истекла cookie access_token"
-// @Failure     500     {object} itemdto.ErrorResponse     "Внутренняя ошибка"
+// @Success     201     {object} itemdto.ItemResponse "Создано, ссылка на объявление в заголовке Location"
+// @Failure     400     {object} itemdto.ItemError    "Некорректное тело запроса, нет фото или желаний, неизвестная категория"
+// @Failure     401     {object} itemdto.ItemError    "Нет или истекла cookie access_token"
+// @Failure     500     {object} itemdto.ItemError    "Внутренняя ошибка"
 // @Router      /items [post]
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	ownerID, ok := currentUser(w, r)
@@ -90,10 +90,10 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 // @Tags        items
 // @Produce     json
 // @Param       id  path     string                true "UUID объявления" example(8db9f3e2-8a45-4a70-b3d1-167b4f97e121)
-// @Success     200 {object} itemdto.ItemResponse  "Объявление"
-// @Failure     400 {object} itemdto.ErrorResponse "ID не является UUID"
-// @Failure     404 {object} itemdto.ErrorResponse "Объявление не найдено"
-// @Failure     500 {object} itemdto.ErrorResponse "Внутренняя ошибка"
+// @Success     200 {object} itemdto.ItemResponse "Объявление"
+// @Failure     400 {object} itemdto.ItemError    "ID не является UUID"
+// @Failure     404 {object} itemdto.ItemError    "Объявление не найдено"
+// @Failure     500 {object} itemdto.ItemError    "Внутренняя ошибка"
 // @Router      /items/{id} [get]
 func (h *Handler) getByID(w http.ResponseWriter, r *http.Request) {
 	id, ok := parseID(w, r)
@@ -119,12 +119,12 @@ func (h *Handler) getByID(w http.ResponseWriter, r *http.Request) {
 // @Produce     json
 // @Param       id      path     string                    true "UUID объявления" example(8db9f3e2-8a45-4a70-b3d1-167b4f97e121)
 // @Param       request body     itemdto.UpdateItemRequest true "Поля, которые нужно изменить"
-// @Success     200     {object} itemdto.ItemResponse      "Обновлённое объявление"
-// @Failure     400     {object} itemdto.ErrorResponse     "Некорректное тело, пустой список фото или желаний, неизвестная категория"
-// @Failure     401     {object} itemdto.ErrorResponse     "Нет или истекла cookie access_token"
-// @Failure     403     {object} itemdto.ErrorResponse     "Объявление принадлежит другому пользователю"
-// @Failure     404     {object} itemdto.ErrorResponse     "Объявление не найдено"
-// @Failure     500     {object} itemdto.ErrorResponse     "Внутренняя ошибка"
+// @Success     200     {object} itemdto.ItemResponse "Обновлённое объявление"
+// @Failure     400     {object} itemdto.ItemError    "Некорректное тело, пустой список фото или желаний, неизвестная категория"
+// @Failure     401     {object} itemdto.ItemError    "Нет или истекла cookie access_token"
+// @Failure     403     {object} itemdto.ItemError    "Объявление принадлежит другому пользователю"
+// @Failure     404     {object} itemdto.ItemError    "Объявление не найдено"
+// @Failure     500     {object} itemdto.ItemError    "Внутренняя ошибка"
 // @Router      /items/{id} [patch]
 func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 	id, ok := parseID(w, r)
@@ -165,12 +165,12 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 // @Produce     json
 // @Param       id path string true "UUID объявления" example(8db9f3e2-8a45-4a70-b3d1-167b4f97e121)
 // @Success     204 "Удалено"
-// @Failure     400 {object} itemdto.ErrorResponse "ID не является UUID"
-// @Failure     401 {object} itemdto.ErrorResponse "Нет или истекла cookie access_token"
-// @Failure     403 {object} itemdto.ErrorResponse "Объявление принадлежит другому пользователю"
-// @Failure     404 {object} itemdto.ErrorResponse "Объявление не найдено"
-// @Failure     409 {object} itemdto.ErrorResponse "Вещь участвует в цепочке обмена"
-// @Failure     500 {object} itemdto.ErrorResponse "Внутренняя ошибка"
+// @Failure     400 {object} itemdto.ItemError "ID не является UUID"
+// @Failure     401 {object} itemdto.ItemError "Нет или истекла cookie access_token"
+// @Failure     403 {object} itemdto.ItemError "Объявление принадлежит другому пользователю"
+// @Failure     404 {object} itemdto.ItemError "Объявление не найдено"
+// @Failure     409 {object} itemdto.ItemError "Вещь участвует в цепочке обмена"
+// @Failure     500 {object} itemdto.ItemError "Внутренняя ошибка"
 // @Router      /items/{id} [delete]
 func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
 	id, ok := parseID(w, r)
@@ -196,7 +196,7 @@ func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
 // @Tags        items
 // @Produce     json
 // @Success     200 {array}  itemdto.CategoryResponse "Категории"
-// @Failure     500 {object} itemdto.ErrorResponse    "Внутренняя ошибка"
+// @Failure     500 {object} itemdto.ItemError        "Внутренняя ошибка"
 // @Router      /categories [get]
 func (h *Handler) listCategories(w http.ResponseWriter, r *http.Request) {
 	categories, err := h.service.ListCategories(r.Context())
@@ -265,7 +265,7 @@ func handleServiceError(w http.ResponseWriter, err error) {
 }
 
 func writeError(w http.ResponseWriter, status int, message string) {
-	writeJSON(w, status, itemdto.ErrorResponse{Error: message})
+	writeJSON(w, status, itemdto.ItemError{Error: message})
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {

@@ -43,7 +43,9 @@ type CategoryResponse struct {
 	Name string `json:"name" example:"Велосипеды и транспорт"`
 }
 
-type ErrorResponse struct {
+// Имя типа не ErrorResponse: у user/dto уже есть такой, и swag разводит коллизию
+// именами схем вида github_com_..._internal_item_dto.ErrorResponse.
+type ItemError struct {
 	Error string `json:"error"`
 }
 
