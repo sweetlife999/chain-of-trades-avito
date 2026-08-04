@@ -19,6 +19,9 @@ import (
 	"github.com/sweetlife999/chain-of-trades-avito/internal/config"
 	"github.com/sweetlife999/chain-of-trades-avito/internal/database"
 	db "github.com/sweetlife999/chain-of-trades-avito/internal/db"
+	itemhandler "github.com/sweetlife999/chain-of-trades-avito/internal/item/handler"
+	itemrepository "github.com/sweetlife999/chain-of-trades-avito/internal/item/repository"
+	itemservice "github.com/sweetlife999/chain-of-trades-avito/internal/item/service"
 	userhandler "github.com/sweetlife999/chain-of-trades-avito/internal/user/handler"
 	userrepository "github.com/sweetlife999/chain-of-trades-avito/internal/user/repository"
 	userservice "github.com/sweetlife999/chain-of-trades-avito/internal/user/service"
@@ -28,7 +31,8 @@ const authTokenTTL = 12 * time.Hour
 
 // @title       Цепочка обмена — API
 // @version     0.1.0
-// @description HTTP API сервиса многостороннего обмена вещами: профили пользователей и вход по JWT.
+// @description HTTP API сервиса многостороннего обмена вещами: профили пользователей, вход по JWT
+// @description и объявления о вещах, которые владелец готов обменять.
 // @description
 // @description Защищённые маршруты читают HttpOnly cookie `access_token`. Кнопки «Authorize» здесь нет
 // @description и не нужно: выполните `POST /auth/login` прямо из этой страницы — браузер сохранит cookie
@@ -55,12 +59,14 @@ func main() {
 	queries := db.New(pool)
 	usersRepository := userrepository.New(queries)
 	users := userservice.New(usersRepository)
+	items := itemservice.New(itemrepository.New(pool))
 
 	tokens := authtoken.NewManager(cfg.JWTSecret, authTokenTTL)
 	authenticator := authmiddleware.New(tokens)
 	auth := authservice.New(usersRepository, tokens)
 
 	userhandler.New(users).RegisterRoutes(router, authenticator.RequireAuthentication)
+	itemhandler.New(items).RegisterRoutes(router, authenticator.RequireAuthentication)
 	authhandler.New(auth, cfg.CookieSecure, authTokenTTL).
 		RegisterRoutes(router, authenticator.RequireAuthentication)
 
