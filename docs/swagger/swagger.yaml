@@ -1,5 +1,40 @@
 basePath: /
 definitions:
+  dto.CategoryResponse:
+    properties:
+      name:
+        example: Велосипеды и транспорт
+        type: string
+      slug:
+        example: bikes
+        type: string
+    type: object
+  dto.CreateItemRequest:
+    properties:
+      category:
+        example: bikes
+        type: string
+      description:
+        example: Почти новый, катался год
+        type: string
+      photo_urls:
+        example:
+        - https://example.com/bike-1.jpg
+        - https://example.com/bike-2.jpg
+        items:
+          type: string
+        type: array
+      title:
+        example: Велосипед
+        type: string
+      wants:
+        example:
+        - consoles
+        - phones
+        items:
+          type: string
+        type: array
+    type: object
   dto.CreateUserRequest:
     properties:
       description:
@@ -16,12 +51,69 @@ definitions:
       error:
         type: string
     type: object
+  dto.ItemError:
+    properties:
+      error:
+        type: string
+    type: object
+  dto.ItemResponse:
+    properties:
+      category:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      owner_id:
+        type: string
+      photo_urls:
+        items:
+          type: string
+        type: array
+      status:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+      wants:
+        items:
+          type: string
+        type: array
+    type: object
   dto.LoginRequest:
     properties:
       nickname:
         type: string
       password:
         type: string
+    type: object
+  dto.UpdateItemRequest:
+    properties:
+      category:
+        example: bikes
+        type: string
+      description:
+        example: Добавил фото рамы
+        type: string
+      photo_urls:
+        example:
+        - https://example.com/bike-1.jpg
+        - https://example.com/bike-3.jpg
+        items:
+          type: string
+        type: array
+      title:
+        example: Велосипед городской
+        type: string
+      wants:
+        example:
+        - consoles
+        items:
+          type: string
+        type: array
     type: object
   dto.UpdateUserRequest:
     properties:
@@ -56,7 +148,8 @@ definitions:
 info:
   contact: {}
   description: |-
-    HTTP API сервиса многостороннего обмена вещами: профили пользователей и вход по JWT.
+    HTTP API сервиса многостороннего обмена вещами: профили пользователей, вход по JWT
+    и объявления о вещах, которые владелец готов обменять.
 
     Защищённые маршруты читают HttpOnly cookie `access_token`. Кнопки «Authorize» здесь нет
     и не нужно: выполните `POST /auth/login` прямо из этой страницы — браузер сохранит cookie
@@ -132,6 +225,26 @@ paths:
       summary: Текущий пользователь
       tags:
       - auth
+  /categories:
+    get:
+      description: Справочник для полей `category` и `wants`. Слаг — стабильный ключ,
+        название меняется, слаг нет.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Категории
+          schema:
+            items:
+              $ref: '#/definitions/dto.CategoryResponse'
+            type: array
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.ItemError'
+      summary: Список категорий
+      tags:
+      - items
   /health:
     get:
       description: Отвечает 200, если процесс поднят. Состояние БД не проверяет.
@@ -147,6 +260,171 @@ paths:
       summary: Проверка живости сервиса
       tags:
       - system
+  /items:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Требует cookie `access_token`. Владелец берётся из токена, а не из тела запроса.
+        Нужна хотя бы одна фотография (ссылкой) и хотя бы одна желаемая категория —
+        без них объявление не участвует в подборе обменов. Список категорий: GET /categories.
+      parameters:
+      - description: Данные объявления
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateItemRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Создано, ссылка на объявление в заголовке Location
+          schema:
+            $ref: '#/definitions/dto.ItemResponse'
+        "400":
+          description: Некорректное тело запроса, нет фото или желаний, неизвестная
+            категория
+          schema:
+            $ref: '#/definitions/dto.ItemError'
+        "401":
+          description: Нет или истекла cookie access_token
+          schema:
+            $ref: '#/definitions/dto.ItemError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.ItemError'
+      summary: Создать объявление
+      tags:
+      - items
+  /items/{id}:
+    delete:
+      description: |-
+        Требует cookie `access_token`, удалять можно только свои объявления. Вещь, уже занятую
+        в цепочке обмена, удалить нельзя: иначе участник остался бы без обещанного предмета.
+      parameters:
+      - description: UUID объявления
+        example: 8db9f3e2-8a45-4a70-b3d1-167b4f97e121
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Удалено
+        "400":
+          description: ID не является UUID
+          schema:
+            $ref: '#/definitions/dto.ItemError'
+        "401":
+          description: Нет или истекла cookie access_token
+          schema:
+            $ref: '#/definitions/dto.ItemError'
+        "403":
+          description: Объявление принадлежит другому пользователю
+          schema:
+            $ref: '#/definitions/dto.ItemError'
+        "404":
+          description: Объявление не найдено
+          schema:
+            $ref: '#/definitions/dto.ItemError'
+        "409":
+          description: Вещь участвует в цепочке обмена
+          schema:
+            $ref: '#/definitions/dto.ItemError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.ItemError'
+      summary: Удалить своё объявление
+      tags:
+      - items
+    get:
+      description: 'Публичная карточка вещи: фотографии, желаемые категории и статус.
+        Аутентификация не нужна.'
+      parameters:
+      - description: UUID объявления
+        example: 8db9f3e2-8a45-4a70-b3d1-167b4f97e121
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Объявление
+          schema:
+            $ref: '#/definitions/dto.ItemResponse'
+        "400":
+          description: ID не является UUID
+          schema:
+            $ref: '#/definitions/dto.ItemError'
+        "404":
+          description: Объявление не найдено
+          schema:
+            $ref: '#/definitions/dto.ItemError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.ItemError'
+      summary: Получить объявление по ID
+      tags:
+      - items
+    patch:
+      consumes:
+      - application/json
+      description: |-
+        Требует cookie `access_token`, менять можно только свои объявления. Достаточно одного поля.
+        `photo_urls` и `wants` заменяются целиком: чтобы добавить фотографию, пришлите старые
+        ссылки вместе с новой. Пустой список запрещён — у объявления всегда есть хотя бы одно фото.
+      parameters:
+      - description: UUID объявления
+        example: 8db9f3e2-8a45-4a70-b3d1-167b4f97e121
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Поля, которые нужно изменить
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateItemRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Обновлённое объявление
+          schema:
+            $ref: '#/definitions/dto.ItemResponse'
+        "400":
+          description: Некорректное тело, пустой список фото или желаний, неизвестная
+            категория
+          schema:
+            $ref: '#/definitions/dto.ItemError'
+        "401":
+          description: Нет или истекла cookie access_token
+          schema:
+            $ref: '#/definitions/dto.ItemError'
+        "403":
+          description: Объявление принадлежит другому пользователю
+          schema:
+            $ref: '#/definitions/dto.ItemError'
+        "404":
+          description: Объявление не найдено
+          schema:
+            $ref: '#/definitions/dto.ItemError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.ItemError'
+      summary: Изменить своё объявление
+      tags:
+      - items
   /users:
     post:
       consumes:

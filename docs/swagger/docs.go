@@ -113,6 +113,35 @@ const docTemplate = `{
                 }
             }
         },
+        "/categories": {
+            "get": {
+                "description": "Справочник для полей ` + "`" + `category` + "`" + ` и ` + "`" + `wants` + "`" + `. Слаг — стабильный ключ, название меняется, слаг нет.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "items"
+                ],
+                "summary": "Список категорий",
+                "responses": {
+                    "200": {
+                        "description": "Категории",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.CategoryResponse"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    }
+                }
+            }
+        },
         "/health": {
             "get": {
                 "description": "Отвечает 200, если процесс поднят. Состояние БД не проверяет.",
@@ -131,6 +160,237 @@ const docTemplate = `{
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    }
+                }
+            }
+        },
+        "/items": {
+            "post": {
+                "description": "Требует cookie ` + "`" + `access_token` + "`" + `. Владелец берётся из токена, а не из тела запроса.\nНужна хотя бы одна фотография (ссылкой) и хотя бы одна желаемая категория —\nбез них объявление не участвует в подборе обменов. Список категорий: GET /categories.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "items"
+                ],
+                "summary": "Создать объявление",
+                "parameters": [
+                    {
+                        "description": "Данные объявления",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateItemRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Создано, ссылка на объявление в заголовке Location",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректное тело запроса, нет фото или желаний, неизвестная категория",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "401": {
+                        "description": "Нет или истекла cookie access_token",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    }
+                }
+            }
+        },
+        "/items/{id}": {
+            "get": {
+                "description": "Публичная карточка вещи: фотографии, желаемые категории и статус. Аутентификация не нужна.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "items"
+                ],
+                "summary": "Получить объявление по ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "8db9f3e2-8a45-4a70-b3d1-167b4f97e121",
+                        "description": "UUID объявления",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Объявление",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "ID не является UUID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "404": {
+                        "description": "Объявление не найдено",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Требует cookie ` + "`" + `access_token` + "`" + `, удалять можно только свои объявления. Вещь, уже занятую\nв цепочке обмена, удалить нельзя: иначе участник остался бы без обещанного предмета.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "items"
+                ],
+                "summary": "Удалить своё объявление",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "8db9f3e2-8a45-4a70-b3d1-167b4f97e121",
+                        "description": "UUID объявления",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Удалено"
+                    },
+                    "400": {
+                        "description": "ID не является UUID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "401": {
+                        "description": "Нет или истекла cookie access_token",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "403": {
+                        "description": "Объявление принадлежит другому пользователю",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "404": {
+                        "description": "Объявление не найдено",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "409": {
+                        "description": "Вещь участвует в цепочке обмена",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "description": "Требует cookie ` + "`" + `access_token` + "`" + `, менять можно только свои объявления. Достаточно одного поля.\n` + "`" + `photo_urls` + "`" + ` и ` + "`" + `wants` + "`" + ` заменяются целиком: чтобы добавить фотографию, пришлите старые\nссылки вместе с новой. Пустой список запрещён — у объявления всегда есть хотя бы одно фото.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "items"
+                ],
+                "summary": "Изменить своё объявление",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "8db9f3e2-8a45-4a70-b3d1-167b4f97e121",
+                        "description": "UUID объявления",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Поля, которые нужно изменить",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UpdateItemRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Обновлённое объявление",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректное тело, пустой список фото или желаний, неизвестная категория",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "401": {
+                        "description": "Нет или истекла cookie access_token",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "403": {
+                        "description": "Объявление принадлежит другому пользователю",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "404": {
+                        "description": "Объявление не найдено",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
                         }
                     }
                 }
@@ -314,6 +574,56 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "dto.CategoryResponse": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "example": "Велосипеды и транспорт"
+                },
+                "slug": {
+                    "type": "string",
+                    "example": "bikes"
+                }
+            }
+        },
+        "dto.CreateItemRequest": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string",
+                    "example": "bikes"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Почти новый, катался год"
+                },
+                "photo_urls": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "https://example.com/bike-1.jpg",
+                        "https://example.com/bike-2.jpg"
+                    ]
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Велосипед"
+                },
+                "wants": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "consoles",
+                        "phones"
+                    ]
+                }
+            }
+        },
         "dto.CreateUserRequest": {
             "type": "object",
             "properties": {
@@ -339,6 +649,55 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.ItemError": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ItemResponse": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "owner_id": {
+                    "type": "string"
+                },
+                "photo_urls": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "wants": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "dto.LoginRequest": {
             "type": "object",
             "properties": {
@@ -347,6 +706,42 @@ const docTemplate = `{
                 },
                 "password": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.UpdateItemRequest": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string",
+                    "example": "bikes"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Добавил фото рамы"
+                },
+                "photo_urls": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "https://example.com/bike-1.jpg",
+                        "https://example.com/bike-3.jpg"
+                    ]
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Велосипед городской"
+                },
+                "wants": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "consoles"
+                    ]
                 }
             }
         },
@@ -406,7 +801,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "Цепочка обмена — API",
-	Description:      "HTTP API сервиса многостороннего обмена вещами: профили пользователей и вход по JWT.\n\nЗащищённые маршруты читают HttpOnly cookie `access_token`. Кнопки «Authorize» здесь нет\nи не нужно: выполните `POST /auth/login` прямо из этой страницы — браузер сохранит cookie\nи будет отправлять её со всеми следующими запросами сам.",
+	Description:      "HTTP API сервиса многостороннего обмена вещами: профили пользователей, вход по JWT\nи объявления о вещах, которые владелец готов обменять.\n\nЗащищённые маршруты читают HttpOnly cookie `access_token`. Кнопки «Authorize» здесь нет\nи не нужно: выполните `POST /auth/login` прямо из этой страницы — браузер сохранит cookie\nи будет отправлять её со всеми следующими запросами сам.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",
