@@ -1,0 +1,272 @@
+basePath: /
+definitions:
+  dto.CreateUserRequest:
+    properties:
+      description:
+        type: string
+      nickname:
+        type: string
+      password:
+        type: string
+      photo_url:
+        type: string
+    type: object
+  dto.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  dto.LoginRequest:
+    properties:
+      nickname:
+        type: string
+      password:
+        type: string
+    type: object
+  dto.UpdateUserRequest:
+    properties:
+      description:
+        type: string
+      nickname:
+        type: string
+      photo_url:
+        type: string
+    type: object
+  dto.UserResponse:
+    properties:
+      created_at:
+        type: string
+      deals_broken:
+        type: integer
+      deals_completed:
+        type: integer
+      description:
+        type: string
+      id:
+        type: string
+      nickname:
+        type: string
+      photo_url:
+        type: string
+      rating:
+        type: number
+      updated_at:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: |-
+    HTTP API сервиса многостороннего обмена вещами: профили пользователей и вход по JWT.
+
+    Защищённые маршруты читают HttpOnly cookie `access_token`. Кнопки «Authorize» здесь нет
+    и не нужно: выполните `POST /auth/login` прямо из этой страницы — браузер сохранит cookie
+    и будет отправлять её со всеми следующими запросами сам.
+  title: Цепочка обмена — API
+  version: 0.1.0
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Проверяет nickname и password, кладёт JWT на 12 часов в HttpOnly
+        cookie `access_token`. Из Swagger UI cookie сохранится в браузере, дальше
+        защищённые запросы уйдут с ней автоматически.
+      parameters:
+      - description: Учётные данные
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Вошедший пользователь, cookie в заголовке Set-Cookie
+          schema:
+            $ref: '#/definitions/dto.UserResponse'
+        "400":
+          description: Некорректное тело запроса
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Неверный nickname или пароль
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Вход
+      tags:
+      - auth
+  /auth/logout:
+    post:
+      description: Удаляет cookie `access_token`. Сам JWT остаётся валидным до истечения
+        срока — серверного списка отзыва нет.
+      responses:
+        "204":
+          description: Cookie удалена
+      summary: Выход
+      tags:
+      - auth
+  /auth/me:
+    get:
+      description: Возвращает профиль владельца cookie `access_token`. Удобно для
+        проверки, что вход прошёл.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Профиль текущего пользователя
+          schema:
+            $ref: '#/definitions/dto.UserResponse'
+        "401":
+          description: Нет или истекла cookie access_token
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Текущий пользователь
+      tags:
+      - auth
+  /health:
+    get:
+      description: Отвечает 200, если процесс поднят. Состояние БД не проверяет.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: сервис работает
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Проверка живости сервиса
+      tags:
+      - system
+  /users:
+    post:
+      consumes:
+      - application/json
+      description: 'Регистрация: nickname 3–32 символа, пароль 8–72 байта. Пароль
+        хранится bcrypt-хешем и в ответе не возвращается.'
+      parameters:
+      - description: Данные нового пользователя
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Создан, ссылка на профиль в заголовке Location
+          schema:
+            $ref: '#/definitions/dto.UserResponse'
+        "400":
+          description: Некорректное тело запроса или нарушены ограничения полей
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "409":
+          description: Nickname уже занят
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Создать пользователя
+      tags:
+      - users
+  /users/{id}:
+    get:
+      description: 'Публичный профиль: рейтинг и счётчики сделок. Аутентификация не
+        нужна.'
+      parameters:
+      - description: UUID пользователя
+        example: 8db9f3e2-8a45-4a70-b3d1-167b4f97e121
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Профиль пользователя
+          schema:
+            $ref: '#/definitions/dto.UserResponse'
+        "400":
+          description: ID не является UUID
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Пользователь не найден
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Получить пользователя по ID
+      tags:
+      - users
+    patch:
+      consumes:
+      - application/json
+      description: Требует cookie `access_token` (получить через POST /auth/login).
+        Менять можно только собственный профиль. Достаточно одного поля, остальные
+        останутся прежними.
+      parameters:
+      - description: UUID пользователя
+        example: 8db9f3e2-8a45-4a70-b3d1-167b4f97e121
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Поля, которые нужно изменить
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Обновлённый профиль
+          schema:
+            $ref: '#/definitions/dto.UserResponse'
+        "400":
+          description: Некорректное тело запроса, не передано ни одного поля или ID
+            не UUID
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Нет или истекла cookie access_token
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Попытка изменить чужой профиль
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Пользователь не найден
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "409":
+          description: Nickname уже занят
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Обновить свой профиль
+      tags:
+      - users
+swagger: "2.0"

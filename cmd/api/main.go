@@ -8,7 +8,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 
+	// Регистрирует сгенерированную спеку, которую отдаёт /swagger. Обновляется через make swagger.
+	_ "github.com/sweetlife999/chain-of-trades-avito/docs/swagger"
 	authhandler "github.com/sweetlife999/chain-of-trades-avito/internal/auth/handler"
 	authmiddleware "github.com/sweetlife999/chain-of-trades-avito/internal/auth/middleware"
 	authservice "github.com/sweetlife999/chain-of-trades-avito/internal/auth/service"
@@ -23,6 +26,14 @@ import (
 
 const authTokenTTL = 12 * time.Hour
 
+// @title       Цепочка обмена — API
+// @version     0.1.0
+// @description HTTP API сервиса многостороннего обмена вещами: профили пользователей и вход по JWT.
+// @description
+// @description Защищённые маршруты читают HttpOnly cookie `access_token`. Кнопки «Authorize» здесь нет
+// @description и не нужно: выполните `POST /auth/login` прямо из этой страницы — браузер сохранит cookie
+// @description и будет отправлять её со всеми следующими запросами сам.
+// @BasePath    /
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
@@ -53,11 +64,11 @@ func main() {
 	authhandler.New(auth, cfg.CookieSecure, authTokenTTL).
 		RegisterRoutes(router, authenticator.RequireAuthentication)
 
-	router.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"status":"ok"}`))
-	})
+	router.Get("/health", health)
+
+	// chi не матчит "/swagger" шаблоном "/swagger/*", поэтому путь без слеша уводим на index.
+	router.Get("/swagger", http.RedirectHandler("/swagger/index.html", http.StatusMovedPermanently).ServeHTTP)
+	router.Get("/swagger/*", httpSwagger.WrapHandler)
 
 	server := &http.Server{
 		Addr:              cfg.HTTPAddress,
@@ -70,4 +81,16 @@ func main() {
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
 	}
+}
+
+// @Summary     Проверка живости сервиса
+// @Description Отвечает 200, если процесс поднят. Состояние БД не проверяет.
+// @Tags        system
+// @Produce     json
+// @Success     200 {object} map[string]string "сервис работает"
+// @Router      /health [get]
+func health(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(`{"status":"ok"}`))
 }

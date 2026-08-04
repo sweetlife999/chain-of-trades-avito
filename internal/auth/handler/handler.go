@@ -49,6 +49,17 @@ func (h *Handler) RegisterRoutes(router chi.Router, requireAuth func(http.Handle
 	})
 }
 
+// @Summary     Вход
+// @Description Проверяет nickname и password, кладёт JWT на 12 часов в HttpOnly cookie `access_token`. Из Swagger UI cookie сохранится в браузере, дальше защищённые запросы уйдут с ней автоматически.
+// @Tags        auth
+// @Accept      json
+// @Produce     json
+// @Param       request body     authdto.LoginRequest  true "Учётные данные"
+// @Success     200     {object} userdto.UserResponse  "Вошедший пользователь, cookie в заголовке Set-Cookie"
+// @Failure     400     {object} userdto.ErrorResponse "Некорректное тело запроса"
+// @Failure     401     {object} userdto.ErrorResponse "Неверный nickname или пароль"
+// @Failure     500     {object} userdto.ErrorResponse "Внутренняя ошибка"
+// @Router      /auth/login [post]
 func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 	var request authdto.LoginRequest
 	if err := decodeJSON(w, r, &request); err != nil {
@@ -69,11 +80,24 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, userdto.FromModel(result.User))
 }
 
+// @Summary     Выход
+// @Description Удаляет cookie `access_token`. Сам JWT остаётся валидным до истечения срока — серверного списка отзыва нет.
+// @Tags        auth
+// @Success     204 "Cookie удалена"
+// @Router      /auth/logout [post]
 func (h *Handler) logout(w http.ResponseWriter, _ *http.Request) {
 	h.clearAccessCookie(w)
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// @Summary     Текущий пользователь
+// @Description Возвращает профиль владельца cookie `access_token`. Удобно для проверки, что вход прошёл.
+// @Tags        auth
+// @Produce     json
+// @Success     200 {object} userdto.UserResponse  "Профиль текущего пользователя"
+// @Failure     401 {object} userdto.ErrorResponse "Нет или истекла cookie access_token"
+// @Failure     500 {object} userdto.ErrorResponse "Внутренняя ошибка"
+// @Router      /auth/me [get]
 func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
 	userID, ok := authcontext.UserID(r.Context())
 	if !ok {
@@ -145,7 +169,7 @@ func handleServiceError(w http.ResponseWriter, err error) {
 }
 
 func writeError(w http.ResponseWriter, status int, message string) {
-	writeJSON(w, status, authdto.ErrorResponse{Error: message})
+	writeJSON(w, status, userdto.ErrorResponse{Error: message})
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {

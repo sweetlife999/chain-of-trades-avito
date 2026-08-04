@@ -7,28 +7,34 @@ MVP сервиса многостороннего обмена: пользова
 В backend уже есть схема БД, CRU пользователей, вход по JWT и защита обновления профиля.
 Остальные части API и frontend добавляются отдельными задачами.
 
-## Запуск БД
+## Запуск
 
 ```bash
 cp .env.example .env
 make up      # поднимает PostgreSQL и накатывает миграции
 make smoke   # проверяет схему на живой БД
+make run     # HTTP API на порту из HTTP_ADDR (по умолчанию :8080)
 ```
 
 Нужны Docker с плагином compose и Go 1.25.7+ из-за goose
 
+Маршруты можно потрогать через Swagger: <http://localhost:8080/swagger/> — см. `docs/swagger.md`
+
 ## Что где
 
-| Путь | Что там |
-|---|---|
-| `migrations/` | SQL-миграции goose, вшиты в binary через `embed.FS` |
-| `queries/` | SQL-запросы, из которых sqlc генерирует Go-код |
-| `internal/db/` | Сгенерированный sqlc код — РУКАМИ НЕ ПРАВИТЬ! Только `make sqlc` |
-| `cmd/migrate/` | Накат миграций (`up`, `down`, `status`, `reset`) |
-| `cmd/api/` | Точка запуска HTTP API |
-| `db/smoke.sql` | Проверка констрейнтов и триггеров на живой БД |
-| `docs/db.md` | Схема, обоснование выбора PostgreSQL и типов данных |
-| `docs/users.md` | CRU пользователей, маршруты и коды ответа |
-| `docs/auth.md` | Вход, JWT, cookie и защищённые маршруты |
-| `internal/user/` | Handler, service, repository, DTO и model пользователей |
-| `internal/auth/` | Вход, JWT и middleware аутентификации |
+| Путь              | Что там                                                          |
+|-------------------|------------------------------------------------------------------|
+| `migrations/`     | SQL-миграции goose, вшиты в binary через `embed.FS`              |
+| `queries/`        | SQL-запросы, из которых sqlc генерирует Go-код                   |
+| `internal/db/`    | Сгенерированный sqlc код — РУКАМИ НЕ ПРАВИТЬ! Только `make sqlc` |
+| `cmd/migrate/`    | Накат миграций (`up`, `down`, `status`, `reset`)                 |
+| `cmd/api/`        | Точка запуска HTTP API                                           |
+| `db/smoke.sql`    | Проверка констрейнтов и триггеров на живой БД                    |
+| `frontend/`       | Вся папка с фронтэндом                                           |
+| `docs/db.md`      | Схема, обоснование выбора PostgreSQL и типов данных              |
+| `docs/users.md`   | CRU пользователей, маршруты и коды ответа                        |
+| `docs/auth.md`    | Вход, JWT, cookie и защищённые маршруты                          |
+| `docs/swagger.md` | Интерактивная документация: как открыть и как перегенерировать   |
+| `docs/swagger/`   | Сгенерированная спека — РУКАМИ НЕ ПРАВИТЬ! Только `make swagger` |
+| `internal/user/`  | Handler, service, repository, DTO и model пользователей          |
+| `internal/auth/`  | Вход, JWT и middleware аутентификации                            |
