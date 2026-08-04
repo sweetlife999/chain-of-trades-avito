@@ -1,6 +1,6 @@
 # Swagger: интерактивная документация API
 
-`docs/users.md` и `docs/auth.md` описывают маршруты словами — их удобно читать, но нельзя
+`docs/users.md`, `docs/items.md` и `docs/auth.md` описывают маршруты словами — их удобно читать, но нельзя
 нажать. Swagger добавляет вторую форму той же документации: страницу, где видно каждый
 маршрут, его параметры, коды ответов и схемы данных, и где любой запрос можно выполнить
 прямо из браузера.
@@ -27,6 +27,7 @@ make run   # HTTP API
 | Раздел (tag) | Маршруты |
 |---|---|
 | `users` | `POST /users`, `GET /users/{id}`, `PATCH /users/{id}` |
+| `items` | `POST /items`, `GET /items/{id}`, `PATCH /items/{id}`, `DELETE /items/{id}`, `GET /categories` |
 | `auth` | `POST /auth/login`, `POST /auth/logout`, `GET /auth/me` |
 | `system` | `GET /health` |
 
