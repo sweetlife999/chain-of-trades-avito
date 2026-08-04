@@ -1,7 +1,10 @@
 -include .env
 export
 
-.PHONY: up down reset migrate-up migrate-down migrate-status sqlc smoke
+.PHONY: run up down reset migrate-up migrate-down migrate-status sqlc smoke
+
+run:
+	go run ./cmd/api
 
 # Поднять БД и накатить миграции (сервис migrate отработает и выйдет)
 up:
