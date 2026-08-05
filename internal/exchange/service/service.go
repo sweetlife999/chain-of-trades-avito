@@ -8,15 +8,22 @@ import (
 	"github.com/google/uuid"
 
 	exchangemodel "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/model"
+	exchangerepository "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/repository"
 )
 
 const maxParticipants = 5
 
-var ErrInvalidCycle = errors.New("invalid exchange cycle")
+var (
+	ErrInvalidCycle = errors.New("invalid exchange cycle")
+	ErrForbidden    = errors.New("exchange belongs to other users")
+	ErrNotFound     = exchangerepository.ErrNotFound
+)
 
 type Repository interface {
 	FindNeighbors(context.Context, uuid.UUID) ([]exchangemodel.Node, error)
 	SaveExchange(context.Context, exchangemodel.Exchange) (uuid.UUID, error)
+	ListByUser(context.Context, uuid.UUID) ([]exchangemodel.Details, error)
+	GetByID(context.Context, uuid.UUID) (exchangemodel.Details, error)
 }
 
 type Service struct {
@@ -158,6 +165,38 @@ func (s *Service) FindAndSave(
 		ExchangeID: exchangeID,
 		Found:      true,
 	}, nil
+}
+
+func (s *Service) ListForUser(ctx context.Context, userID uuid.UUID) ([]exchangemodel.Details, error) {
+	exchanges, err := s.repository.ListByUser(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list exchanges for user: %w", err)
+	}
+
+	if exchanges == nil {
+		return []exchangemodel.Details{}, nil
+	}
+
+	return exchanges, nil
+}
+
+func (s *Service) GetForUser(
+	ctx context.Context,
+	exchangeID uuid.UUID,
+	userID uuid.UUID,
+) (exchangemodel.Details, error) {
+	exchange, err := s.repository.GetByID(ctx, exchangeID)
+	if err != nil {
+		return exchangemodel.Details{}, fmt.Errorf("get exchange for user: %w", err)
+	}
+
+	for _, participant := range exchange.Participants {
+		if participant.User.ID == userID {
+			return exchange, nil
+		}
+	}
+
+	return exchangemodel.Details{}, ErrForbidden
 }
 
 func validateCycle(cycle []exchangemodel.Node) error {

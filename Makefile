@@ -1,7 +1,7 @@
 -include .env
 export
 
-.PHONY: run up down reset migrate-up migrate-down migrate-status sqlc smoke
+.PHONY: run up down reset migrate-up migrate-down migrate-status sqlc smoke test-exchange-integration
 
 run:
 	go run ./cmd/api
@@ -33,3 +33,7 @@ sqlc:
 # Проверка схемы: констрейнты, индексы и триггер на живой БД. Ничего не оставляет после себя.
 smoke:
 	docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U $(POSTGRES_USER) -d $(POSTGRES_DB) < db/smoke.sql
+
+# Живой сценарий: три пользователя и три объявления -> поиск -> сохранение -> HTTP API.
+test-exchange-integration:
+	go test -tags=integration ./internal/exchange/handler -run TestThreeUserExchangeIntegration -count=1

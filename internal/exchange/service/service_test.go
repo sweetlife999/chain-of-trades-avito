@@ -376,14 +376,121 @@ func TestFindAndSaveSaveError(t *testing.T) {
 	}
 }
 
+func TestListForUser(t *testing.T) {
+	t.Parallel()
+
+	userID := uuid.New()
+	want := []exchangemodel.Details{{ID: uuid.New(), Status: "proposed"}}
+	repository := &fakeRepository{listedExchanges: want}
+
+	actual, err := New(repository).ListForUser(context.Background(), userID)
+	if err != nil {
+		t.Fatalf("ListForUser() error = %v", err)
+	}
+
+	if repository.listedUserID != userID {
+		t.Fatalf("ListByUser() user ID = %s, want %s", repository.listedUserID, userID)
+	}
+
+	if !reflect.DeepEqual(actual, want) {
+		t.Fatalf("ListForUser() = %+v, want %+v", actual, want)
+	}
+}
+
+func TestListForUserReturnsEmptySlice(t *testing.T) {
+	t.Parallel()
+
+	exchanges, err := New(&fakeRepository{}).ListForUser(context.Background(), uuid.New())
+	if err != nil {
+		t.Fatalf("ListForUser() error = %v", err)
+	}
+
+	if exchanges == nil {
+		t.Fatal("ListForUser() returned nil, want []")
+	}
+}
+
+func TestListForUserRepositoryError(t *testing.T) {
+	t.Parallel()
+
+	databaseError := errors.New("database unavailable")
+	repository := &fakeRepository{listErr: databaseError}
+
+	_, err := New(repository).ListForUser(context.Background(), uuid.New())
+	if !errors.Is(err, databaseError) {
+		t.Fatalf("ListForUser() error = %v, want wrapped %v", err, databaseError)
+	}
+}
+
+func TestGetForUserAllowsParticipant(t *testing.T) {
+	t.Parallel()
+
+	userID := uuid.New()
+	exchangeID := uuid.New()
+	want := exchangemodel.Details{
+		ID: exchangeID,
+		Participants: []exchangemodel.DetailsParticipant{{
+			User: exchangemodel.ParticipantUser{ID: userID},
+		}},
+	}
+	repository := &fakeRepository{exchangeDetails: want}
+
+	actual, err := New(repository).GetForUser(context.Background(), exchangeID, userID)
+	if err != nil {
+		t.Fatalf("GetForUser() error = %v", err)
+	}
+
+	if repository.requestedExchangeID != exchangeID {
+		t.Fatalf("GetByID() exchange ID = %s, want %s", repository.requestedExchangeID, exchangeID)
+	}
+
+	if !reflect.DeepEqual(actual, want) {
+		t.Fatalf("GetForUser() = %+v, want %+v", actual, want)
+	}
+}
+
+func TestGetForUserRejectsNonParticipant(t *testing.T) {
+	t.Parallel()
+
+	repository := &fakeRepository{exchangeDetails: exchangemodel.Details{
+		ID: uuid.New(),
+		Participants: []exchangemodel.DetailsParticipant{{
+			User: exchangemodel.ParticipantUser{ID: uuid.New()},
+		}},
+	}}
+
+	_, err := New(repository).GetForUser(context.Background(), repository.exchangeDetails.ID, uuid.New())
+	if !errors.Is(err, ErrForbidden) {
+		t.Fatalf("GetForUser() error = %v, want %v", err, ErrForbidden)
+	}
+}
+
+func TestGetForUserRepositoryError(t *testing.T) {
+	t.Parallel()
+
+	databaseError := errors.New("database unavailable")
+	repository := &fakeRepository{getErr: databaseError}
+
+	_, err := New(repository).GetForUser(context.Background(), uuid.New(), uuid.New())
+	if !errors.Is(err, databaseError) {
+		t.Fatalf("GetForUser() error = %v, want wrapped %v", err, databaseError)
+	}
+}
+
 type fakeRepository struct {
-	neighbors       map[uuid.UUID][]exchangemodel.Node
-	errors          map[uuid.UUID]error
-	calls           int
-	savedExchange   exchangemodel.Exchange
-	savedExchangeID uuid.UUID
-	saveErr         error
-	saveCalls       int
+	neighbors           map[uuid.UUID][]exchangemodel.Node
+	errors              map[uuid.UUID]error
+	calls               int
+	savedExchange       exchangemodel.Exchange
+	savedExchangeID     uuid.UUID
+	saveErr             error
+	saveCalls           int
+	listedExchanges     []exchangemodel.Details
+	listedUserID        uuid.UUID
+	listErr             error
+	exchangeDetails     exchangemodel.Details
+	requestedExchangeID uuid.UUID
+	getErr              error
 }
 
 func (f *fakeRepository) FindNeighbors(
@@ -406,6 +513,22 @@ func (f *fakeRepository) SaveExchange(
 	f.saveCalls++
 	f.savedExchange = exchange
 	return f.savedExchangeID, f.saveErr
+}
+
+func (f *fakeRepository) ListByUser(
+	_ context.Context,
+	userID uuid.UUID,
+) ([]exchangemodel.Details, error) {
+	f.listedUserID = userID
+	return f.listedExchanges, f.listErr
+}
+
+func (f *fakeRepository) GetByID(
+	_ context.Context,
+	exchangeID uuid.UUID,
+) (exchangemodel.Details, error) {
+	f.requestedExchangeID = exchangeID
+	return f.exchangeDetails, f.getErr
 }
 
 func cycleGraph(nodes []exchangemodel.Node) map[uuid.UUID][]exchangemodel.Node {

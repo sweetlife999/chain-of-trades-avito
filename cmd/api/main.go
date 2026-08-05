@@ -16,6 +16,9 @@ import (
 	"github.com/sweetlife999/chain-of-trades-avito/internal/config"
 	"github.com/sweetlife999/chain-of-trades-avito/internal/database"
 	db "github.com/sweetlife999/chain-of-trades-avito/internal/db"
+	exchangehandler "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/handler"
+	exchangerepository "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/repository"
+	exchangeservice "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/service"
 	userhandler "github.com/sweetlife999/chain-of-trades-avito/internal/user/handler"
 	userrepository "github.com/sweetlife999/chain-of-trades-avito/internal/user/repository"
 	userservice "github.com/sweetlife999/chain-of-trades-avito/internal/user/service"
@@ -48,10 +51,13 @@ func main() {
 	tokens := authtoken.NewManager(cfg.JWTSecret, authTokenTTL)
 	authenticator := authmiddleware.New(tokens)
 	auth := authservice.New(usersRepository, tokens)
+	exchangesRepository := exchangerepository.New(pool)
+	exchanges := exchangeservice.New(exchangesRepository)
 
 	userhandler.New(users).RegisterRoutes(router, authenticator.RequireAuthentication)
 	authhandler.New(auth, cfg.CookieSecure, authTokenTTL).
 		RegisterRoutes(router, authenticator.RequireAuthentication)
+	exchangehandler.New(exchanges).RegisterRoutes(router, authenticator.RequireAuthentication)
 
 	router.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

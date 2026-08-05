@@ -18,11 +18,17 @@ type neighborQueries interface {
 
 type Repository struct {
 	queries      neighborQueries
+	reads        exchangeReadQueries
 	transactions transactionManager
 }
 
 func New(pool *pgxpool.Pool) *Repository {
-	return newRepository(db.New(pool), &pgxTransactionManager{pool: pool})
+	queries := db.New(pool)
+	return &Repository{
+		queries:      queries,
+		reads:        queries,
+		transactions: &pgxTransactionManager{pool: pool},
+	}
 }
 
 func newRepository(queries neighborQueries, transactions transactionManager) *Repository {
@@ -30,6 +36,10 @@ func newRepository(queries neighborQueries, transactions transactionManager) *Re
 		queries:      queries,
 		transactions: transactions,
 	}
+}
+
+func newRepositoryWithReads(reads exchangeReadQueries) *Repository {
+	return &Repository{reads: reads}
 }
 
 func (r *Repository) FindNeighbors(ctx context.Context, itemID uuid.UUID) ([]exchangemodel.Node, error) {
