@@ -23,6 +23,11 @@ type Service struct {
 	repository Repository
 }
 
+type SearchResult struct {
+	ExchangeID uuid.UUID
+	Found      bool
+}
+
 func New(repository Repository) *Service {
 	return &Service{repository: repository}
 }
@@ -127,6 +132,32 @@ func (s *Service) SaveCycle(ctx context.Context, cycle []exchangemodel.Node) (uu
 	}
 
 	return id, nil
+}
+
+// FindAndSave запускает полный сценарий: ищет обмен от нового объявления и,
+// если находит, сохраняет его. Отсутствие обмена не считается ошибкой.
+func (s *Service) FindAndSave(
+	ctx context.Context,
+	start exchangemodel.Node,
+) (SearchResult, error) {
+	cycle, err := s.FindCycle(ctx, start)
+	if err != nil {
+		return SearchResult{}, fmt.Errorf("search exchange: %w", err)
+	}
+
+	if cycle == nil {
+		return SearchResult{}, nil
+	}
+
+	exchangeID, err := s.SaveCycle(ctx, cycle)
+	if err != nil {
+		return SearchResult{}, fmt.Errorf("persist found exchange: %w", err)
+	}
+
+	return SearchResult{
+		ExchangeID: exchangeID,
+		Found:      true,
+	}, nil
 }
 
 func validateCycle(cycle []exchangemodel.Node) error {

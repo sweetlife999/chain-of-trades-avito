@@ -291,6 +291,91 @@ func TestSaveCycleRepositoryError(t *testing.T) {
 	}
 }
 
+func TestFindAndSave(t *testing.T) {
+	t.Parallel()
+
+	nodes := makeNodes(3)
+	exchangeID := uuid.MustParse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+	repository := &fakeRepository{
+		neighbors:       cycleGraph(nodes),
+		savedExchangeID: exchangeID,
+	}
+
+	result, err := New(repository).FindAndSave(context.Background(), nodes[0])
+	if err != nil {
+		t.Fatalf("FindAndSave() error = %v", err)
+	}
+
+	if !result.Found {
+		t.Fatal("FindAndSave() Found = false, want true")
+	}
+
+	if result.ExchangeID != exchangeID {
+		t.Fatalf("FindAndSave() ID = %s, want %s", result.ExchangeID, exchangeID)
+	}
+
+	if repository.saveCalls != 1 {
+		t.Fatalf("SaveExchange() calls = %d, want 1", repository.saveCalls)
+	}
+}
+
+func TestFindAndSaveWithoutCycle(t *testing.T) {
+	t.Parallel()
+
+	start := testNode(1)
+	repository := &fakeRepository{neighbors: map[uuid.UUID][]exchangemodel.Node{
+		start.ItemID: {},
+	}}
+
+	result, err := New(repository).FindAndSave(context.Background(), start)
+	if err != nil {
+		t.Fatalf("FindAndSave() error = %v", err)
+	}
+
+	if result.Found || result.ExchangeID != uuid.Nil {
+		t.Fatalf("FindAndSave() = %+v, want empty result", result)
+	}
+
+	if repository.saveCalls != 0 {
+		t.Fatalf("SaveExchange() calls = %d, want 0", repository.saveCalls)
+	}
+}
+
+func TestFindAndSaveSearchError(t *testing.T) {
+	t.Parallel()
+
+	databaseError := errors.New("search failed")
+	start := testNode(1)
+	repository := &fakeRepository{errors: map[uuid.UUID]error{
+		start.ItemID: databaseError,
+	}}
+
+	_, err := New(repository).FindAndSave(context.Background(), start)
+	if !errors.Is(err, databaseError) {
+		t.Fatalf("FindAndSave() error = %v, want wrapped %v", err, databaseError)
+	}
+
+	if repository.saveCalls != 0 {
+		t.Fatalf("SaveExchange() calls = %d, want 0", repository.saveCalls)
+	}
+}
+
+func TestFindAndSaveSaveError(t *testing.T) {
+	t.Parallel()
+
+	databaseError := errors.New("save failed")
+	nodes := makeNodes(2)
+	repository := &fakeRepository{
+		neighbors: cycleGraph(nodes),
+		saveErr:   databaseError,
+	}
+
+	_, err := New(repository).FindAndSave(context.Background(), nodes[0])
+	if !errors.Is(err, databaseError) {
+		t.Fatalf("FindAndSave() error = %v, want wrapped %v", err, databaseError)
+	}
+}
+
 type fakeRepository struct {
 	neighbors       map[uuid.UUID][]exchangemodel.Node
 	errors          map[uuid.UUID]error
