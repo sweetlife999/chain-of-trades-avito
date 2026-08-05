@@ -17,7 +17,7 @@ make smoke   # проверяет схему на живой БД
 make run     # HTTP API на порту из HTTP_ADDR (по умолчанию :8080)
 ```
 
-Нужны Docker с плагином compose и Go 1.25.7+ из-за goose
+Нужны Docker с плагином compose и Go 1.26+ из-за goose и sqlc
 
 Маршруты можно потрогать через Swagger: <http://localhost:8080/swagger/> — см. `docs/swagger.md`
 
