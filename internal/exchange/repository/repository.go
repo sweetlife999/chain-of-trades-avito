@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	db "github.com/sweetlife999/chain-of-trades-avito/internal/db"
 	exchangemodel "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/model"
@@ -16,11 +17,19 @@ type neighborQueries interface {
 }
 
 type Repository struct {
-	queries neighborQueries
+	queries      neighborQueries
+	transactions transactionManager
 }
 
-func New(queries neighborQueries) *Repository {
-	return &Repository{queries: queries}
+func New(pool *pgxpool.Pool) *Repository {
+	return newRepository(db.New(pool), &pgxTransactionManager{pool: pool})
+}
+
+func newRepository(queries neighborQueries, transactions transactionManager) *Repository {
+	return &Repository{
+		queries:      queries,
+		transactions: transactions,
+	}
 }
 
 func (r *Repository) FindNeighbors(ctx context.Context, itemID uuid.UUID) ([]exchangemodel.Node, error) {
@@ -38,6 +47,42 @@ func (r *Repository) FindNeighbors(ctx context.Context, itemID uuid.UUID) ([]exc
 	}
 
 	return neighbors, nil
+}
+
+func (r *Repository) SaveExchange(
+	ctx context.Context,
+	exchange exchangemodel.Exchange,
+) (uuid.UUID, error) {
+	var exchangeID uuid.UUID
+
+	err := r.transactions.WithinTransaction(ctx, func(queries exchangeWriteQueries) error {
+		id, err := queries.CreateExchange(ctx)
+		if err != nil {
+			return fmt.Errorf("create exchange: %w", err)
+		}
+
+		exchangeID = uuid.UUID(id.Bytes)
+
+		for _, participant := range exchange.Participants {
+			err := queries.CreateExchangeParticipant(ctx, db.CreateExchangeParticipantParams{
+				ChainID:        id,
+				UserID:         pgUUID(participant.UserID),
+				GivesItemID:    pgUUID(participant.GivesItemID),
+				ReceivesItemID: pgUUID(participant.ReceivesItemID),
+				Position:       participant.Position,
+			})
+			if err != nil {
+				return fmt.Errorf("create exchange participant at position %d: %w", participant.Position, err)
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("save exchange: %w", err)
+	}
+
+	return exchangeID, nil
 }
 
 func pgUUID(id uuid.UUID) pgtype.UUID {

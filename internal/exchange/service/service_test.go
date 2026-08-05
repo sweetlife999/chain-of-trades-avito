@@ -194,10 +194,111 @@ func TestFindCycleCancelledContext(t *testing.T) {
 	}
 }
 
+func TestSaveCycleBuildsParticipants(t *testing.T) {
+	t.Parallel()
+
+	nodes := makeNodes(3)
+	exchangeID := uuid.MustParse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+	repository := &fakeRepository{savedExchangeID: exchangeID}
+
+	actualID, err := New(repository).SaveCycle(context.Background(), nodes)
+	if err != nil {
+		t.Fatalf("SaveCycle() error = %v", err)
+	}
+
+	if actualID != exchangeID {
+		t.Fatalf("SaveCycle() ID = %s, want %s", actualID, exchangeID)
+	}
+
+	want := exchangemodel.Exchange{Participants: []exchangemodel.Participant{
+		{
+			UserID:         nodes[0].OwnerID,
+			GivesItemID:    nodes[0].ItemID,
+			ReceivesItemID: nodes[1].ItemID,
+			Position:       0,
+		},
+		{
+			UserID:         nodes[1].OwnerID,
+			GivesItemID:    nodes[1].ItemID,
+			ReceivesItemID: nodes[2].ItemID,
+			Position:       1,
+		},
+		{
+			UserID:         nodes[2].OwnerID,
+			GivesItemID:    nodes[2].ItemID,
+			ReceivesItemID: nodes[0].ItemID,
+			Position:       2,
+		},
+	}}
+
+	if !reflect.DeepEqual(repository.savedExchange, want) {
+		t.Fatalf("saved exchange = %+v, want %+v", repository.savedExchange, want)
+	}
+}
+
+func TestSaveCycleRejectsInvalidCycle(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string][]exchangemodel.Node{
+		"empty":            nil,
+		"one participant":  makeNodes(1),
+		"six participants": makeNodes(6),
+		"empty item ID": {
+			{ItemID: uuid.Nil, OwnerID: uuid.New()},
+			{ItemID: uuid.New(), OwnerID: uuid.New()},
+		},
+		"empty owner ID": {
+			{ItemID: uuid.New(), OwnerID: uuid.Nil},
+			{ItemID: uuid.New(), OwnerID: uuid.New()},
+		},
+		"repeated item": {
+			{ItemID: testNode(1).ItemID, OwnerID: testNode(1).OwnerID},
+			{ItemID: testNode(1).ItemID, OwnerID: testNode(2).OwnerID},
+		},
+		"repeated owner": {
+			{ItemID: testNode(1).ItemID, OwnerID: testNode(1).OwnerID},
+			{ItemID: testNode(2).ItemID, OwnerID: testNode(1).OwnerID},
+		},
+	}
+
+	for name, cycle := range tests {
+		cycle := cycle
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			repository := &fakeRepository{}
+			_, err := New(repository).SaveCycle(context.Background(), cycle)
+			if !errors.Is(err, ErrInvalidCycle) {
+				t.Fatalf("SaveCycle() error = %v, want %v", err, ErrInvalidCycle)
+			}
+
+			if repository.saveCalls != 0 {
+				t.Fatalf("SaveExchange() calls = %d, want 0", repository.saveCalls)
+			}
+		})
+	}
+}
+
+func TestSaveCycleRepositoryError(t *testing.T) {
+	t.Parallel()
+
+	databaseError := errors.New("database unavailable")
+	repository := &fakeRepository{saveErr: databaseError}
+
+	_, err := New(repository).SaveCycle(context.Background(), makeNodes(2))
+	if !errors.Is(err, databaseError) {
+		t.Fatalf("SaveCycle() error = %v, want wrapped %v", err, databaseError)
+	}
+}
+
 type fakeRepository struct {
-	neighbors map[uuid.UUID][]exchangemodel.Node
-	errors    map[uuid.UUID]error
-	calls     int
+	neighbors       map[uuid.UUID][]exchangemodel.Node
+	errors          map[uuid.UUID]error
+	calls           int
+	savedExchange   exchangemodel.Exchange
+	savedExchangeID uuid.UUID
+	saveErr         error
+	saveCalls       int
 }
 
 func (f *fakeRepository) FindNeighbors(
@@ -211,6 +312,15 @@ func (f *fakeRepository) FindNeighbors(
 	}
 
 	return append([]exchangemodel.Node(nil), f.neighbors[itemID]...), nil
+}
+
+func (f *fakeRepository) SaveExchange(
+	_ context.Context,
+	exchange exchangemodel.Exchange,
+) (uuid.UUID, error) {
+	f.saveCalls++
+	f.savedExchange = exchange
+	return f.savedExchangeID, f.saveErr
 }
 
 func cycleGraph(nodes []exchangemodel.Node) map[uuid.UUID][]exchangemodel.Node {

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -11,8 +12,11 @@ import (
 
 const maxParticipants = 5
 
+var ErrInvalidCycle = errors.New("invalid exchange cycle")
+
 type Repository interface {
 	FindNeighbors(context.Context, uuid.UUID) ([]exchangemodel.Node, error)
+	SaveExchange(context.Context, exchangemodel.Exchange) (uuid.UUID, error)
 }
 
 type Service struct {
@@ -98,4 +102,56 @@ func (s *Service) FindCycle(ctx context.Context, start exchangemodel.Node) ([]ex
 	}
 
 	return cycle, nil
+}
+
+// SaveCycle переводит найденный путь в участников обмена и сохраняет их одной транзакцией.
+func (s *Service) SaveCycle(ctx context.Context, cycle []exchangemodel.Node) (uuid.UUID, error) {
+	if err := validateCycle(cycle); err != nil {
+		return uuid.Nil, err
+	}
+
+	participants := make([]exchangemodel.Participant, len(cycle))
+	for index, node := range cycle {
+		next := cycle[(index+1)%len(cycle)]
+		participants[index] = exchangemodel.Participant{
+			UserID:         node.OwnerID,
+			GivesItemID:    node.ItemID,
+			ReceivesItemID: next.ItemID,
+			Position:       int32(index),
+		}
+	}
+
+	id, err := s.repository.SaveExchange(ctx, exchangemodel.Exchange{Participants: participants})
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("save cycle: %w", err)
+	}
+
+	return id, nil
+}
+
+func validateCycle(cycle []exchangemodel.Node) error {
+	if len(cycle) < 2 || len(cycle) > maxParticipants {
+		return fmt.Errorf("%w: participant count must be between 2 and %d", ErrInvalidCycle, maxParticipants)
+	}
+
+	items := make(map[uuid.UUID]struct{}, len(cycle))
+	owners := make(map[uuid.UUID]struct{}, len(cycle))
+
+	for _, node := range cycle {
+		if node.ItemID == uuid.Nil || node.OwnerID == uuid.Nil {
+			return fmt.Errorf("%w: item and owner IDs must not be empty", ErrInvalidCycle)
+		}
+
+		if _, exists := items[node.ItemID]; exists {
+			return fmt.Errorf("%w: item %s is repeated", ErrInvalidCycle, node.ItemID)
+		}
+		items[node.ItemID] = struct{}{}
+
+		if _, exists := owners[node.OwnerID]; exists {
+			return fmt.Errorf("%w: owner %s is repeated", ErrInvalidCycle, node.OwnerID)
+		}
+		owners[node.OwnerID] = struct{}{}
+	}
+
+	return nil
 }
