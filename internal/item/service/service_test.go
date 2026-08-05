@@ -31,6 +31,11 @@ func (f *fakeRepository) GetByID(ctx context.Context, id uuid.UUID) (itemmodel.I
 	return f.get(ctx, id)
 }
 
+// Сервис только пробрасывает вызов, поэтому фейк ничего не хранит.
+func (f *fakeRepository) ListByOwner(context.Context, uuid.UUID) ([]itemmodel.Item, error) {
+	return nil, nil
+}
+
 func (f *fakeRepository) Update(ctx context.Context, id uuid.UUID, changes itemmodel.Changes) (itemmodel.Item, error) {
 	return f.update(ctx, id, changes)
 }

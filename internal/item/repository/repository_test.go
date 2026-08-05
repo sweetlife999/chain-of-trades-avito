@@ -129,6 +129,40 @@ func TestRepositoryAgainstDatabase(t *testing.T) {
 		t.Fatalf("транзакция не откатилась: wants = %v, want [tools]", current.Wants)
 	}
 
+	// Список владельца: чужие вещи в него не попадают, желания собираются так же,
+	// как в карточке.
+	var strangerID uuid.UUID
+	err = pool.QueryRow(ctx,
+		`INSERT INTO users (nickname, password_hash) VALUES ($1, 'hash') RETURNING id`,
+		"item-repo-stranger-"+uuid.NewString()[:8],
+	).Scan(&strangerID)
+	if err != nil {
+		t.Fatalf("create stranger: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(), `DELETE FROM users WHERE id = $1`, strangerID)
+	})
+	if _, err := repository.Create(ctx, itemmodel.NewItem{
+		OwnerID:   strangerID,
+		Category:  "phones",
+		Title:     "Чужой смартфон",
+		PhotoURLs: []string{"https://example.com/stranger.jpg"},
+		Wants:     []string{"bikes"},
+	}); err != nil {
+		t.Fatalf("Create() stranger item error = %v", err)
+	}
+
+	owned, err := repository.ListByOwner(ctx, ownerID)
+	if err != nil {
+		t.Fatalf("ListByOwner() error = %v", err)
+	}
+	if len(owned) != 1 || owned[0].ID != created.ID {
+		t.Fatalf("ListByOwner() = %+v, want одну вещь %v", owned, created.ID)
+	}
+	if len(owned[0].Wants) != 1 || owned[0].Wants[0] != "tools" {
+		t.Fatalf("ListByOwner() wants = %v, want [tools]", owned[0].Wants)
+	}
+
 	// Вещь, занятую в цепочке, удалить нельзя — из этой ошибки хэндлер делает 409.
 	partner, err := repository.Create(ctx, itemmodel.NewItem{
 		OwnerID:   ownerID,

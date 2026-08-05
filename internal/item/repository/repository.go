@@ -68,6 +68,22 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (itemmodel.Item,
 	return toModel(found), nil
 }
 
+// Строка списка и строка карточки — один набор колонок, поэтому конверсия типа вместо
+// второго маппера. Разойдутся колонки — сломается сборка, а не ответ.
+func (r *Repository) ListByOwner(ctx context.Context, ownerID uuid.UUID) ([]itemmodel.Item, error) {
+	rows, err := r.queries.ListItemsByOwner(ctx, pgUUID(ownerID))
+	if err != nil {
+		return nil, fmt.Errorf("list items by owner: %w", err)
+	}
+
+	items := make([]itemmodel.Item, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, toModel(db.GetItemByIDRow(row)))
+	}
+
+	return items, nil
+}
+
 func (r *Repository) HasOpenExchange(ctx context.Context, id uuid.UUID) (bool, error) {
 	hasOpenExchange, err := r.queries.ItemHasOpenExchange(ctx, pgUUID(id))
 	if err != nil {

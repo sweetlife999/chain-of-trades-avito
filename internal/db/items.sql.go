@@ -156,6 +156,71 @@ func (q *Queries) ItemHasOpenExchange(ctx context.Context, itemID pgtype.UUID) (
 	return exists, err
 }
 
+const listItemsByOwner = `-- name: ListItemsByOwner :many
+SELECT
+    i.id, i.owner_id, i.category_id, i.title, i.description, i.status, i.created_at, i.updated_at, i.photo_urls,
+    c.slug AS category,
+    COALESCE(
+        (SELECT array_agg(want_category.slug ORDER BY want_category.slug)
+         FROM item_wants w
+         JOIN categories want_category ON want_category.id = w.category_id
+         WHERE w.item_id = i.id),
+        '{}'
+    )::text[] AS wants
+FROM items i
+JOIN categories c ON c.id = i.category_id
+WHERE i.owner_id = $1
+ORDER BY i.created_at DESC, i.id
+`
+
+type ListItemsByOwnerRow struct {
+	ID          pgtype.UUID
+	OwnerID     pgtype.UUID
+	CategoryID  int16
+	Title       string
+	Description string
+	Status      ItemStatus
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+	PhotoUrls   []string
+	Category    string
+	Wants       []string
+}
+
+// Колонки те же и в том же порядке, что у GetItemByID: sqlc генерит идентичную
+// структуру, и репозиторию хватает одного маппера на оба запроса.
+func (q *Queries) ListItemsByOwner(ctx context.Context, ownerID pgtype.UUID) ([]ListItemsByOwnerRow, error) {
+	rows, err := q.db.Query(ctx, listItemsByOwner, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListItemsByOwnerRow
+	for rows.Next() {
+		var i ListItemsByOwnerRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.OwnerID,
+			&i.CategoryID,
+			&i.Title,
+			&i.Description,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.PhotoUrls,
+			&i.Category,
+			&i.Wants,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateItem = `-- name: UpdateItem :exec
 UPDATE items SET
     title       = COALESCE($1, title),

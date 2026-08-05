@@ -22,6 +22,7 @@ const maxRequestBodyBytes = 1 << 20
 type Service interface {
 	Create(context.Context, itemservice.CreateInput) (itemmodel.Item, error)
 	GetByID(context.Context, uuid.UUID) (itemmodel.Item, error)
+	ListByOwner(context.Context, uuid.UUID) ([]itemmodel.Item, error)
 	Update(context.Context, uuid.UUID, uuid.UUID, itemservice.UpdateInput) (itemmodel.Item, error)
 	Delete(context.Context, uuid.UUID, uuid.UUID) error
 	ListCategories(context.Context) ([]itemmodel.Category, error)
@@ -37,6 +38,7 @@ func New(service Service) *Handler {
 
 func (h *Handler) RegisterRoutes(router chi.Router, requireAuth func(http.Handler) http.Handler) {
 	router.With(requireAuth).Post("/items", h.create)
+	router.With(requireAuth).Get("/items", h.listMine)
 	router.Get("/items/{id}", h.getByID)
 	router.With(requireAuth).Patch("/items/{id}", h.update)
 	router.With(requireAuth).Delete("/items/{id}", h.delete)
@@ -83,6 +85,30 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Location", "/items/"+item.ID.String())
 	writeJSON(w, http.StatusCreated, itemdto.FromModel(item))
+}
+
+// @Summary     Получить свои объявления
+// @Description Требует cookie `access_token`. Возвращает все объявления текущего пользователя
+// @Description любого статуса, от новых к старым. Чужие объявления этим маршрутом не отдаются.
+// @Tags        items
+// @Produce     json
+// @Success     200 {array}  itemdto.ItemResponse "Список объявлений; если их нет, возвращается []"
+// @Failure     401 {object} itemdto.ItemError    "Нет или истекла cookie access_token"
+// @Failure     500 {object} itemdto.ItemError    "Внутренняя ошибка"
+// @Router      /items [get]
+func (h *Handler) listMine(w http.ResponseWriter, r *http.Request) {
+	ownerID, ok := currentUser(w, r)
+	if !ok {
+		return
+	}
+
+	items, err := h.service.ListByOwner(r.Context(), ownerID)
+	if err != nil {
+		handleServiceError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, itemdto.ItemsFromModel(items))
 }
 
 // @Summary     Получить объявление по ID

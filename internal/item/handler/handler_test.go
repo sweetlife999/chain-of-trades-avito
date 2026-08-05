@@ -19,6 +19,7 @@ import (
 type fakeService struct {
 	create     func(context.Context, itemservice.CreateInput) (itemmodel.Item, error)
 	get        func(context.Context, uuid.UUID) (itemmodel.Item, error)
+	list       func(context.Context, uuid.UUID) ([]itemmodel.Item, error)
 	update     func(context.Context, uuid.UUID, uuid.UUID, itemservice.UpdateInput) (itemmodel.Item, error)
 	remove     func(context.Context, uuid.UUID, uuid.UUID) error
 	categories func(context.Context) ([]itemmodel.Category, error)
@@ -30,6 +31,10 @@ func (f *fakeService) Create(ctx context.Context, input itemservice.CreateInput)
 
 func (f *fakeService) GetByID(ctx context.Context, id uuid.UUID) (itemmodel.Item, error) {
 	return f.get(ctx, id)
+}
+
+func (f *fakeService) ListByOwner(ctx context.Context, ownerID uuid.UUID) ([]itemmodel.Item, error) {
+	return f.list(ctx, ownerID)
 }
 
 func (f *fakeService) Update(
@@ -100,6 +105,43 @@ func TestGetReturns200(t *testing.T) {
 	response := performRequest(service, http.MethodGet, "/items/"+id.String(), "", passThroughAuth)
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d; body = %s", response.Code, http.StatusOK, response.Body.String())
+	}
+}
+
+func TestListMineReturns200WithOwnerFromToken(t *testing.T) {
+	t.Parallel()
+
+	userID := uuid.New()
+	service := &fakeService{
+		list: func(_ context.Context, ownerID uuid.UUID) ([]itemmodel.Item, error) {
+			if ownerID != userID {
+				t.Fatalf("ListByOwner() owner = %v, want %v", ownerID, userID)
+			}
+			return []itemmodel.Item{{ID: uuid.New(), OwnerID: ownerID, Title: "Велосипед"}}, nil
+		},
+	}
+
+	response := performRequest(service, http.MethodGet, "/items", "", authenticateAs(userID))
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body = %s", response.Code, http.StatusOK, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"title":"Велосипед"`) {
+		t.Fatalf("body = %s", response.Body.String())
+	}
+}
+
+func TestListMineReturnsEmptyArrayNotNull(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeService{
+		list: func(context.Context, uuid.UUID) ([]itemmodel.Item, error) {
+			return nil, nil
+		},
+	}
+
+	response := performRequest(service, http.MethodGet, "/items", "", authenticateAs(uuid.New()))
+	if body := strings.TrimSpace(response.Body.String()); body != "[]" {
+		t.Fatalf("body = %s, want []", body)
 	}
 }
 
@@ -177,31 +219,28 @@ func TestListCategoriesReturns200(t *testing.T) {
 	}
 }
 
-func TestWriteRoutesRequireAuthenticatedUser(t *testing.T) {
+func TestProtectedRoutesRequireAuthenticatedUser(t *testing.T) {
 	t.Parallel()
 
 	id := uuid.New()
 	tests := []struct {
 		method string
+		path   string
 		body   string
 	}{
-		{method: http.MethodPost, body: createBody},
-		{method: http.MethodPatch, body: `{"title":"Новый"}`},
-		{method: http.MethodDelete},
+		{method: http.MethodPost, path: "/items", body: createBody},
+		{method: http.MethodGet, path: "/items"},
+		{method: http.MethodPatch, path: "/items/" + id.String(), body: `{"title":"Новый"}`},
+		{method: http.MethodDelete, path: "/items/" + id.String()},
 	}
 
 	for _, test := range tests {
 		t.Run(test.method, func(t *testing.T) {
 			t.Parallel()
 
-			path := "/items/" + id.String()
-			if test.method == http.MethodPost {
-				path = "/items"
-			}
-
 			// Фейк без единой заданной функции: если хэндлер всё же дойдёт до сервиса,
 			// тест упадёт на nil-вызове.
-			response := performRequest(&fakeService{}, test.method, path, test.body, passThroughAuth)
+			response := performRequest(&fakeService{}, test.method, test.path, test.body, passThroughAuth)
 			if response.Code != http.StatusUnauthorized {
 				t.Fatalf("status = %d, want %d; body = %s", response.Code, http.StatusUnauthorized, response.Body.String())
 			}
