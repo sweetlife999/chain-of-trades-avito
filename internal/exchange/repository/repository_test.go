@@ -217,24 +217,29 @@ type fakeExchangeWriteQueries struct {
 	participantErr error
 	participants   []db.CreateExchangeParticipantParams
 
-	chainStatus        db.ChainStatus
-	lockExchangeErr    error
-	participantStatus  db.ParticipantStatus
-	lockParticipantErr error
-	accepted           bool
-	acceptErr          error
-	declined           bool
-	declineErr         error
-	pending            int64
-	pendingErr         error
-	items              []db.LockExchangeItemsRow
-	lockItemsErr       error
-	reserved           int64
-	reserveErr         error
-	confirmed          bool
-	confirmErr         error
-	cancelled          bool
-	cancelErr          error
+	chainStatus           db.ChainStatus
+	lockExchangeErr       error
+	participantStatus     db.ParticipantStatus
+	lockParticipantErr    error
+	decisionItemsLocked   bool
+	lockDecisionItemsErr  error
+	accepted              bool
+	acceptErr             error
+	declined              bool
+	declineErr            error
+	pending               int64
+	pendingErr            error
+	items                 []db.LockExchangeItemsRow
+	lockItemsErr          error
+	reserved              int64
+	reserveErr            error
+	confirmed             bool
+	confirmErr            error
+	cancelled             bool
+	cancelErr             error
+	competingCancelled    int64
+	cancelCompetingErr    error
+	cancelCompetingCalled bool
 }
 
 func (f *fakeExchangeWriteQueries) CreateExchange(context.Context) (pgtype.UUID, error) {
@@ -254,6 +259,14 @@ func (f *fakeExchangeWriteQueries) LockExchange(
 	pgtype.UUID,
 ) (db.ChainStatus, error) {
 	return f.chainStatus, f.lockExchangeErr
+}
+
+func (f *fakeExchangeWriteQueries) LockExchangeDecisionItems(
+	context.Context,
+	pgtype.UUID,
+) error {
+	f.decisionItemsLocked = true
+	return f.lockDecisionItemsErr
 }
 
 func (f *fakeExchangeWriteQueries) LockExchangeParticipant(
@@ -303,6 +316,14 @@ func (f *fakeExchangeWriteQueries) ReserveExchangeItems(
 func (f *fakeExchangeWriteQueries) ConfirmExchange(context.Context, pgtype.UUID) error {
 	f.confirmed = true
 	return f.confirmErr
+}
+
+func (f *fakeExchangeWriteQueries) CancelCompetingProposedExchanges(
+	context.Context,
+	pgtype.UUID,
+) (int64, error) {
+	f.cancelCompetingCalled = true
+	return f.competingCancelled, f.cancelCompetingErr
 }
 
 func (f *fakeExchangeWriteQueries) CancelExchange(context.Context, pgtype.UUID) error {

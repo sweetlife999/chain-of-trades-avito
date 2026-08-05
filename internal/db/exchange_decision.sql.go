@@ -29,6 +29,41 @@ func (q *Queries) AcceptExchangeParticipant(ctx context.Context, arg AcceptExcha
 	return err
 }
 
+const cancelCompetingProposedExchanges = `-- name: CancelCompetingProposedExchanges :execrows
+WITH current_items AS (
+    SELECT participant.gives_item_id AS item_id
+    FROM chain_participants AS participant
+    WHERE participant.chain_id = $1
+    UNION
+    SELECT participant.receives_item_id AS item_id
+    FROM chain_participants AS participant
+    WHERE participant.chain_id = $1
+)
+UPDATE chains AS competing_exchange
+SET status = 'cancelled',
+    closed_at = now()
+WHERE competing_exchange.id <> $1
+  AND competing_exchange.status = 'proposed'
+  AND EXISTS (
+      SELECT 1
+      FROM chain_participants AS competing_participant
+      JOIN current_items
+        ON current_items.item_id = competing_participant.gives_item_id
+        OR current_items.item_id = competing_participant.receives_item_id
+      WHERE competing_participant.chain_id = competing_exchange.id
+  )
+`
+
+// После победы одного обмена все ещё открытые предложения с любым общим
+// объявлением больше не выполнимы и сразу закрываются для frontend.
+func (q *Queries) CancelCompetingProposedExchanges(ctx context.Context, exchangeID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, cancelCompetingProposedExchanges, exchangeID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const cancelExchange = `-- name: CancelExchange :exec
 UPDATE chains
 SET status = 'cancelled',
@@ -98,6 +133,29 @@ func (q *Queries) LockExchange(ctx context.Context, exchangeID pgtype.UUID) (Cha
 	var status ChainStatus
 	err := row.Scan(&status)
 	return status, err
+}
+
+const lockExchangeDecisionItems = `-- name: LockExchangeDecisionItems :exec
+SELECT pg_advisory_xact_lock(hashtextextended(exchange_item.item_id::text, 0))
+FROM (
+    SELECT participant.gives_item_id AS item_id
+    FROM chain_participants AS participant
+    WHERE participant.chain_id = $1
+    UNION
+    SELECT participant.receives_item_id AS item_id
+    FROM chain_participants AS participant
+    WHERE participant.chain_id = $1
+) AS exchange_item
+ORDER BY exchange_item.item_id
+`
+
+// Все операции принятия решения сначала блокируют объявления обмена в одном и том
+// же порядке. Advisory-lock не меняет строку, но сериализует два обмена, которые
+// используют хотя бы одно общее объявление. Коллизия хэша безопасна: она только
+// заставит два независимых запроса ненадолго выполняться последовательно.
+func (q *Queries) LockExchangeDecisionItems(ctx context.Context, exchangeID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, lockExchangeDecisionItems, exchangeID)
+	return err
 }
 
 const lockExchangeItems = `-- name: LockExchangeItems :many

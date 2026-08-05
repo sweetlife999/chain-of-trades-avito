@@ -26,6 +26,9 @@ func TestConfirmParticipationWaitsForOtherParticipants(t *testing.T) {
 	if !queries.accepted {
 		t.Fatal("participant was not accepted")
 	}
+	if !queries.decisionItemsLocked {
+		t.Fatal("exchange items were not locked before the decision")
+	}
 	if queries.confirmed {
 		t.Fatal("exchange was confirmed before all participants accepted")
 	}
@@ -43,6 +46,7 @@ func TestConfirmParticipationReservesItemsAfterLastAcceptance(t *testing.T) {
 		{ID: pgUUID(uuid.New()), Status: db.ItemStatusAvailable},
 	}
 	queries.reserved = 2
+	queries.competingCancelled = 1
 	transactions := &fakeTransactionManager{queries: queries}
 	repository := newRepository(&fakeNeighborQueries{}, transactions)
 
@@ -52,6 +56,9 @@ func TestConfirmParticipationReservesItemsAfterLastAcceptance(t *testing.T) {
 	}
 	if !queries.confirmed {
 		t.Fatal("exchange was not confirmed")
+	}
+	if !queries.cancelCompetingCalled {
+		t.Fatal("competing proposed exchanges were not cancelled")
 	}
 	if !transactions.committed {
 		t.Fatal("decision transaction was not committed")
@@ -74,6 +81,28 @@ func TestConfirmParticipationRejectsUnavailableItem(t *testing.T) {
 	}
 	if transactions.committed {
 		t.Fatal("conflicting decision transaction was committed")
+	}
+}
+
+func TestConfirmParticipationRollsBackWhenCompetitorsCannotBeCancelled(t *testing.T) {
+	t.Parallel()
+
+	databaseError := errors.New("cancel competitors failed")
+	queries := pendingDecisionQueries()
+	queries.items = []db.LockExchangeItemsRow{
+		{ID: pgUUID(uuid.New()), Status: db.ItemStatusAvailable},
+	}
+	queries.reserved = 1
+	queries.cancelCompetingErr = databaseError
+	transactions := &fakeTransactionManager{queries: queries}
+	repository := newRepository(&fakeNeighborQueries{}, transactions)
+
+	err := repository.ConfirmParticipation(context.Background(), uuid.New(), uuid.New())
+	if !errors.Is(err, databaseError) {
+		t.Fatalf("ConfirmParticipation() error = %v, want wrapped %v", err, databaseError)
+	}
+	if transactions.committed {
+		t.Fatal("transaction was committed without cancelling competing exchanges")
 	}
 }
 
@@ -103,11 +132,19 @@ func TestDeclineParticipationCancelsExchange(t *testing.T) {
 func TestDecisionErrors(t *testing.T) {
 	t.Parallel()
 
+	lockError := errors.New("advisory lock failed")
 	tests := []struct {
 		name    string
 		prepare func(*fakeExchangeWriteQueries)
 		want    error
 	}{
+		{
+			name: "cannot lock decision items",
+			prepare: func(queries *fakeExchangeWriteQueries) {
+				queries.lockDecisionItemsErr = lockError
+			},
+			want: lockError,
+		},
 		{
 			name: "exchange not found",
 			prepare: func(queries *fakeExchangeWriteQueries) {

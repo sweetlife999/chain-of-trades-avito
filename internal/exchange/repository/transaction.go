@@ -13,6 +13,7 @@ import (
 type exchangeWriteQueries interface {
 	CreateExchange(context.Context) (pgtype.UUID, error)
 	CreateExchangeParticipant(context.Context, db.CreateExchangeParticipantParams) error
+	LockExchangeDecisionItems(context.Context, pgtype.UUID) error
 	LockExchange(context.Context, pgtype.UUID) (db.ChainStatus, error)
 	LockExchangeParticipant(
 		context.Context,
@@ -24,6 +25,7 @@ type exchangeWriteQueries interface {
 	LockExchangeItems(context.Context, pgtype.UUID) ([]db.LockExchangeItemsRow, error)
 	ReserveExchangeItems(context.Context, pgtype.UUID) (int64, error)
 	ConfirmExchange(context.Context, pgtype.UUID) error
+	CancelCompetingProposedExchanges(context.Context, pgtype.UUID) (int64, error)
 	CancelExchange(context.Context, pgtype.UUID) error
 }
 

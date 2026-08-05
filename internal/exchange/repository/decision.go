@@ -39,6 +39,10 @@ func (r *Repository) decideParticipation(
 	decision db.ParticipantStatus,
 ) error {
 	err := r.transactions.WithinTransaction(ctx, func(queries exchangeWriteQueries) error {
+		if err := queries.LockExchangeDecisionItems(ctx, pgUUID(exchangeID)); err != nil {
+			return fmt.Errorf("lock exchange decision items: %w", err)
+		}
+
 		status, err := queries.LockExchange(ctx, pgUUID(exchangeID))
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotFound
@@ -126,6 +130,10 @@ func confirmParticipation(
 
 	if err := queries.ConfirmExchange(ctx, pgUUID(exchangeID)); err != nil {
 		return fmt.Errorf("confirm exchange: %w", err)
+	}
+
+	if _, err := queries.CancelCompetingProposedExchanges(ctx, pgUUID(exchangeID)); err != nil {
+		return fmt.Errorf("cancel competing proposed exchanges: %w", err)
 	}
 
 	return nil

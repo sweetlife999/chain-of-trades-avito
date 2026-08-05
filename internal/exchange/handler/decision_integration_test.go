@@ -126,22 +126,22 @@ func TestExchangeDecisionsIntegration(t *testing.T) {
 	close(results)
 
 	var confirmedExchangeID uuid.UUID
-	var conflictingExchangeID uuid.UUID
+	var cancelledExchangeID uuid.UUID
 	for result := range results {
 		switch {
 		case result.err == nil:
 			confirmedExchangeID = result.exchangeID
 		case errors.Is(result.err, exchangeservice.ErrConflict):
-			conflictingExchangeID = result.exchangeID
+			cancelledExchangeID = result.exchangeID
 		default:
 			t.Fatalf("concurrent confirmation returned unexpected error: %v", result.err)
 		}
 	}
-	if confirmedExchangeID == uuid.Nil || conflictingExchangeID == uuid.Nil {
+	if confirmedExchangeID == uuid.Nil || cancelledExchangeID == uuid.Nil {
 		t.Fatalf(
-			"concurrent result = confirmed %s, conflicting %s; want one of each",
+			"concurrent result = confirmed %s, cancelled %s; want one of each",
 			confirmedExchangeID,
-			conflictingExchangeID,
+			cancelledExchangeID,
 		)
 	}
 
@@ -172,22 +172,15 @@ func TestExchangeDecisionsIntegration(t *testing.T) {
 		t.Fatalf("repeat confirm status = %d, want %d", repeatResponse.Code, http.StatusConflict)
 	}
 
-	declineResponse := performRequest(
-		service,
-		http.MethodPost,
-		"/exchanges/"+conflictingExchangeID.String()+"/decline",
-		authenticateAs(participants[len(participants)-1].UserID),
-	)
-	if declineResponse.Code != http.StatusNoContent {
-		t.Fatalf("decline status = %d; body = %s", declineResponse.Code, declineResponse.Body.String())
-	}
-
-	cancelled, err := service.GetForUser(ctx, conflictingExchangeID, users[0])
+	cancelled, err := service.GetForUser(ctx, cancelledExchangeID, users[0])
 	if err != nil {
 		t.Fatalf("get cancelled exchange: %v", err)
 	}
 	if cancelled.Status != "cancelled" {
 		t.Fatalf("competing exchange status = %q, want cancelled", cancelled.Status)
+	}
+	if cancelled.ClosedAt == nil {
+		t.Fatal("competing exchange closed_at is nil")
 	}
 	for _, participant := range cancelled.Participants {
 		if participant.GivesItem.Status != "reserved" {
