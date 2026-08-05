@@ -12,16 +12,19 @@ INSERT INTO users (id, nickname, password_hash) VALUES
     ('22222222-2222-2222-2222-222222222222', 'bob',   'hash'),
     ('33333333-3333-3333-3333-333333333333', 'carol', 'hash');
 
-INSERT INTO items (id, owner_id, category_id, title) VALUES
+INSERT INTO items (id, owner_id, category_id, title, photo_urls) VALUES
     ('aaaaaaaa-0000-0000-0000-000000000000',
      '11111111-1111-1111-1111-111111111111',
-     (SELECT id FROM categories WHERE slug = 'bikes'),    'Велосипед'),
+     (SELECT id FROM categories WHERE slug = 'bikes'),    'Велосипед',
+     ARRAY['https://example.com/bike.jpg']),
     ('bbbbbbbb-0000-0000-0000-000000000000',
      '22222222-2222-2222-2222-222222222222',
-     (SELECT id FROM categories WHERE slug = 'consoles'), 'Приставка'),
+     (SELECT id FROM categories WHERE slug = 'consoles'), 'Приставка',
+     ARRAY['https://example.com/console-1.jpg', 'https://example.com/console-2.jpg']),
     ('cccccccc-0000-0000-0000-000000000000',
      '33333333-3333-3333-3333-333333333333',
-     (SELECT id FROM categories WHERE slug = 'phones'),   'Смартфон');
+     (SELECT id FROM categories WHERE slug = 'phones'),   'Смартфон',
+     ARRAY['https://example.com/phone.jpg']);
 
 -- за велосипед хотят приставку, за приставку — смартфон, за смартфон — велосипед
 INSERT INTO item_wants (item_id, category_id) VALUES
@@ -129,11 +132,65 @@ END $$;
 -- 8. вещь нельзя привязать к несуществующей категории
 DO $$
 BEGIN
-    INSERT INTO items (owner_id, category_id, title)
-    VALUES ('11111111-1111-1111-1111-111111111111', 32767, 'Вещь из ниоткуда');
+    INSERT INTO items (owner_id, category_id, title, photo_urls)
+    VALUES ('11111111-1111-1111-1111-111111111111', 32767, 'Вещь из ниоткуда',
+            ARRAY['https://example.com/nowhere.jpg']);
     RAISE EXCEPTION 'ссылка на несуществующую категорию прошла';
 EXCEPTION WHEN foreign_key_violation THEN
     RAISE NOTICE 'ok 8: category_id проверяется внешним ключом';
+END $$;
+
+-- 9. объявление без фотографий
+DO $$
+BEGIN
+    INSERT INTO items (owner_id, category_id, title, photo_urls)
+    VALUES ('11111111-1111-1111-1111-111111111111',
+            (SELECT id FROM categories WHERE slug = 'other'), 'Вещь без фото', ARRAY[]::text[]);
+    RAISE EXCEPTION 'объявление с пустым списком фото прошло';
+EXCEPTION WHEN check_violation THEN
+    RAISE NOTICE 'ok 9: у объявления не меньше одной фотографии';
+END $$;
+
+-- 10. последнее фото нельзя удалить из существующего объявления
+DO $$
+BEGIN
+    UPDATE items SET photo_urls = ARRAY[]::text[]
+    WHERE id = 'aaaaaaaa-0000-0000-0000-000000000000';
+    RAISE EXCEPTION 'удаление всех фотографий прошло';
+EXCEPTION WHEN check_violation THEN
+    RAISE NOTICE 'ok 10: последнюю фотографию удалить нельзя';
+END $$;
+
+-- 11. вещь, занятую в цепочке, удалить нельзя (иначе участник остался бы без предмета обмена)
+DO $$
+BEGIN
+    DELETE FROM items WHERE id = 'aaaaaaaa-0000-0000-0000-000000000000';
+    RAISE EXCEPTION 'удаление вещи из живой цепочки прошло';
+EXCEPTION WHEN foreign_key_violation THEN
+    RAISE NOTICE 'ok 11: вещь из цепочки защищена ON DELETE RESTRICT';
+END $$;
+
+-- 12. свободная вещь удаляется вместе со своими желаниями
+DO $$
+DECLARE n int;
+BEGIN
+    INSERT INTO items (id, owner_id, category_id, title, photo_urls)
+    VALUES ('eeeeeeee-0000-0000-0000-000000000000',
+            '11111111-1111-1111-1111-111111111111',
+            (SELECT id FROM categories WHERE slug = 'books'), 'Книга',
+            ARRAY['https://example.com/book.jpg']);
+    INSERT INTO item_wants (item_id, category_id)
+    VALUES ('eeeeeeee-0000-0000-0000-000000000000',
+            (SELECT id FROM categories WHERE slug = 'tools'));
+
+    DELETE FROM items WHERE id = 'eeeeeeee-0000-0000-0000-000000000000';
+
+    SELECT count(*) INTO n FROM item_wants
+    WHERE item_id = 'eeeeeeee-0000-0000-0000-000000000000';
+    IF n <> 0 THEN
+        RAISE EXCEPTION 'после удаления вещи осталось % желаний', n;
+    END IF;
+    RAISE NOTICE 'ok 12: item_wants уходят каскадом вместе с вещью';
 END $$;
 
 ROLLBACK;
