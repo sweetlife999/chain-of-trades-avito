@@ -33,6 +33,7 @@ var (
 type Repository interface {
 	Create(context.Context, itemmodel.NewItem) (itemmodel.Item, error)
 	GetByID(context.Context, uuid.UUID) (itemmodel.Item, error)
+	ListByOwner(context.Context, uuid.UUID) ([]itemmodel.Item, error)
 	Update(context.Context, uuid.UUID, itemmodel.Changes) (itemmodel.Item, error)
 	Delete(context.Context, uuid.UUID) error
 	ListCategories(context.Context) ([]itemmodel.Category, error)
@@ -144,6 +145,10 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (itemmodel.Item
 
 func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (itemmodel.Item, error) {
 	return s.repository.GetByID(ctx, id)
+}
+
+func (s *Service) ListByOwner(ctx context.Context, ownerID uuid.UUID) ([]itemmodel.Item, error) {
+	return s.repository.ListByOwner(ctx, ownerID)
 }
 
 func (s *Service) Update(
