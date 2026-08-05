@@ -1,5 +1,5 @@
 import { memo } from "react";
-import AvitoLogo from "/avito-logo.svg";
+import AvitoLogo from "/src/Assets/avito-logo.svg?react";
 import styles from "./Styles.module.scss";
 import { Button } from "../../UI/Button/Button";
 import { Link, NavLink } from "react-router-dom";
@@ -10,6 +10,7 @@ import {
   CircleUserRound as ProfileIcon,
   type LucideIcon,
 } from "lucide-react";
+import { FetchProfile } from "../../Widgets/FetchProfile/FetchProfile";
 
 type NavigationItem = {
   to: string;
@@ -21,7 +22,7 @@ const navigationItems: NavigationItem[] = [
   { to: "/trades", label: "Обмены", Icon: UpdateIcon },
   { to: "/my-items", label: "Мои вещи", Icon: MyThings },
   { to: "/my-chains", label: "Мои цепочки", Icon: ChainsIcon },
-  { to: "/profile", label: "Профиль", Icon: ProfileIcon },
+  // { to: "/profile", label: "Профиль", Icon: ProfileIcon },
 ];
 
 const HeaderComponent = () => {
@@ -33,7 +34,7 @@ const HeaderComponent = () => {
           className={styles.header__logoLink}
           aria-label="На главную"
         >
-          <img className={styles.header__logo} src={AvitoLogo} />
+          <AvitoLogo className={styles.header__logo} />
         </NavLink>
 
         <nav className={styles.header__nav} aria-label="Основная навигация">
@@ -66,11 +67,7 @@ const HeaderComponent = () => {
             Добавить вещь
           </Button>
 
-          <Link to={"/login"}>
-            <Button size="m" color="transparent">
-              Вход и регистрация
-            </Button>
-          </Link>
+          <FetchProfile/>
         </div>
       </div>
     </header>

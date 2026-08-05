@@ -1,4 +1,10 @@
-import  { forwardRef, memo } from "react";
+import {
+  forwardRef,
+  memo,
+  type ChangeEventHandler,
+  type FocusEventHandler,
+} from "react";
+
 import styles from "./Styles.module.scss";
 
 type TInput = {
@@ -6,68 +12,115 @@ type TInput = {
   className?: string;
   placeholder?: string;
   error?: string;
+
   type?: "password" | "email" | "text";
   required?: boolean;
+  disabled?: boolean;
+
   textarea?: boolean;
   rows?: number;
   maxLength?: number;
   counter?: string;
+
   defaultValue?: string;
   autoComplete?: string;
   name?: string;
+
+  onChange?: ChangeEventHandler<
+    HTMLInputElement | HTMLTextAreaElement
+  >;
+
+  onBlur?: FocusEventHandler<
+    HTMLInputElement | HTMLTextAreaElement
+  >;
 };
 
-const InputComponent = forwardRef<HTMLInputElement | HTMLTextAreaElement, TInput>(
+const InputComponent = forwardRef<
+  HTMLInputElement | HTMLTextAreaElement,
+  TInput
+>(
   (
     {
       label,
       error,
       required = false,
+      disabled = false,
       className = "",
+
       type = "text",
       placeholder,
+
       textarea = false,
       rows = 4,
       maxLength,
       counter,
+
       defaultValue,
       autoComplete,
-      // onChange,
-      // onBlur,
       name,
-      ...rest // register может передать ещё что-то
+
+      onChange,
+      onBlur,
+
+      ...rest
     },
     ref,
   ) => {
     const Tag = textarea ? "textarea" : "input";
-    
+
+    const inputClassName = [
+      styles.input__field,
+      textarea ? styles.input__field_textarea : "",
+      error ? styles.input__field_error : "",
+      className,
+    ]
+      .filter(Boolean)
+      .join(" ");
+
     return (
-      <label className={styles.form__label}>
+      <label className={styles.input}>
         {label && (
-          <span className={`${styles.form__title} ${required && styles.form__title_required}`}>
+          <span
+            className={`${styles.input__labelText} ${
+              required ? styles.input__labelText_required : ""
+            }`}
+          >
             {label}
           </span>
         )}
-        
+
         <Tag
           ref={ref as any}
-          className={`${styles.form__input} ${textarea ? styles.form__input_comm : ""} ${error ? styles.form__input_error : ""} ${className}`}
-          type={!textarea ? type : undefined}
+          className={inputClassName}
+          type={textarea ? undefined : type}
           placeholder={placeholder}
-          maxLength={maxLength}
           rows={textarea ? rows : undefined}
+          maxLength={maxLength}
           defaultValue={defaultValue}
           autoComplete={autoComplete}
-          // onChange={onChange}
-          // onBlur={onBlur}
           name={name}
+          required={required}
+          disabled={disabled}
+          onChange={onChange}
+          onBlur={onBlur}
           {...rest}
         />
-        
-        <div className={styles.form__label_cover}>
-          {error && <span className={styles.form__error}>{error}</span>}
-          {counter && <span className={styles.form__counter}>{counter}</span>}
-        </div>
+
+        {(error || counter) && (
+          <span className={styles.input__footer}>
+            {error && (
+              <span className={styles.input__error}>
+                {error}
+              </span>
+            )}
+
+            {counter && (
+              <span className={styles.input__counter}>
+                {counter}
+              </span>
+            )}
+          </span>
+        )}
       </label>
     );
   },

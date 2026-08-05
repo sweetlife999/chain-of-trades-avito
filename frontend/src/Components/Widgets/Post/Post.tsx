@@ -1,8 +1,13 @@
 import { memo } from "react";
 import styles from "./Styles.module.scss";
 import arrow from "/src/Assets/thick-arrow.svg";
+import type { TItem } from "../../../Api/items/items.types";
 
-const PostComponent = () => {
+type TPost = {
+  post : TItem
+}
+
+const PostComponent = ({post}:TPost) => {
   const data = {
     id: 4,
     img1: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQxGUUrdmZZJuQDy2wOMi_U4K6w52csKmy4UgFBwqdc4A&s=10",

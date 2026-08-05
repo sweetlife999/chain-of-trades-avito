@@ -2,9 +2,10 @@ import { memo } from "react";
 import styles from "./Styles.module.scss";
 import { Button } from "../../UI/Button/Button";
 import { PostsList } from "../../Widgets/PostsList/PostsList";
-import { Post } from "../../Widgets/Post/Post";
+import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
 
 const MainComponent = () => {
+  const { isAuth } = useAuthSelector();
   return (
     <>
       <div className={styles.main__titleCover}>
@@ -17,8 +18,8 @@ const MainComponent = () => {
         <Button size="l" className={styles.main__button}>Обменять вещь</Button>
       </div>
 
-      <Post/>
-      <PostsList/>
+      {isAuth ?<PostsList/>:
+      <span className="error">Чтобы посмотреть посты необходимо зарегистрироваться</span>}
     </>
   );
 };
