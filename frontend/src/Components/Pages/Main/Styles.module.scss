@@ -1,0 +1,23 @@
+.main {
+
+    &__titleCover {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 50px
+    }
+    
+    &__title {
+        @include main-block-title;
+    }
+
+    &__subtitle {
+        @include main-block-subtitle;
+    }
+
+    &__button {
+        // cursor: grab;
+        // font-size: 360px;
+        // background-color: red;
+    }
+}

@@ -1,18 +1,100 @@
 .header {
   width: 100%;
-  border-bottom: 1px solid black;
-  padding: 20px;
   display: flex;
   justify-content: center;
+  padding: 20px 24px;
+  margin-bottom: 30px;
 
   &__wrapp {
-    width: 80vw;
+    width: 100%;
+    max-width: $content-width;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 24px;
+  }
+
+  &__logoLink {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    text-decoration: none;
   }
 
   &__logo {
-    max-height: 80px;
+    display: block;
+    width: auto;
+    height: 40px;
+  }
+
+  &__nav {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+  }
+
+  &__navList {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__navLink {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+
+    padding: 9px 14px;
+    border-radius: 8px;
+
+    color: #111827;
+    background-color: transparent;
+    white-space: nowrap;
+
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.2;
+
+    transition:
+      color 0.2s ease,
+      background-color 0.2s ease,
+      transform 0.15s ease;
+
+    &:hover {
+      color: $green-button;
+      background-color: rgba($green-button, 0.08);
+    }
+
+    &:active {
+      transform: translateY(1px);
+    }
+
+    &:focus-visible {
+      outline: 2px solid rgba($green-button, 0.45);
+      outline-offset: 2px;
+    }
+
+    &_active {
+      color: $green-button;
+      background-color: rgba($green-button, 0.12);
+      font-weight: 600;
+    }
+  }
+
+  &__navIcon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+
+    color: currentColor;
+    stroke: currentColor;
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
   }
 }

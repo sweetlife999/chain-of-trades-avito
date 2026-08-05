@@ -1,0 +1,40 @@
+.post {
+  max-width: 260px;
+  border-radius: $border-radius;
+  box-shadow: 0 0 8px rgba(191, 222, 241, 0.4);
+  overflow: hidden;
+
+  &__imgs {
+    display: flex;
+    justify-content: space-evenly;
+    align-items: center;
+    height: 100px;
+    width: 100%;
+    margin-bottom: 10px;
+  }
+
+  &__img {
+    display: block;
+    border-radius: $border-radius;
+    width: 80px;
+    aspect-ratio: 1;
+    object-fit: cover;
+  }
+
+  &__arrow {
+    opacity: 0.8;
+    color: white;
+    width: 34px;
+    flex-shrink: 0;
+  }
+
+  &__trade {
+    line-height: 120%;
+    margin-bottom: 4px;
+  }
+
+  &__users {
+    color: #666;
+    font-size: 14px;
+  }
+}
