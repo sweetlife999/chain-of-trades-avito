@@ -1,5 +1,14 @@
 basePath: /
 definitions:
+  dto.CategoryResponse:
+    properties:
+      name:
+        example: Велосипеды и транспорт
+        type: string
+      slug:
+        example: bikes
+        type: string
+    type: object
   dto.CreateItemRequest:
     properties:
       category:
@@ -37,21 +46,9 @@ definitions:
       photo_url:
         type: string
     type: object
-  dto.ExchangeResponse:
+  dto.ErrorResponse:
     properties:
-      closed_at:
-        type: string
-      created_at:
-        type: string
-      id:
-        type: string
-      participants:
-        items:
-          $ref: '#/definitions/dto.ParticipantResponse'
-        type: array
-      status:
-        type: string
-      updated_at:
+      error:
         type: string
     type: object
   dto.ItemError:
@@ -91,43 +88,6 @@ definitions:
       nickname:
         type: string
       password:
-        type: string
-    type: object
-  dto.ParticipantItemResponse:
-    properties:
-      category:
-        $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.CategoryResponse'
-      description:
-        type: string
-      id:
-        type: string
-      status:
-        type: string
-      title:
-        type: string
-    type: object
-  dto.ParticipantResponse:
-    properties:
-      decided_at:
-        type: string
-      gives_item:
-        $ref: '#/definitions/dto.ParticipantItemResponse'
-      position:
-        type: integer
-      receives_item:
-        $ref: '#/definitions/dto.ParticipantItemResponse'
-      status:
-        type: string
-      user:
-        $ref: '#/definitions/dto.ParticipantUserResponse'
-    type: object
-  dto.ParticipantUserResponse:
-    properties:
-      id:
-        type: string
-      nickname:
-        type: string
-      photo_url:
         type: string
     type: object
   dto.UpdateItemRequest:
@@ -185,32 +145,6 @@ definitions:
       updated_at:
         type: string
     type: object
-  github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.CategoryResponse:
-    properties:
-      name:
-        type: string
-      slug:
-        type: string
-    type: object
-  github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse:
-    properties:
-      error:
-        type: string
-    type: object
-  github_com_sweetlife999_chain-of-trades-avito_internal_item_dto.CategoryResponse:
-    properties:
-      name:
-        example: Велосипеды и транспорт
-        type: string
-      slug:
-        example: bikes
-        type: string
-    type: object
-  github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse:
-    properties:
-      error:
-        type: string
-    type: object
 info:
   contact: {}
   description: |-
@@ -247,15 +181,15 @@ paths:
         "400":
           description: Некорректное тело запроса
           schema:
-            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+            $ref: '#/definitions/dto.ErrorResponse'
         "401":
           description: Неверный nickname или пароль
           schema:
-            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+            $ref: '#/definitions/dto.ErrorResponse'
         "500":
           description: Внутренняя ошибка
           schema:
-            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+            $ref: '#/definitions/dto.ErrorResponse'
       summary: Вход
       tags:
       - auth
@@ -283,11 +217,11 @@ paths:
         "401":
           description: Нет или истекла cookie access_token
           schema:
-            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+            $ref: '#/definitions/dto.ErrorResponse'
         "500":
           description: Внутренняя ошибка
           schema:
-            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+            $ref: '#/definitions/dto.ErrorResponse'
       summary: Текущий пользователь
       tags:
       - auth
@@ -302,7 +236,7 @@ paths:
           description: Категории
           schema:
             items:
-              $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_item_dto.CategoryResponse'
+              $ref: '#/definitions/dto.CategoryResponse'
             type: array
         "500":
           description: Внутренняя ошибка
@@ -311,70 +245,6 @@ paths:
       summary: Список категорий
       tags:
       - items
-  /exchanges:
-    get:
-      description: Возвращает все найденные обмены текущего пользователя вместе с
-        участниками и объявлениями.
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Список обменов; если обменов нет, возвращается []
-          schema:
-            items:
-              $ref: '#/definitions/dto.ExchangeResponse'
-            type: array
-        "401":
-          description: Пользователь не авторизован
-          schema:
-            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
-        "500":
-          description: Внутренняя ошибка
-          schema:
-            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
-      summary: Получить свои обмены
-      tags:
-      - exchanges
-  /exchanges/{id}:
-    get:
-      description: Доступен только участнику этого обмена.
-      parameters:
-      - description: UUID обмена
-        example: 8db9f3e2-8a45-4a70-b3d1-167b4f97e121
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Обмен
-          schema:
-            $ref: '#/definitions/dto.ExchangeResponse'
-        "400":
-          description: ID не является UUID
-          schema:
-            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
-        "401":
-          description: Пользователь не авторизован
-          schema:
-            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
-        "403":
-          description: Пользователь не участвует в обмене
-          schema:
-            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
-        "404":
-          description: Обмен не найден
-          schema:
-            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
-        "500":
-          description: Внутренняя ошибка
-          schema:
-            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
-      summary: Получить обмен по ID
-      tags:
-      - exchanges
   /health:
     get:
       description: Отвечает 200, если процесс поднят. Состояние БД не проверяет.
@@ -432,7 +302,7 @@ paths:
     delete:
       description: |-
         Требует cookie `access_token`, удалять можно только свои объявления. Вещь, уже занятую
-        в незавершённом обмене, удалить нельзя: иначе участник остался бы без обещанного предмета.
+        в цепочке обмена, удалить нельзя: иначе участник остался бы без обещанного предмета.
       parameters:
       - description: UUID объявления
         example: 8db9f3e2-8a45-4a70-b3d1-167b4f97e121
@@ -462,7 +332,7 @@ paths:
           schema:
             $ref: '#/definitions/dto.ItemError'
         "409":
-          description: Вещь участвует в незавершённом обмене
+          description: Вещь участвует в цепочке обмена
           schema:
             $ref: '#/definitions/dto.ItemError'
         "500":
@@ -548,10 +418,6 @@ paths:
           description: Объявление не найдено
           schema:
             $ref: '#/definitions/dto.ItemError'
-        "409":
-          description: Нельзя изменить условия объявления в незавершённом обмене
-          schema:
-            $ref: '#/definitions/dto.ItemError'
         "500":
           description: Внутренняя ошибка
           schema:
@@ -582,15 +448,15 @@ paths:
         "400":
           description: Некорректное тело запроса или нарушены ограничения полей
           schema:
-            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+            $ref: '#/definitions/dto.ErrorResponse'
         "409":
           description: Nickname уже занят
           schema:
-            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+            $ref: '#/definitions/dto.ErrorResponse'
         "500":
           description: Внутренняя ошибка
           schema:
-            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+            $ref: '#/definitions/dto.ErrorResponse'
       summary: Создать пользователя
       tags:
       - users
@@ -615,15 +481,15 @@ paths:
         "400":
           description: ID не является UUID
           schema:
-            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+            $ref: '#/definitions/dto.ErrorResponse'
         "404":
           description: Пользователь не найден
           schema:
-            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+            $ref: '#/definitions/dto.ErrorResponse'
         "500":
           description: Внутренняя ошибка
           schema:
-            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+            $ref: '#/definitions/dto.ErrorResponse'
       summary: Получить пользователя по ID
       tags:
       - users
@@ -657,27 +523,27 @@ paths:
           description: Некорректное тело запроса, не передано ни одного поля или ID
             не UUID
           schema:
-            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+            $ref: '#/definitions/dto.ErrorResponse'
         "401":
           description: Нет или истекла cookie access_token
           schema:
-            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+            $ref: '#/definitions/dto.ErrorResponse'
         "403":
           description: Попытка изменить чужой профиль
           schema:
-            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+            $ref: '#/definitions/dto.ErrorResponse'
         "404":
           description: Пользователь не найден
           schema:
-            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+            $ref: '#/definitions/dto.ErrorResponse'
         "409":
           description: Nickname уже занят
           schema:
-            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+            $ref: '#/definitions/dto.ErrorResponse'
         "500":
           description: Внутренняя ошибка
           schema:
-            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+            $ref: '#/definitions/dto.ErrorResponse'
       summary: Обновить свой профиль
       tags:
       - users
