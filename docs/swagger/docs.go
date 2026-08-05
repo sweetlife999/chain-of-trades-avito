@@ -49,19 +49,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Некорректное тело запроса",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Неверный nickname или пароль",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse"
                         }
                     }
                 }
@@ -101,13 +101,13 @@ const docTemplate = `{
                     "401": {
                         "description": "Нет или истекла cookie access_token",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse"
                         }
                     }
                 }
@@ -129,7 +129,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/dto.CategoryResponse"
+                                "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_item_dto.CategoryResponse"
                             }
                         }
                     },
@@ -137,6 +137,101 @@ const docTemplate = `{
                         "description": "Внутренняя ошибка",
                         "schema": {
                             "$ref": "#/definitions/dto.ItemError"
+                        }
+                    }
+                }
+            }
+        },
+        "/exchanges": {
+            "get": {
+                "description": "Возвращает все найденные обмены текущего пользователя вместе с участниками и объявлениями.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "exchanges"
+                ],
+                "summary": "Получить свои обмены",
+                "responses": {
+                    "200": {
+                        "description": "Список обменов; если обменов нет, возвращается []",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.ExchangeResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/exchanges/{id}": {
+            "get": {
+                "description": "Доступен только участнику этого обмена.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "exchanges"
+                ],
+                "summary": "Получить обмен по ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "8db9f3e2-8a45-4a70-b3d1-167b4f97e121",
+                        "description": "UUID обмена",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Обмен",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ExchangeResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "ID не является UUID",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Пользователь не участвует в обмене",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Обмен не найден",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
                         }
                     }
                 }
@@ -265,7 +360,7 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "Требует cookie ` + "`" + `access_token` + "`" + `, удалять можно только свои объявления. Вещь, уже занятую\nв цепочке обмена, удалить нельзя: иначе участник остался бы без обещанного предмета.",
+                "description": "Требует cookie ` + "`" + `access_token` + "`" + `, удалять можно только свои объявления. Вещь, уже занятую\nв незавершённом обмене, удалить нельзя: иначе участник остался бы без обещанного предмета.",
                 "produces": [
                     "application/json"
                 ],
@@ -312,7 +407,7 @@ const docTemplate = `{
                         }
                     },
                     "409": {
-                        "description": "Вещь участвует в цепочке обмена",
+                        "description": "Вещь участвует в незавершённом обмене",
                         "schema": {
                             "$ref": "#/definitions/dto.ItemError"
                         }
@@ -387,6 +482,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.ItemError"
                         }
                     },
+                    "409": {
+                        "description": "Нельзя изменить условия объявления в незавершённом обмене",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
                     "500": {
                         "description": "Внутренняя ошибка",
                         "schema": {
@@ -430,19 +531,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Некорректное тело запроса или нарушены ограничения полей",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse"
                         }
                     },
                     "409": {
                         "description": "Nickname уже занят",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse"
                         }
                     }
                 }
@@ -478,19 +579,19 @@ const docTemplate = `{
                     "400": {
                         "description": "ID не является UUID",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Пользователь не найден",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse"
                         }
                     }
                 }
@@ -536,37 +637,37 @@ const docTemplate = `{
                     "400": {
                         "description": "Некорректное тело запроса, не передано ни одного поля или ID не UUID",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Нет или истекла cookie access_token",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Попытка изменить чужой профиль",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Пользователь не найден",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse"
                         }
                     },
                     "409": {
                         "description": "Nickname уже занят",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse"
                         }
                     }
                 }
@@ -574,19 +675,6 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "dto.CategoryResponse": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "type": "string",
-                    "example": "Велосипеды и транспорт"
-                },
-                "slug": {
-                    "type": "string",
-                    "example": "bikes"
-                }
-            }
-        },
         "dto.CreateItemRequest": {
             "type": "object",
             "properties": {
@@ -641,10 +729,28 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.ErrorResponse": {
+        "dto.ExchangeResponse": {
             "type": "object",
             "properties": {
-                "error": {
+                "closed_at": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "participants": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ParticipantResponse"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }
@@ -705,6 +811,63 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ParticipantItemResponse": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.CategoryResponse"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ParticipantResponse": {
+            "type": "object",
+            "properties": {
+                "decided_at": {
+                    "type": "string"
+                },
+                "gives_item": {
+                    "$ref": "#/definitions/dto.ParticipantItemResponse"
+                },
+                "position": {
+                    "type": "integer"
+                },
+                "receives_item": {
+                    "$ref": "#/definitions/dto.ParticipantItemResponse"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "user": {
+                    "$ref": "#/definitions/dto.ParticipantUserResponse"
+                }
+            }
+        },
+        "dto.ParticipantUserResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "nickname": {
+                    "type": "string"
+                },
+                "photo_url": {
                     "type": "string"
                 }
             }
@@ -787,6 +950,46 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.CategoryResponse": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_sweetlife999_chain-of-trades-avito_internal_item_dto.CategoryResponse": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "example": "Велосипеды и транспорт"
+                },
+                "slug": {
+                    "type": "string",
+                    "example": "bikes"
+                }
+            }
+        },
+        "github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
                     "type": "string"
                 }
             }

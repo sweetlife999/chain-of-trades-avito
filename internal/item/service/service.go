@@ -3,12 +3,15 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log"
 	"net/url"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/google/uuid"
 
+	exchangemodel "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/model"
 	itemmodel "github.com/sweetlife999/chain-of-trades-avito/internal/item/model"
 	itemrepository "github.com/sweetlife999/chain-of-trades-avito/internal/item/repository"
 )
@@ -33,10 +36,21 @@ type Repository interface {
 	Update(context.Context, uuid.UUID, itemmodel.Changes) (itemmodel.Item, error)
 	Delete(context.Context, uuid.UUID) error
 	ListCategories(context.Context) ([]itemmodel.Category, error)
+	HasOpenExchange(context.Context, uuid.UUID) (bool, error)
+}
+
+type ExchangeFinder interface {
+	FindAndSave(context.Context, exchangemodel.Node) (exchangemodel.SearchResult, error)
+}
+
+type errorLogger interface {
+	Printf(string, ...any)
 }
 
 type Service struct {
 	repository Repository
+	exchanges  ExchangeFinder
+	logger     errorLogger
 }
 
 type CreateInput struct {
@@ -70,8 +84,25 @@ func (e *ValidationError) Unwrap() error {
 	return ErrValidation
 }
 
-func New(repository Repository) *Service {
-	return &Service{repository: repository}
+func New(repository Repository, exchangeFinders ...ExchangeFinder) *Service {
+	var exchanges ExchangeFinder
+	if len(exchangeFinders) > 0 {
+		exchanges = exchangeFinders[0]
+	}
+
+	return newWithDependencies(repository, exchanges, log.Default())
+}
+
+func newWithDependencies(
+	repository Repository,
+	exchanges ExchangeFinder,
+	logger errorLogger,
+) *Service {
+	return &Service{
+		repository: repository,
+		exchanges:  exchanges,
+		logger:     logger,
+	}
 }
 
 func (s *Service) Create(ctx context.Context, input CreateInput) (itemmodel.Item, error) {
@@ -95,7 +126,7 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (itemmodel.Item
 		return itemmodel.Item{}, err
 	}
 
-	return s.repository.Create(ctx, itemmodel.NewItem{
+	created, err := s.repository.Create(ctx, itemmodel.NewItem{
 		OwnerID:     input.OwnerID,
 		Category:    category,
 		Title:       title,
@@ -103,6 +134,12 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (itemmodel.Item
 		PhotoURLs:   photoURLs,
 		Wants:       wants,
 	})
+	if err != nil {
+		return itemmodel.Item{}, err
+	}
+
+	s.findExchange(ctx, created)
+	return created, nil
 }
 
 func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (itemmodel.Item, error) {
@@ -163,7 +200,27 @@ func (s *Service) Update(
 		changes.Wants = wants
 	}
 
-	return s.repository.Update(ctx, id, changes)
+	compatibilityChanged := changes.Category != nil || changes.Wants != nil
+	if compatibilityChanged {
+		hasOpenExchange, err := s.repository.HasOpenExchange(ctx, id)
+		if err != nil {
+			return itemmodel.Item{}, fmt.Errorf("check item before compatibility update: %w", err)
+		}
+		if hasOpenExchange {
+			return itemmodel.Item{}, ErrItemInChain
+		}
+	}
+
+	updated, err := s.repository.Update(ctx, id, changes)
+	if err != nil {
+		return itemmodel.Item{}, err
+	}
+
+	if compatibilityChanged {
+		s.findExchange(ctx, updated)
+	}
+
+	return updated, nil
 }
 
 func (s *Service) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
@@ -191,6 +248,20 @@ func (s *Service) requireOwner(ctx context.Context, id uuid.UUID, userID uuid.UU
 	}
 
 	return nil
+}
+
+func (s *Service) findExchange(ctx context.Context, item itemmodel.Item) {
+	if s.exchanges == nil {
+		return
+	}
+
+	_, err := s.exchanges.FindAndSave(ctx, exchangemodel.Node{
+		ItemID:  item.ID,
+		OwnerID: item.OwnerID,
+	})
+	if err != nil {
+		s.logger.Printf("automatic exchange search for item %s: %v", item.ID, err)
+	}
 }
 
 func validateTitle(title string) error {

@@ -68,6 +68,15 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (itemmodel.Item,
 	return toModel(found), nil
 }
 
+func (r *Repository) HasOpenExchange(ctx context.Context, id uuid.UUID) (bool, error) {
+	hasOpenExchange, err := r.queries.ItemHasOpenExchange(ctx, pgUUID(id))
+	if err != nil {
+		return false, fmt.Errorf("check item open exchange: %w", err)
+	}
+
+	return hasOpenExchange, nil
+}
+
 func (r *Repository) Update(ctx context.Context, id uuid.UUID, changes itemmodel.Changes) (itemmodel.Item, error) {
 	transaction, err := r.pool.Begin(ctx)
 	if err != nil {

@@ -62,13 +62,13 @@ func main() {
 	queries := db.New(pool)
 	usersRepository := userrepository.New(queries)
 	users := userservice.New(usersRepository)
-	items := itemservice.New(itemrepository.New(pool))
+	exchangesRepository := exchangerepository.New(pool)
+	exchanges := exchangeservice.New(exchangesRepository)
+	items := itemservice.New(itemrepository.New(pool), exchanges)
 
 	tokens := authtoken.NewManager(cfg.JWTSecret, authTokenTTL)
 	authenticator := authmiddleware.New(tokens)
 	auth := authservice.New(usersRepository, tokens)
-	exchangesRepository := exchangerepository.New(pool)
-	exchanges := exchangeservice.New(exchangesRepository)
 
 	userhandler.New(users).RegisterRoutes(router, authenticator.RequireAuthentication)
 	itemhandler.New(items).RegisterRoutes(router, authenticator.RequireAuthentication)

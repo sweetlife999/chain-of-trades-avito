@@ -157,12 +157,28 @@ func TestRepositoryAgainstDatabase(t *testing.T) {
 		t.Fatalf("create chain participant: %v", err)
 	}
 
+	hasOpenExchange, err := repository.HasOpenExchange(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("HasOpenExchange() error = %v", err)
+	}
+	if !hasOpenExchange {
+		t.Fatal("HasOpenExchange() = false, want true")
+	}
+
 	if err := repository.Delete(ctx, created.ID); !errors.Is(err, ErrItemInChain) {
 		t.Fatalf("Delete() of chained item error = %v, want ErrItemInChain", err)
 	}
 
 	if _, err := pool.Exec(ctx, `DELETE FROM chains WHERE id = $1`, chainID); err != nil {
 		t.Fatalf("delete chain: %v", err)
+	}
+
+	hasOpenExchange, err = repository.HasOpenExchange(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("HasOpenExchange() after close error = %v", err)
+	}
+	if hasOpenExchange {
+		t.Fatal("HasOpenExchange() after delete = true, want false")
 	}
 
 	if _, err := repository.GetByID(ctx, uuid.New()); !errors.Is(err, ErrNotFound) {

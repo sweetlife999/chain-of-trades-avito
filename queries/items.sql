@@ -24,6 +24,16 @@ LEFT JOIN categories c ON c.slug = want.slug;
 -- name: DeleteItemWants :exec
 DELETE FROM item_wants WHERE item_id = $1;
 
+-- name: ItemHasOpenExchange :one
+SELECT EXISTS (
+    SELECT 1
+    FROM chain_participants AS participant
+    JOIN chains AS exchange ON exchange.id = participant.chain_id
+    WHERE (participant.gives_item_id = sqlc.arg(item_id)
+           OR participant.receives_item_id = sqlc.arg(item_id))
+      AND exchange.status IN ('proposed', 'confirmed')
+);
+
 -- name: GetItemByID :one
 SELECT
     i.*,

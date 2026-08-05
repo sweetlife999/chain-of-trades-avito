@@ -124,6 +124,7 @@ func (h *Handler) getByID(w http.ResponseWriter, r *http.Request) {
 // @Failure     401     {object} itemdto.ItemError    "Нет или истекла cookie access_token"
 // @Failure     403     {object} itemdto.ItemError    "Объявление принадлежит другому пользователю"
 // @Failure     404     {object} itemdto.ItemError    "Объявление не найдено"
+// @Failure     409     {object} itemdto.ItemError    "Нельзя изменить условия объявления в незавершённом обмене"
 // @Failure     500     {object} itemdto.ItemError    "Внутренняя ошибка"
 // @Router      /items/{id} [patch]
 func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
@@ -160,7 +161,7 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 
 // @Summary     Удалить своё объявление
 // @Description Требует cookie `access_token`, удалять можно только свои объявления. Вещь, уже занятую
-// @Description в цепочке обмена, удалить нельзя: иначе участник остался бы без обещанного предмета.
+// @Description в незавершённом обмене, удалить нельзя: иначе участник остался бы без обещанного предмета.
 // @Tags        items
 // @Produce     json
 // @Param       id path string true "UUID объявления" example(8db9f3e2-8a45-4a70-b3d1-167b4f97e121)
@@ -169,7 +170,7 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 // @Failure     401 {object} itemdto.ItemError "Нет или истекла cookie access_token"
 // @Failure     403 {object} itemdto.ItemError "Объявление принадлежит другому пользователю"
 // @Failure     404 {object} itemdto.ItemError "Объявление не найдено"
-// @Failure     409 {object} itemdto.ItemError "Вещь участвует в цепочке обмена"
+// @Failure     409 {object} itemdto.ItemError "Вещь участвует в незавершённом обмене"
 // @Failure     500 {object} itemdto.ItemError "Внутренняя ошибка"
 // @Router      /items/{id} [delete]
 func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
@@ -257,7 +258,7 @@ func handleServiceError(w http.ResponseWriter, err error) {
 	case errors.Is(err, itemservice.ErrNotFound):
 		writeError(w, http.StatusNotFound, "item not found")
 	case errors.Is(err, itemservice.ErrItemInChain):
-		writeError(w, http.StatusConflict, "item participates in a chain")
+		writeError(w, http.StatusConflict, "item participates in an open exchange")
 	default:
 		log.Printf("item handler: %v", err)
 		writeError(w, http.StatusInternalServerError, "internal server error")

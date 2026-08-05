@@ -1,13 +1,16 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log"
 	"strings"
 	"testing"
 
 	"github.com/google/uuid"
 
+	exchangemodel "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/model"
 	itemmodel "github.com/sweetlife999/chain-of-trades-avito/internal/item/model"
 )
 
@@ -17,6 +20,7 @@ type fakeRepository struct {
 	update     func(context.Context, uuid.UUID, itemmodel.Changes) (itemmodel.Item, error)
 	remove     func(context.Context, uuid.UUID) error
 	categories func(context.Context) ([]itemmodel.Category, error)
+	hasOpen    func(context.Context, uuid.UUID) (bool, error)
 }
 
 func (f *fakeRepository) Create(ctx context.Context, item itemmodel.NewItem) (itemmodel.Item, error) {
@@ -37,6 +41,14 @@ func (f *fakeRepository) Delete(ctx context.Context, id uuid.UUID) error {
 
 func (f *fakeRepository) ListCategories(ctx context.Context) ([]itemmodel.Category, error) {
 	return f.categories(ctx)
+}
+
+func (f *fakeRepository) HasOpenExchange(ctx context.Context, id uuid.UUID) (bool, error) {
+	if f.hasOpen == nil {
+		return false, nil
+	}
+
+	return f.hasOpen(ctx, id)
 }
 
 func validCreateInput() CreateInput {
@@ -276,6 +288,217 @@ func TestDeleteRemovesOwnItem(t *testing.T) {
 	if deleted != itemID {
 		t.Fatalf("удалили %v, а просили %v", deleted, itemID)
 	}
+}
+
+func TestCreateStartsExchangeSearch(t *testing.T) {
+	t.Parallel()
+
+	input := validCreateInput()
+	created := itemmodel.Item{ID: uuid.New(), OwnerID: input.OwnerID}
+	repository := &fakeRepository{create: func(context.Context, itemmodel.NewItem) (itemmodel.Item, error) {
+		return created, nil
+	}}
+	finder := &fakeExchangeFinder{}
+
+	actual, err := newWithDependencies(repository, finder, log.Default()).Create(context.Background(), input)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	if actual.ID != created.ID {
+		t.Fatalf("Create() item = %+v, want %+v", actual, created)
+	}
+	if finder.calls != 1 {
+		t.Fatalf("FindAndSave() calls = %d, want 1", finder.calls)
+	}
+	if finder.node.ItemID != created.ID || finder.node.OwnerID != created.OwnerID {
+		t.Fatalf("FindAndSave() node = %+v, want item %s owner %s", finder.node, created.ID, created.OwnerID)
+	}
+}
+
+func TestCompatibilityUpdateStartsExchangeSearch(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]UpdateInput{
+		"category": {Category: stringPointer("books")},
+		"wants":    {Wants: []string{"books"}},
+	}
+
+	for name, input := range tests {
+		input := input
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			ownerID := uuid.New()
+			itemID := uuid.New()
+			updated := itemmodel.Item{ID: itemID, OwnerID: ownerID}
+			repository := &fakeRepository{
+				get: func(context.Context, uuid.UUID) (itemmodel.Item, error) {
+					return updated, nil
+				},
+				hasOpen: func(_ context.Context, actualID uuid.UUID) (bool, error) {
+					if actualID != itemID {
+						t.Fatalf("HasOpenExchange() ID = %s, want %s", actualID, itemID)
+					}
+					return false, nil
+				},
+				update: func(context.Context, uuid.UUID, itemmodel.Changes) (itemmodel.Item, error) {
+					return updated, nil
+				},
+			}
+			finder := &fakeExchangeFinder{}
+
+			_, err := newWithDependencies(repository, finder, log.Default()).Update(
+				context.Background(),
+				itemID,
+				ownerID,
+				input,
+			)
+			if err != nil {
+				t.Fatalf("Update() error = %v", err)
+			}
+			if finder.calls != 1 {
+				t.Fatalf("FindAndSave() calls = %d, want 1", finder.calls)
+			}
+		})
+	}
+}
+
+func TestPresentationUpdateDoesNotStartExchangeSearch(t *testing.T) {
+	t.Parallel()
+
+	ownerID := uuid.New()
+	itemID := uuid.New()
+	title := "New title"
+	repository := &fakeRepository{
+		get: func(context.Context, uuid.UUID) (itemmodel.Item, error) {
+			return itemmodel.Item{ID: itemID, OwnerID: ownerID}, nil
+		},
+		hasOpen: func(context.Context, uuid.UUID) (bool, error) {
+			t.Fatal("HasOpenExchange() must not be called")
+			return false, nil
+		},
+		update: func(context.Context, uuid.UUID, itemmodel.Changes) (itemmodel.Item, error) {
+			return itemmodel.Item{ID: itemID, OwnerID: ownerID}, nil
+		},
+	}
+	finder := &fakeExchangeFinder{}
+
+	_, err := newWithDependencies(repository, finder, log.Default()).Update(
+		context.Background(),
+		itemID,
+		ownerID,
+		UpdateInput{Title: &title},
+	)
+	if err != nil {
+		t.Fatalf("Update() error = %v", err)
+	}
+	if finder.calls != 0 {
+		t.Fatalf("FindAndSave() calls = %d, want 0", finder.calls)
+	}
+}
+
+func TestSearchErrorIsLoggedWithoutBreakingCreate(t *testing.T) {
+	t.Parallel()
+
+	searchError := errors.New("database unavailable")
+	input := validCreateInput()
+	created := itemmodel.Item{ID: uuid.New(), OwnerID: input.OwnerID}
+	repository := &fakeRepository{create: func(context.Context, itemmodel.NewItem) (itemmodel.Item, error) {
+		return created, nil
+	}}
+	finder := &fakeExchangeFinder{err: searchError}
+	var logs bytes.Buffer
+	logger := log.New(&logs, "", 0)
+
+	actual, err := newWithDependencies(repository, finder, logger).Create(context.Background(), input)
+	if err != nil {
+		t.Fatalf("Create() error = %v, search errors must not break CRUD", err)
+	}
+	if actual.ID != created.ID {
+		t.Fatalf("Create() item ID = %s, want %s", actual.ID, created.ID)
+	}
+	if !strings.Contains(logs.String(), searchError.Error()) || !strings.Contains(logs.String(), created.ID.String()) {
+		t.Fatalf("search error was not logged with item ID: %q", logs.String())
+	}
+}
+
+func TestCompatibilityUpdateRejectsItemInOpenExchange(t *testing.T) {
+	t.Parallel()
+
+	ownerID := uuid.New()
+	itemID := uuid.New()
+	repository := &fakeRepository{
+		get: func(context.Context, uuid.UUID) (itemmodel.Item, error) {
+			return itemmodel.Item{ID: itemID, OwnerID: ownerID}, nil
+		},
+		hasOpen: func(context.Context, uuid.UUID) (bool, error) {
+			return true, nil
+		},
+		update: func(context.Context, uuid.UUID, itemmodel.Changes) (itemmodel.Item, error) {
+			t.Fatal("Update() must not be called for an item in an open exchange")
+			return itemmodel.Item{}, nil
+		},
+	}
+	finder := &fakeExchangeFinder{}
+
+	_, err := newWithDependencies(repository, finder, log.Default()).Update(
+		context.Background(),
+		itemID,
+		ownerID,
+		UpdateInput{Wants: []string{"books"}},
+	)
+	if !errors.Is(err, ErrItemInChain) {
+		t.Fatalf("Update() error = %v, want %v", err, ErrItemInChain)
+	}
+	if finder.calls != 0 {
+		t.Fatalf("FindAndSave() calls = %d, want 0", finder.calls)
+	}
+}
+
+func TestCompatibilityUpdateCheckError(t *testing.T) {
+	t.Parallel()
+
+	databaseError := errors.New("database unavailable")
+	ownerID := uuid.New()
+	itemID := uuid.New()
+	repository := &fakeRepository{
+		get: func(context.Context, uuid.UUID) (itemmodel.Item, error) {
+			return itemmodel.Item{ID: itemID, OwnerID: ownerID}, nil
+		},
+		hasOpen: func(context.Context, uuid.UUID) (bool, error) {
+			return false, databaseError
+		},
+	}
+
+	_, err := New(repository).Update(
+		context.Background(),
+		itemID,
+		ownerID,
+		UpdateInput{Category: stringPointer("books")},
+	)
+	if !errors.Is(err, databaseError) {
+		t.Fatalf("Update() error = %v, want wrapped %v", err, databaseError)
+	}
+}
+
+type fakeExchangeFinder struct {
+	result exchangemodel.SearchResult
+	err    error
+	node   exchangemodel.Node
+	calls  int
+}
+
+func (f *fakeExchangeFinder) FindAndSave(
+	_ context.Context,
+	node exchangemodel.Node,
+) (exchangemodel.SearchResult, error) {
+	f.calls++
+	f.node = node
+	return f.result, f.err
+}
+
+func stringPointer(value string) *string {
+	return &value
 }
 
 func photos(n int) []string {

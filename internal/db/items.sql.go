@@ -138,6 +138,24 @@ func (q *Queries) InsertItemWants(ctx context.Context, arg InsertItemWantsParams
 	return err
 }
 
+const itemHasOpenExchange = `-- name: ItemHasOpenExchange :one
+SELECT EXISTS (
+    SELECT 1
+    FROM chain_participants AS participant
+    JOIN chains AS exchange ON exchange.id = participant.chain_id
+    WHERE (participant.gives_item_id = $1
+           OR participant.receives_item_id = $1)
+      AND exchange.status IN ('proposed', 'confirmed')
+)
+`
+
+func (q *Queries) ItemHasOpenExchange(ctx context.Context, itemID pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, itemHasOpenExchange, itemID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const updateItem = `-- name: UpdateItem :exec
 UPDATE items SET
     title       = COALESCE($1, title),
