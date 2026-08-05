@@ -1,0 +1,78 @@
+.title {
+  font-family: var(--poppins);
+  font-weight: 600;
+  font-size: 36px;
+  line-height: 100%;
+  padding-bottom: 20px;
+}
+
+.form {
+  &__label {
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 30px;
+
+    &_cover {
+      display: flex;
+      justify-content: space-between;
+    }
+  }
+  &__title {
+    font-family: var(--poppins);
+    font-weight: 400;
+    font-size: 14px;
+    color: var(--light-black-color);
+    line-height: 22px;
+    padding-bottom: 8px;
+
+    &::before {
+      content: "*";
+      padding-right: 4px;
+      color: var(--red-color);
+    }
+  }
+
+  &__input {
+    border: 1px solid var(--gray-color);
+    border-radius: 2px;
+    padding: 5px 12px;
+
+    &_error {
+      border: 1px solid var(--red-color);
+    }
+
+    &::placeholder {
+      color: var(--gray-color);
+      font-family: var(--poppins);
+      font-weight: 400;
+      font-size: 14px;
+      line-height: 22px;
+    }
+
+    &_comm {
+      resize: vertical;
+      max-height: 100px;
+    }
+  }
+
+  &__counter {
+    font-family: var(--poppins);
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 22px;
+    text-align: right;
+    color: var(--dark-gray-color);
+    margin-left: auto;
+  }
+
+  &__buttons {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  &__error {
+    padding-top: 5px;
+    color: red;
+  }
+}
