@@ -64,6 +64,15 @@ func FromModel(item itemmodel.Item) ItemResponse {
 	}
 }
 
+func ItemsFromModel(items []itemmodel.Item) []ItemResponse {
+	response := make([]ItemResponse, 0, len(items))
+	for _, item := range items {
+		response = append(response, FromModel(item))
+	}
+
+	return response
+}
+
 func CategoriesFromModel(categories []itemmodel.Category) []CategoryResponse {
 	response := make([]CategoryResponse, 0, len(categories))
 	for _, category := range categories {

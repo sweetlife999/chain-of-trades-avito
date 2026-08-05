@@ -49,6 +49,24 @@ FROM items i
 JOIN categories c ON c.id = i.category_id
 WHERE i.id = $1;
 
+-- Колонки те же и в том же порядке, что у GetItemByID: sqlc генерит идентичную
+-- структуру, и репозиторию хватает одного маппера на оба запроса.
+-- name: ListItemsByOwner :many
+SELECT
+    i.*,
+    c.slug AS category,
+    COALESCE(
+        (SELECT array_agg(want_category.slug ORDER BY want_category.slug)
+         FROM item_wants w
+         JOIN categories want_category ON want_category.id = w.category_id
+         WHERE w.item_id = i.id),
+        '{}'
+    )::text[] AS wants
+FROM items i
+JOIN categories c ON c.id = i.category_id
+WHERE i.owner_id = $1
+ORDER BY i.created_at DESC, i.id;
+
 -- NULL в аргументе означает «не менять поле» — тот же приём, что в UpdateUserProfile.
 -- Категория идёт через CASE, а не COALESCE: COALESCE не отличил бы «не передана»
 -- от «передана несуществующая» и во втором случае молча оставил бы старую.
