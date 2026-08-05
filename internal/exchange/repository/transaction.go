@@ -13,6 +13,18 @@ import (
 type exchangeWriteQueries interface {
 	CreateExchange(context.Context) (pgtype.UUID, error)
 	CreateExchangeParticipant(context.Context, db.CreateExchangeParticipantParams) error
+	LockExchange(context.Context, pgtype.UUID) (db.ChainStatus, error)
+	LockExchangeParticipant(
+		context.Context,
+		db.LockExchangeParticipantParams,
+	) (db.ParticipantStatus, error)
+	AcceptExchangeParticipant(context.Context, db.AcceptExchangeParticipantParams) error
+	DeclineExchangeParticipant(context.Context, db.DeclineExchangeParticipantParams) error
+	CountPendingExchangeParticipants(context.Context, pgtype.UUID) (int64, error)
+	LockExchangeItems(context.Context, pgtype.UUID) ([]db.LockExchangeItemsRow, error)
+	ReserveExchangeItems(context.Context, pgtype.UUID) (int64, error)
+	ConfirmExchange(context.Context, pgtype.UUID) error
+	CancelExchange(context.Context, pgtype.UUID) error
 }
 
 type transactionManager interface {

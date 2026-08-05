@@ -216,6 +216,25 @@ type fakeExchangeWriteQueries struct {
 	createErr      error
 	participantErr error
 	participants   []db.CreateExchangeParticipantParams
+
+	chainStatus        db.ChainStatus
+	lockExchangeErr    error
+	participantStatus  db.ParticipantStatus
+	lockParticipantErr error
+	accepted           bool
+	acceptErr          error
+	declined           bool
+	declineErr         error
+	pending            int64
+	pendingErr         error
+	items              []db.LockExchangeItemsRow
+	lockItemsErr       error
+	reserved           int64
+	reserveErr         error
+	confirmed          bool
+	confirmErr         error
+	cancelled          bool
+	cancelErr          error
 }
 
 func (f *fakeExchangeWriteQueries) CreateExchange(context.Context) (pgtype.UUID, error) {
@@ -228,6 +247,67 @@ func (f *fakeExchangeWriteQueries) CreateExchangeParticipant(
 ) error {
 	f.participants = append(f.participants, params)
 	return f.participantErr
+}
+
+func (f *fakeExchangeWriteQueries) LockExchange(
+	context.Context,
+	pgtype.UUID,
+) (db.ChainStatus, error) {
+	return f.chainStatus, f.lockExchangeErr
+}
+
+func (f *fakeExchangeWriteQueries) LockExchangeParticipant(
+	context.Context,
+	db.LockExchangeParticipantParams,
+) (db.ParticipantStatus, error) {
+	return f.participantStatus, f.lockParticipantErr
+}
+
+func (f *fakeExchangeWriteQueries) AcceptExchangeParticipant(
+	context.Context,
+	db.AcceptExchangeParticipantParams,
+) error {
+	f.accepted = true
+	return f.acceptErr
+}
+
+func (f *fakeExchangeWriteQueries) DeclineExchangeParticipant(
+	context.Context,
+	db.DeclineExchangeParticipantParams,
+) error {
+	f.declined = true
+	return f.declineErr
+}
+
+func (f *fakeExchangeWriteQueries) CountPendingExchangeParticipants(
+	context.Context,
+	pgtype.UUID,
+) (int64, error) {
+	return f.pending, f.pendingErr
+}
+
+func (f *fakeExchangeWriteQueries) LockExchangeItems(
+	context.Context,
+	pgtype.UUID,
+) ([]db.LockExchangeItemsRow, error) {
+	return f.items, f.lockItemsErr
+}
+
+func (f *fakeExchangeWriteQueries) ReserveExchangeItems(
+	context.Context,
+	pgtype.UUID,
+) (int64, error) {
+	return f.reserved, f.reserveErr
+}
+
+func (f *fakeExchangeWriteQueries) ConfirmExchange(context.Context, pgtype.UUID) error {
+	f.confirmed = true
+	return f.confirmErr
+}
+
+func (f *fakeExchangeWriteQueries) CancelExchange(context.Context, pgtype.UUID) error {
+	f.cancelled = true
+	return f.cancelErr
 }
 
 type fakeTransactionManager struct {

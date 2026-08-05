@@ -477,6 +477,63 @@ func TestGetForUserRepositoryError(t *testing.T) {
 	}
 }
 
+func TestConfirmParticipation(t *testing.T) {
+	t.Parallel()
+
+	exchangeID := uuid.New()
+	userID := uuid.New()
+	repository := &fakeRepository{}
+
+	if err := New(repository).ConfirmParticipation(context.Background(), exchangeID, userID); err != nil {
+		t.Fatalf("ConfirmParticipation() error = %v", err)
+	}
+	if repository.confirmedExchangeID != exchangeID || repository.confirmedUserID != userID {
+		t.Fatalf(
+			"ConfirmParticipation() repository args = (%s, %s), want (%s, %s)",
+			repository.confirmedExchangeID,
+			repository.confirmedUserID,
+			exchangeID,
+			userID,
+		)
+	}
+}
+
+func TestDeclineParticipation(t *testing.T) {
+	t.Parallel()
+
+	exchangeID := uuid.New()
+	userID := uuid.New()
+	repository := &fakeRepository{}
+
+	if err := New(repository).DeclineParticipation(context.Background(), exchangeID, userID); err != nil {
+		t.Fatalf("DeclineParticipation() error = %v", err)
+	}
+	if repository.declinedExchangeID != exchangeID || repository.declinedUserID != userID {
+		t.Fatalf(
+			"DeclineParticipation() repository args = (%s, %s), want (%s, %s)",
+			repository.declinedExchangeID,
+			repository.declinedUserID,
+			exchangeID,
+			userID,
+		)
+	}
+}
+
+func TestParticipationDecisionWrapsRepositoryError(t *testing.T) {
+	t.Parallel()
+
+	databaseError := errors.New("database unavailable")
+	repository := &fakeRepository{confirmErr: databaseError, declineErr: databaseError}
+	service := New(repository)
+
+	if err := service.ConfirmParticipation(context.Background(), uuid.New(), uuid.New()); !errors.Is(err, databaseError) {
+		t.Fatalf("ConfirmParticipation() error = %v, want wrapped %v", err, databaseError)
+	}
+	if err := service.DeclineParticipation(context.Background(), uuid.New(), uuid.New()); !errors.Is(err, databaseError) {
+		t.Fatalf("DeclineParticipation() error = %v, want wrapped %v", err, databaseError)
+	}
+}
+
 type fakeRepository struct {
 	neighbors           map[uuid.UUID][]exchangemodel.Node
 	errors              map[uuid.UUID]error
@@ -491,6 +548,12 @@ type fakeRepository struct {
 	exchangeDetails     exchangemodel.Details
 	requestedExchangeID uuid.UUID
 	getErr              error
+	confirmedExchangeID uuid.UUID
+	confirmedUserID     uuid.UUID
+	confirmErr          error
+	declinedExchangeID  uuid.UUID
+	declinedUserID      uuid.UUID
+	declineErr          error
 }
 
 func (f *fakeRepository) FindNeighbors(
@@ -529,6 +592,26 @@ func (f *fakeRepository) GetByID(
 ) (exchangemodel.Details, error) {
 	f.requestedExchangeID = exchangeID
 	return f.exchangeDetails, f.getErr
+}
+
+func (f *fakeRepository) ConfirmParticipation(
+	_ context.Context,
+	exchangeID uuid.UUID,
+	userID uuid.UUID,
+) error {
+	f.confirmedExchangeID = exchangeID
+	f.confirmedUserID = userID
+	return f.confirmErr
+}
+
+func (f *fakeRepository) DeclineParticipation(
+	_ context.Context,
+	exchangeID uuid.UUID,
+	userID uuid.UUID,
+) error {
+	f.declinedExchangeID = exchangeID
+	f.declinedUserID = userID
+	return f.declineErr
 }
 
 func cycleGraph(nodes []exchangemodel.Node) map[uuid.UUID][]exchangemodel.Node {

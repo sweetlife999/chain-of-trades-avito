@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -168,9 +169,137 @@ func TestListInternalError(t *testing.T) {
 	}
 }
 
+func TestParticipationDecisionRoutes(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		path string
+		set  func(*fakeService, func(context.Context, uuid.UUID, uuid.UUID) error)
+	}{
+		{
+			name: "confirm",
+			path: "/exchanges/%s/confirm",
+			set: func(service *fakeService, operation func(context.Context, uuid.UUID, uuid.UUID) error) {
+				service.confirm = operation
+			},
+		},
+		{
+			name: "decline",
+			path: "/exchanges/%s/decline",
+			set: func(service *fakeService, operation func(context.Context, uuid.UUID, uuid.UUID) error) {
+				service.decline = operation
+			},
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			exchangeID := uuid.New()
+			userID := uuid.New()
+			service := &fakeService{}
+			test.set(service, func(
+				_ context.Context,
+				actualExchangeID uuid.UUID,
+				actualUserID uuid.UUID,
+			) error {
+				if actualExchangeID != exchangeID || actualUserID != userID {
+					t.Fatalf(
+						"decision args = (%s, %s), want (%s, %s)",
+						actualExchangeID,
+						actualUserID,
+						exchangeID,
+						userID,
+					)
+				}
+				return nil
+			})
+
+			response := performRequest(
+				service,
+				http.MethodPost,
+				fmt.Sprintf(test.path, exchangeID),
+				authenticateAs(userID),
+			)
+			if response.Code != http.StatusNoContent {
+				t.Fatalf("status = %d, want %d; body = %s", response.Code, http.StatusNoContent, response.Body.String())
+			}
+		})
+	}
+}
+
+func TestParticipationDecisionErrorStatuses(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		pathID     string
+		serviceErr error
+		wantStatus int
+	}{
+		{name: "invalid UUID", pathID: "not-a-uuid", wantStatus: http.StatusBadRequest},
+		{name: "forbidden", pathID: uuid.New().String(), serviceErr: exchangeservice.ErrForbidden, wantStatus: http.StatusForbidden},
+		{name: "not found", pathID: uuid.New().String(), serviceErr: exchangeservice.ErrNotFound, wantStatus: http.StatusNotFound},
+		{name: "conflict", pathID: uuid.New().String(), serviceErr: exchangeservice.ErrConflict, wantStatus: http.StatusConflict},
+		{name: "internal", pathID: uuid.New().String(), serviceErr: errors.New("database unavailable"), wantStatus: http.StatusInternalServerError},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeService{confirm: func(context.Context, uuid.UUID, uuid.UUID) error {
+				return test.serviceErr
+			}}
+			response := performRequest(
+				service,
+				http.MethodPost,
+				"/exchanges/"+test.pathID+"/confirm",
+				authenticateAs(uuid.New()),
+			)
+			if response.Code != test.wantStatus {
+				t.Fatalf("status = %d, want %d; body = %s", response.Code, test.wantStatus, response.Body.String())
+			}
+		})
+	}
+}
+
+func TestParticipationDecisionRoutesRequireAuthentication(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeService{
+		confirm: func(context.Context, uuid.UUID, uuid.UUID) error {
+			t.Fatal("ConfirmParticipation() must not be called")
+			return nil
+		},
+		decline: func(context.Context, uuid.UUID, uuid.UUID) error {
+			t.Fatal("DeclineParticipation() must not be called")
+			return nil
+		},
+	}
+
+	for _, action := range []string{"confirm", "decline"} {
+		response := performRequest(
+			service,
+			http.MethodPost,
+			"/exchanges/"+uuid.New().String()+"/"+action,
+			passThroughAuth,
+		)
+		if response.Code != http.StatusUnauthorized {
+			t.Fatalf("action %s: status = %d, want %d", action, response.Code, http.StatusUnauthorized)
+		}
+	}
+}
+
 type fakeService struct {
-	list func(context.Context, uuid.UUID) ([]exchangemodel.Details, error)
-	get  func(context.Context, uuid.UUID, uuid.UUID) (exchangemodel.Details, error)
+	list    func(context.Context, uuid.UUID) ([]exchangemodel.Details, error)
+	get     func(context.Context, uuid.UUID, uuid.UUID) (exchangemodel.Details, error)
+	confirm func(context.Context, uuid.UUID, uuid.UUID) error
+	decline func(context.Context, uuid.UUID, uuid.UUID) error
 }
 
 func (f *fakeService) ListForUser(
@@ -186,6 +315,28 @@ func (f *fakeService) GetForUser(
 	userID uuid.UUID,
 ) (exchangemodel.Details, error) {
 	return f.get(ctx, exchangeID, userID)
+}
+
+func (f *fakeService) ConfirmParticipation(
+	ctx context.Context,
+	exchangeID uuid.UUID,
+	userID uuid.UUID,
+) error {
+	if f.confirm == nil {
+		return nil
+	}
+	return f.confirm(ctx, exchangeID, userID)
+}
+
+func (f *fakeService) DeclineParticipation(
+	ctx context.Context,
+	exchangeID uuid.UUID,
+	userID uuid.UUID,
+) error {
+	if f.decline == nil {
+		return nil
+	}
+	return f.decline(ctx, exchangeID, userID)
 }
 
 func performRequest(

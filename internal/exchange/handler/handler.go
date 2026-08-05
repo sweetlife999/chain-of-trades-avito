@@ -19,6 +19,8 @@ import (
 type Service interface {
 	ListForUser(context.Context, uuid.UUID) ([]exchangemodel.Details, error)
 	GetForUser(context.Context, uuid.UUID, uuid.UUID) (exchangemodel.Details, error)
+	ConfirmParticipation(context.Context, uuid.UUID, uuid.UUID) error
+	DeclineParticipation(context.Context, uuid.UUID, uuid.UUID) error
 }
 
 type Handler struct {
@@ -32,6 +34,8 @@ func New(service Service) *Handler {
 func (h *Handler) RegisterRoutes(router chi.Router, requireAuth func(http.Handler) http.Handler) {
 	router.With(requireAuth).Get("/exchanges", h.list)
 	router.With(requireAuth).Get("/exchanges/{id}", h.getByID)
+	router.With(requireAuth).Post("/exchanges/{id}/confirm", h.confirm)
+	router.With(requireAuth).Post("/exchanges/{id}/decline", h.decline)
 }
 
 // @Summary     Получить свои обмены
@@ -90,6 +94,62 @@ func (h *Handler) getByID(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, exchangedto.FromModel(exchange))
 }
 
+// @Summary     Подтвердить участие в обмене
+// @Description Сохраняет согласие текущего участника. После согласия всех участников обмен подтверждается, а объявления резервируются.
+// @Tags        exchanges
+// @Param       id path string true "UUID обмена"
+// @Success     204 "Участие подтверждено"
+// @Failure     400 {object} exchangedto.ErrorResponse "ID не является UUID"
+// @Failure     401 {object} exchangedto.ErrorResponse "Пользователь не авторизован"
+// @Failure     403 {object} exchangedto.ErrorResponse "Пользователь не участвует в обмене"
+// @Failure     404 {object} exchangedto.ErrorResponse "Обмен не найден"
+// @Failure     409 {object} exchangedto.ErrorResponse "Решение уже принято, обмен закрыт или объявление недоступно"
+// @Failure     500 {object} exchangedto.ErrorResponse "Внутренняя ошибка"
+// @Router      /exchanges/{id}/confirm [post]
+func (h *Handler) confirm(w http.ResponseWriter, r *http.Request) {
+	h.handleDecision(w, r, h.service.ConfirmParticipation)
+}
+
+// @Summary     Отказаться от участия в обмене
+// @Description Сохраняет отказ текущего участника и отменяет предложенный обмен.
+// @Tags        exchanges
+// @Param       id path string true "UUID обмена"
+// @Success     204 "Отказ сохранён, обмен отменён"
+// @Failure     400 {object} exchangedto.ErrorResponse "ID не является UUID"
+// @Failure     401 {object} exchangedto.ErrorResponse "Пользователь не авторизован"
+// @Failure     403 {object} exchangedto.ErrorResponse "Пользователь не участвует в обмене"
+// @Failure     404 {object} exchangedto.ErrorResponse "Обмен не найден"
+// @Failure     409 {object} exchangedto.ErrorResponse "Решение уже принято или обмен закрыт"
+// @Failure     500 {object} exchangedto.ErrorResponse "Внутренняя ошибка"
+// @Router      /exchanges/{id}/decline [post]
+func (h *Handler) decline(w http.ResponseWriter, r *http.Request) {
+	h.handleDecision(w, r, h.service.DeclineParticipation)
+}
+
+func (h *Handler) handleDecision(
+	w http.ResponseWriter,
+	r *http.Request,
+	decision func(context.Context, uuid.UUID, uuid.UUID) error,
+) {
+	userID, ok := currentUserID(w, r)
+	if !ok {
+		return
+	}
+
+	exchangeID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid exchange id")
+		return
+	}
+
+	if err := decision(r.Context(), exchangeID, userID); err != nil {
+		handleServiceError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func currentUserID(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
 	userID, ok := authcontext.UserID(r.Context())
 	if !ok {
@@ -106,6 +166,8 @@ func handleServiceError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusForbidden, "forbidden")
 	case errors.Is(err, exchangeservice.ErrNotFound):
 		writeError(w, http.StatusNotFound, "exchange not found")
+	case errors.Is(err, exchangeservice.ErrConflict):
+		writeError(w, http.StatusConflict, "exchange state conflict")
 	default:
 		log.Printf("exchange handler: %v", err)
 		writeError(w, http.StatusInternalServerError, "internal server error")

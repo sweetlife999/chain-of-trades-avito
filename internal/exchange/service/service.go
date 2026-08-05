@@ -15,7 +15,8 @@ const maxParticipants = 5
 
 var (
 	ErrInvalidCycle = errors.New("invalid exchange cycle")
-	ErrForbidden    = errors.New("exchange belongs to other users")
+	ErrForbidden    = exchangerepository.ErrNotParticipant
+	ErrConflict     = exchangerepository.ErrConflict
 	ErrNotFound     = exchangerepository.ErrNotFound
 )
 
@@ -24,6 +25,8 @@ type Repository interface {
 	SaveExchange(context.Context, exchangemodel.Exchange) (uuid.UUID, error)
 	ListByUser(context.Context, uuid.UUID) ([]exchangemodel.Details, error)
 	GetByID(context.Context, uuid.UUID) (exchangemodel.Details, error)
+	ConfirmParticipation(context.Context, uuid.UUID, uuid.UUID) error
+	DeclineParticipation(context.Context, uuid.UUID, uuid.UUID) error
 }
 
 type Service struct {
@@ -192,6 +195,30 @@ func (s *Service) GetForUser(
 	}
 
 	return exchangemodel.Details{}, ErrForbidden
+}
+
+func (s *Service) ConfirmParticipation(
+	ctx context.Context,
+	exchangeID uuid.UUID,
+	userID uuid.UUID,
+) error {
+	if err := s.repository.ConfirmParticipation(ctx, exchangeID, userID); err != nil {
+		return fmt.Errorf("confirm exchange participation: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Service) DeclineParticipation(
+	ctx context.Context,
+	exchangeID uuid.UUID,
+	userID uuid.UUID,
+) error {
+	if err := s.repository.DeclineParticipation(ctx, exchangeID, userID); err != nil {
+		return fmt.Errorf("decline exchange participation: %w", err)
+	}
+
+	return nil
 }
 
 func validateCycle(cycle []exchangemodel.Node) error {
