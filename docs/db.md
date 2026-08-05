@@ -59,7 +59,7 @@ erDiagram
         smallint    category_id FK
         text        title
         text        description
-        text        photo_url
+        text_array  photo_urls
         item_status status
     }
     item_wants {
@@ -125,7 +125,7 @@ erDiagram
 | `category_id` | `smallint` FK → `categories` ON DELETE RESTRICT | Категория — половина ребра графа обмена; удалить её из-под живых вещей нельзя |
 | `title` | `text` CHECK 1..120 | Короткая подпись для списка; пустое название запрещено |
 | `description` | `text` NOT NULL DEFAULT `''` | Подробности не обязательны |
-| `photo_url` | `text` NULL | Фото не обязательно |
+| `photo_urls` | `text[]` NOT NULL + CHECK `cardinality BETWEEN 1 AND 10` | Фотографий несколько, и хотя бы одна обязательна: объявление без фото — пустая карточка. Массив, а не отдельная таблица: порядок показа — это порядок массива, а `cardinality()` в CHECK видит весь список, из отдельной таблицы то же правило выражалось бы только триггером |
 | `status` | `item_status` | ENUM `available / reserved / traded / withdrawn` — весь жизненный цикл вещи |
 
 ### `item_wants`
@@ -133,6 +133,10 @@ erDiagram
 | Колонка | Тип | Почему такой |
 |---|---|---|
 | `item_id`, `category_id` | составной PRIMARY KEY | Пара «вещь — желаемая категория» уникальна по определению, отдельный суррогатный ключ здесь лишний |
+
+Хотя бы одно желание на вещь требует API (`internal/item/service`), а не БД: строки лежат в
+отдельной таблице, и «не меньше одной» там выражается только триггером — цена выше, чем
+польза. Вещь без желаний в БД возможна, через `POST /items` не создаётся.
 
 ### `chains`
 
