@@ -27,6 +27,18 @@ type exchangeWriteQueries interface {
 	ConfirmExchange(context.Context, pgtype.UUID) error
 	CancelCompetingProposedExchanges(context.Context, pgtype.UUID) (int64, error)
 	CancelExchange(context.Context, pgtype.UUID) error
+	LockExchangeCompletionParticipant(
+		context.Context,
+		db.LockExchangeCompletionParticipantParams,
+	) (db.LockExchangeCompletionParticipantRow, error)
+	ConfirmExchangeParticipantCompletion(
+		context.Context,
+		db.ConfirmExchangeParticipantCompletionParams,
+	) error
+	CountIncompleteExchangeParticipants(context.Context, pgtype.UUID) (int64, error)
+	MarkExchangeItemsTraded(context.Context, pgtype.UUID) (int64, error)
+	CompleteExchange(context.Context, pgtype.UUID) error
+	IncrementExchangeParticipantsDealsCompleted(context.Context, pgtype.UUID) (int64, error)
 }
 
 type transactionManager interface {

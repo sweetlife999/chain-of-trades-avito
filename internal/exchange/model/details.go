@@ -16,12 +16,13 @@ type Details struct {
 }
 
 type DetailsParticipant struct {
-	User         ParticipantUser
-	GivesItem    ParticipantItem
-	ReceivesItem ParticipantItem
-	Position     int32
-	Status       string
-	DecidedAt    *time.Time
+	User                  ParticipantUser
+	GivesItem             ParticipantItem
+	ReceivesItem          ParticipantItem
+	Position              int32
+	Status                string
+	DecidedAt             *time.Time
+	CompletionConfirmedAt *time.Time
 }
 
 type ParticipantUser struct {

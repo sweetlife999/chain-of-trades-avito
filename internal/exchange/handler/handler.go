@@ -21,6 +21,7 @@ type Service interface {
 	GetForUser(context.Context, uuid.UUID, uuid.UUID) (exchangemodel.Details, error)
 	ConfirmParticipation(context.Context, uuid.UUID, uuid.UUID) error
 	DeclineParticipation(context.Context, uuid.UUID, uuid.UUID) error
+	CompleteParticipation(context.Context, uuid.UUID, uuid.UUID) error
 }
 
 type Handler struct {
@@ -36,6 +37,7 @@ func (h *Handler) RegisterRoutes(router chi.Router, requireAuth func(http.Handle
 	router.With(requireAuth).Get("/exchanges/{id}", h.getByID)
 	router.With(requireAuth).Post("/exchanges/{id}/confirm", h.confirm)
 	router.With(requireAuth).Post("/exchanges/{id}/decline", h.decline)
+	router.With(requireAuth).Post("/exchanges/{id}/complete", h.complete)
 }
 
 // @Summary     Получить свои обмены
@@ -124,6 +126,22 @@ func (h *Handler) confirm(w http.ResponseWriter, r *http.Request) {
 // @Router      /exchanges/{id}/decline [post]
 func (h *Handler) decline(w http.ResponseWriter, r *http.Request) {
 	h.handleDecision(w, r, h.service.DeclineParticipation)
+}
+
+// @Summary     Подтвердить получение вещи
+// @Description Сохраняет подтверждение текущего участника. После подтверждения всеми участниками обмен завершается, объявления помечаются переданными, а счётчики завершённых обменов увеличиваются.
+// @Tags        exchanges
+// @Param       id path string true "UUID обмена"
+// @Success     204 "Получение подтверждено"
+// @Failure     400 {object} exchangedto.ErrorResponse "ID не является UUID"
+// @Failure     401 {object} exchangedto.ErrorResponse "Пользователь не авторизован"
+// @Failure     403 {object} exchangedto.ErrorResponse "Пользователь не участвует в обмене"
+// @Failure     404 {object} exchangedto.ErrorResponse "Обмен не найден"
+// @Failure     409 {object} exchangedto.ErrorResponse "Обмен ещё не подтверждён или уже отменён"
+// @Failure     500 {object} exchangedto.ErrorResponse "Внутренняя ошибка"
+// @Router      /exchanges/{id}/complete [post]
+func (h *Handler) complete(w http.ResponseWriter, r *http.Request) {
+	h.handleDecision(w, r, h.service.CompleteParticipation)
 }
 
 func (h *Handler) handleDecision(

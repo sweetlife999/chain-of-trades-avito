@@ -27,6 +27,7 @@ type Repository interface {
 	GetByID(context.Context, uuid.UUID) (exchangemodel.Details, error)
 	ConfirmParticipation(context.Context, uuid.UUID, uuid.UUID) error
 	DeclineParticipation(context.Context, uuid.UUID, uuid.UUID) error
+	CompleteParticipation(context.Context, uuid.UUID, uuid.UUID) error
 }
 
 type Service struct {
@@ -216,6 +217,18 @@ func (s *Service) DeclineParticipation(
 ) error {
 	if err := s.repository.DeclineParticipation(ctx, exchangeID, userID); err != nil {
 		return fmt.Errorf("decline exchange participation: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Service) CompleteParticipation(
+	ctx context.Context,
+	exchangeID uuid.UUID,
+	userID uuid.UUID,
+) error {
+	if err := s.repository.CompleteParticipation(ctx, exchangeID, userID); err != nil {
+		return fmt.Errorf("complete exchange participation: %w", err)
 	}
 
 	return nil

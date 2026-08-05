@@ -16,12 +16,13 @@ type ExchangeResponse struct {
 }
 
 type ParticipantResponse struct {
-	User         ParticipantUserResponse `json:"user"`
-	GivesItem    ParticipantItemResponse `json:"gives_item"`
-	ReceivesItem ParticipantItemResponse `json:"receives_item"`
-	Position     int32                   `json:"position"`
-	Status       string                  `json:"status"`
-	DecidedAt    *time.Time              `json:"decided_at"`
+	User                  ParticipantUserResponse `json:"user"`
+	GivesItem             ParticipantItemResponse `json:"gives_item"`
+	ReceivesItem          ParticipantItemResponse `json:"receives_item"`
+	Position              int32                   `json:"position"`
+	Status                string                  `json:"status"`
+	DecidedAt             *time.Time              `json:"decided_at"`
+	CompletionConfirmedAt *time.Time              `json:"completion_confirmed_at"`
 }
 
 type ParticipantUserResponse struct {
@@ -56,11 +57,12 @@ func FromModel(exchange exchangemodel.Details) ExchangeResponse {
 				Nickname: participant.User.Nickname,
 				PhotoURL: participant.User.PhotoURL,
 			},
-			GivesItem:    itemFromModel(participant.GivesItem),
-			ReceivesItem: itemFromModel(participant.ReceivesItem),
-			Position:     participant.Position,
-			Status:       participant.Status,
-			DecidedAt:    participant.DecidedAt,
+			GivesItem:             itemFromModel(participant.GivesItem),
+			ReceivesItem:          itemFromModel(participant.ReceivesItem),
+			Position:              participant.Position,
+			Status:                participant.Status,
+			DecidedAt:             participant.DecidedAt,
+			CompletionConfirmedAt: participant.CompletionConfirmedAt,
 		}
 	}
 

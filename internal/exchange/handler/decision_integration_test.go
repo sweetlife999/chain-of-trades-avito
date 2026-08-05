@@ -190,4 +190,77 @@ func TestExchangeDecisionsIntegration(t *testing.T) {
 			)
 		}
 	}
+
+	for index := 0; index < len(participants)-1; index++ {
+		if err := service.CompleteParticipation(ctx, confirmedExchangeID, participants[index].UserID); err != nil {
+			t.Fatalf("complete exchange participant %d: %v", index, err)
+		}
+	}
+
+	waiting, err := service.GetForUser(ctx, confirmedExchangeID, users[0])
+	if err != nil {
+		t.Fatalf("get exchange waiting for completion: %v", err)
+	}
+	if waiting.Status != "confirmed" {
+		t.Fatalf("partially completed exchange status = %q, want confirmed", waiting.Status)
+	}
+	for index, participant := range waiting.Participants {
+		if index < len(participants)-1 && participant.CompletionConfirmedAt == nil {
+			t.Fatalf("participant %d completion timestamp is nil", index)
+		}
+		if index == len(participants)-1 && participant.CompletionConfirmedAt != nil {
+			t.Fatalf("last participant completion timestamp is already set")
+		}
+		if participant.GivesItem.Status != "reserved" {
+			t.Fatalf("item status before final completion = %q, want reserved", participant.GivesItem.Status)
+		}
+	}
+
+	completionErrors := make(chan error, 2)
+	for repeat := 0; repeat < 2; repeat++ {
+		waitGroup.Add(1)
+		go func() {
+			defer waitGroup.Done()
+			completionErrors <- service.CompleteParticipation(
+				ctx,
+				confirmedExchangeID,
+				participants[len(participants)-1].UserID,
+			)
+		}()
+	}
+	waitGroup.Wait()
+	close(completionErrors)
+	for err := range completionErrors {
+		if err != nil {
+			t.Fatalf("concurrent exchange completion: %v", err)
+		}
+	}
+
+	completed, err := service.GetForUser(ctx, confirmedExchangeID, users[0])
+	if err != nil {
+		t.Fatalf("get completed exchange: %v", err)
+	}
+	if completed.Status != "completed" || completed.ClosedAt == nil {
+		t.Fatalf("completed exchange status = %q, closed_at = %v", completed.Status, completed.ClosedAt)
+	}
+	for index, participant := range completed.Participants {
+		if participant.CompletionConfirmedAt == nil || participant.GivesItem.Status != "traded" {
+			t.Fatalf(
+				"completed participant %d: completion timestamp = %v, item status = %q",
+				index,
+				participant.CompletionConfirmedAt,
+				participant.GivesItem.Status,
+			)
+		}
+	}
+
+	for index, userID := range users {
+		var dealsCompleted int
+		if err := pool.QueryRow(ctx, "SELECT deals_completed FROM users WHERE id = $1", userID).Scan(&dealsCompleted); err != nil {
+			t.Fatalf("read participant %d completed exchanges: %v", index, err)
+		}
+		if dealsCompleted != 1 {
+			t.Fatalf("participant %d deals_completed = %d, want 1", index, dealsCompleted)
+		}
+	}
 }

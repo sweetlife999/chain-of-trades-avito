@@ -191,6 +191,13 @@ func TestParticipationDecisionRoutes(t *testing.T) {
 				service.decline = operation
 			},
 		},
+		{
+			name: "complete",
+			path: "/exchanges/%s/complete",
+			set: func(service *fakeService, operation func(context.Context, uuid.UUID, uuid.UUID) error) {
+				service.complete = operation
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -280,9 +287,13 @@ func TestParticipationDecisionRoutesRequireAuthentication(t *testing.T) {
 			t.Fatal("DeclineParticipation() must not be called")
 			return nil
 		},
+		complete: func(context.Context, uuid.UUID, uuid.UUID) error {
+			t.Fatal("CompleteParticipation() must not be called")
+			return nil
+		},
 	}
 
-	for _, action := range []string{"confirm", "decline"} {
+	for _, action := range []string{"confirm", "decline", "complete"} {
 		response := performRequest(
 			service,
 			http.MethodPost,
@@ -296,10 +307,11 @@ func TestParticipationDecisionRoutesRequireAuthentication(t *testing.T) {
 }
 
 type fakeService struct {
-	list    func(context.Context, uuid.UUID) ([]exchangemodel.Details, error)
-	get     func(context.Context, uuid.UUID, uuid.UUID) (exchangemodel.Details, error)
-	confirm func(context.Context, uuid.UUID, uuid.UUID) error
-	decline func(context.Context, uuid.UUID, uuid.UUID) error
+	list     func(context.Context, uuid.UUID) ([]exchangemodel.Details, error)
+	get      func(context.Context, uuid.UUID, uuid.UUID) (exchangemodel.Details, error)
+	confirm  func(context.Context, uuid.UUID, uuid.UUID) error
+	decline  func(context.Context, uuid.UUID, uuid.UUID) error
+	complete func(context.Context, uuid.UUID, uuid.UUID) error
 }
 
 func (f *fakeService) ListForUser(
@@ -337,6 +349,17 @@ func (f *fakeService) DeclineParticipation(
 		return nil
 	}
 	return f.decline(ctx, exchangeID, userID)
+}
+
+func (f *fakeService) CompleteParticipation(
+	ctx context.Context,
+	exchangeID uuid.UUID,
+	userID uuid.UUID,
+) error {
+	if f.complete == nil {
+		return nil
+	}
+	return f.complete(ctx, exchangeID, userID)
 }
 
 func performRequest(

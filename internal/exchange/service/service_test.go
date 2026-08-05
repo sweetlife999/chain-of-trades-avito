@@ -519,11 +519,32 @@ func TestDeclineParticipation(t *testing.T) {
 	}
 }
 
+func TestCompleteParticipation(t *testing.T) {
+	t.Parallel()
+
+	exchangeID := uuid.New()
+	userID := uuid.New()
+	repository := &fakeRepository{}
+
+	if err := New(repository).CompleteParticipation(context.Background(), exchangeID, userID); err != nil {
+		t.Fatalf("CompleteParticipation() error = %v", err)
+	}
+	if repository.completedExchangeID != exchangeID || repository.completedUserID != userID {
+		t.Fatalf(
+			"CompleteParticipation() repository args = (%s, %s), want (%s, %s)",
+			repository.completedExchangeID,
+			repository.completedUserID,
+			exchangeID,
+			userID,
+		)
+	}
+}
+
 func TestParticipationDecisionWrapsRepositoryError(t *testing.T) {
 	t.Parallel()
 
 	databaseError := errors.New("database unavailable")
-	repository := &fakeRepository{confirmErr: databaseError, declineErr: databaseError}
+	repository := &fakeRepository{confirmErr: databaseError, declineErr: databaseError, completeErr: databaseError}
 	service := New(repository)
 
 	if err := service.ConfirmParticipation(context.Background(), uuid.New(), uuid.New()); !errors.Is(err, databaseError) {
@@ -531,6 +552,9 @@ func TestParticipationDecisionWrapsRepositoryError(t *testing.T) {
 	}
 	if err := service.DeclineParticipation(context.Background(), uuid.New(), uuid.New()); !errors.Is(err, databaseError) {
 		t.Fatalf("DeclineParticipation() error = %v, want wrapped %v", err, databaseError)
+	}
+	if err := service.CompleteParticipation(context.Background(), uuid.New(), uuid.New()); !errors.Is(err, databaseError) {
+		t.Fatalf("CompleteParticipation() error = %v, want wrapped %v", err, databaseError)
 	}
 }
 
@@ -554,6 +578,9 @@ type fakeRepository struct {
 	declinedExchangeID  uuid.UUID
 	declinedUserID      uuid.UUID
 	declineErr          error
+	completedExchangeID uuid.UUID
+	completedUserID     uuid.UUID
+	completeErr         error
 }
 
 func (f *fakeRepository) FindNeighbors(
@@ -612,6 +639,16 @@ func (f *fakeRepository) DeclineParticipation(
 	f.declinedExchangeID = exchangeID
 	f.declinedUserID = userID
 	return f.declineErr
+}
+
+func (f *fakeRepository) CompleteParticipation(
+	_ context.Context,
+	exchangeID uuid.UUID,
+	userID uuid.UUID,
+) error {
+	f.completedExchangeID = exchangeID
+	f.completedUserID = userID
+	return f.completeErr
 }
 
 func cycleGraph(nodes []exchangemodel.Node) map[uuid.UUID][]exchangemodel.Node {

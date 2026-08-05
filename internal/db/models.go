@@ -157,15 +157,16 @@ type Chain struct {
 }
 
 type ChainParticipant struct {
-	ID             pgtype.UUID
-	ChainID        pgtype.UUID
-	UserID         pgtype.UUID
-	GivesItemID    pgtype.UUID
-	ReceivesItemID pgtype.UUID
-	Position       int32
-	Status         ParticipantStatus
-	DecidedAt      pgtype.Timestamptz
-	CreatedAt      pgtype.Timestamptz
+	ID                    pgtype.UUID
+	ChainID               pgtype.UUID
+	UserID                pgtype.UUID
+	GivesItemID           pgtype.UUID
+	ReceivesItemID        pgtype.UUID
+	Position              int32
+	Status                ParticipantStatus
+	DecidedAt             pgtype.Timestamptz
+	CreatedAt             pgtype.Timestamptz
+	CompletionConfirmedAt pgtype.Timestamptz
 }
 
 type Item struct {
