@@ -39,6 +39,17 @@ func (h *Handler) RegisterRoutes(router chi.Router, requireAuth func(http.Handle
 	router.With(requireAuth).Patch("/users/{id}", h.update)
 }
 
+// @Summary     Создать пользователя
+// @Description Регистрация: nickname 3–32 символа, пароль 8–72 байта. Пароль хранится bcrypt-хешем и в ответе не возвращается.
+// @Tags        users
+// @Accept      json
+// @Produce     json
+// @Param       request body     userdto.CreateUserRequest true "Данные нового пользователя"
+// @Success     201     {object} userdto.UserResponse      "Создан, ссылка на профиль в заголовке Location"
+// @Failure     400     {object} userdto.ErrorResponse     "Некорректное тело запроса или нарушены ограничения полей"
+// @Failure     409     {object} userdto.ErrorResponse     "Nickname уже занят"
+// @Failure     500     {object} userdto.ErrorResponse     "Внутренняя ошибка"
+// @Router      /users [post]
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	var request userdto.CreateUserRequest
 	if err := decodeJSON(w, r, &request); err != nil {
@@ -61,6 +72,16 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, userdto.FromModel(user))
 }
 
+// @Summary     Получить пользователя по ID
+// @Description Публичный профиль: рейтинг и счётчики сделок. Аутентификация не нужна.
+// @Tags        users
+// @Produce     json
+// @Param       id  path     string                true "UUID пользователя" example(8db9f3e2-8a45-4a70-b3d1-167b4f97e121)
+// @Success     200 {object} userdto.UserResponse  "Профиль пользователя"
+// @Failure     400 {object} userdto.ErrorResponse "ID не является UUID"
+// @Failure     404 {object} userdto.ErrorResponse "Пользователь не найден"
+// @Failure     500 {object} userdto.ErrorResponse "Внутренняя ошибка"
+// @Router      /users/{id} [get]
 func (h *Handler) getByID(w http.ResponseWriter, r *http.Request) {
 	id, ok := parseID(w, r)
 	if !ok {
@@ -76,6 +97,21 @@ func (h *Handler) getByID(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, userdto.FromModel(user))
 }
 
+// @Summary     Обновить свой профиль
+// @Description Требует cookie `access_token` (получить через POST /auth/login). Менять можно только собственный профиль. Достаточно одного поля, остальные останутся прежними.
+// @Tags        users
+// @Accept      json
+// @Produce     json
+// @Param       id      path     string                    true "UUID пользователя" example(8db9f3e2-8a45-4a70-b3d1-167b4f97e121)
+// @Param       request body     userdto.UpdateUserRequest true "Поля, которые нужно изменить"
+// @Success     200     {object} userdto.UserResponse      "Обновлённый профиль"
+// @Failure     400     {object} userdto.ErrorResponse     "Некорректное тело запроса, не передано ни одного поля или ID не UUID"
+// @Failure     401     {object} userdto.ErrorResponse     "Нет или истекла cookie access_token"
+// @Failure     403     {object} userdto.ErrorResponse     "Попытка изменить чужой профиль"
+// @Failure     404     {object} userdto.ErrorResponse     "Пользователь не найден"
+// @Failure     409     {object} userdto.ErrorResponse     "Nickname уже занят"
+// @Failure     500     {object} userdto.ErrorResponse     "Внутренняя ошибка"
+// @Router      /users/{id} [patch]
 func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 	id, ok := parseID(w, r)
 	if !ok {

@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 
 	authcontext "github.com/sweetlife999/chain-of-trades-avito/internal/auth/authcontext"
-	authdto "github.com/sweetlife999/chain-of-trades-avito/internal/auth/dto"
+	userdto "github.com/sweetlife999/chain-of-trades-avito/internal/user/dto"
 )
 
 const CookieName = "access_token"
@@ -46,5 +46,5 @@ func (a *Authenticator) RequireAuthentication(next http.Handler) http.Handler {
 func writeUnauthorized(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusUnauthorized)
-	_ = json.NewEncoder(w).Encode(authdto.ErrorResponse{Error: "unauthorized"})
+	_ = json.NewEncoder(w).Encode(userdto.ErrorResponse{Error: "unauthorized"})
 }
