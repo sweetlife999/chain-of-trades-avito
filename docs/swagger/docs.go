@@ -237,6 +237,320 @@ const docTemplate = `{
                 }
             }
         },
+        "/exchanges/{id}/complete": {
+            "post": {
+                "description": "Сохраняет подтверждение текущего участника. После подтверждения всеми участниками обмен завершается, объявления помечаются переданными, а счётчики завершённых обменов увеличиваются.",
+                "tags": [
+                    "exchanges"
+                ],
+                "summary": "Подтвердить получение вещи",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID обмена",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Получение подтверждено"
+                    },
+                    "400": {
+                        "description": "ID не является UUID",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Пользователь не участвует в обмене",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Обмен не найден",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Обмен ещё не подтверждён или уже отменён",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/exchanges/{id}/confirm": {
+            "post": {
+                "description": "Сохраняет согласие текущего участника. После согласия всех участников обмен подтверждается, а объявления резервируются.",
+                "tags": [
+                    "exchanges"
+                ],
+                "summary": "Подтвердить участие в обмене",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID обмена",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Участие подтверждено"
+                    },
+                    "400": {
+                        "description": "ID не является UUID",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Пользователь не участвует в обмене",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Обмен не найден",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Решение уже принято, обмен закрыт или объявление недоступно",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/exchanges/{id}/decline": {
+            "post": {
+                "description": "Отменяет предложенный или подтверждённый обмен. Для подтверждённого обмена освобождает объявления, увеличивает счётчик сорванных обменов отказавшегося пользователя и запускает поиск новых вариантов.",
+                "tags": [
+                    "exchanges"
+                ],
+                "summary": "Отказаться от участия в обмене",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID обмена",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Обмен отменён, доступные объявления возвращены в поиск"
+                    },
+                    "400": {
+                        "description": "ID не является UUID",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Пользователь не участвует в обмене",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Обмен не найден",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Обмен уже закрыт, объявление недоступно или получение уже подтверждено",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/exchanges/{id}/messages": {
+            "get": {
+                "description": "Возвращает обсуждение и события обмена одной лентой в хронологическом порядке. Доступен только участнику.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "exchanges"
+                ],
+                "summary": "Прочитать тред обмена",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID обмена",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Тред; если сообщений нет, возвращается []",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.MessageResponse"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "ID не является UUID",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Пользователь не участвует в обмене",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Обмен не найден",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Добавляет сообщение участника в обсуждение обмена. Писать могут только участники и только пока обмен не закрыт.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "exchanges"
+                ],
+                "summary": "Написать в тред обмена",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID обмена",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Текст сообщения",
+                        "name": "message",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateMessageRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Сообщение добавлено",
+                        "schema": {
+                            "$ref": "#/definitions/dto.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "ID не является UUID или текст пустой либо длиннее 2000 символов",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Пользователь не участвует в обмене",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Обмен не найден",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Обмен закрыт: тред доступен только на чтение",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/health": {
             "get": {
                 "description": "Отвечает 200, если процесс поднят. Состояние БД не проверяет.",
@@ -582,6 +896,127 @@ const docTemplate = `{
                 }
             }
         },
+        "/users/me/blocks": {
+            "get": {
+                "description": "Возвращает личный список блокировок текущего пользователя. Заблокированные пользователи об этом не уведомляются.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Получить список заблокированных пользователей",
+                "responses": {
+                    "200": {
+                        "description": "Список блокировок; если он пуст, возвращается []",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.BlockedUserResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/me/blocks/{user_id}": {
+            "post": {
+                "description": "Исключает пользователя из будущих совместных обменов и отменяет общие неподтверждённые предложения. Повторный запрос безопасен.",
+                "tags": [
+                    "users"
+                ],
+                "summary": "Заблокировать пользователя",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID блокируемого пользователя",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Пользователь заблокирован"
+                    },
+                    "400": {
+                        "description": "ID не является UUID или пользователь блокирует себя",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Блокируемый пользователь не найден",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Разрешает попадание пользователя в новые совместные обмены. Существующие обмены не изменяются.",
+                "tags": [
+                    "users"
+                ],
+                "summary": "Разблокировать пользователя",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID разблокируемого пользователя",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Пользователь разблокирован"
+                    },
+                    "400": {
+                        "description": "ID не является UUID или пользователь указывает себя",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/users/{id}": {
             "get": {
                 "description": "Публичный профиль: рейтинг и счётчики сделок. Аутентификация не нужна.",
@@ -708,6 +1143,23 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "dto.BlockedUserResponse": {
+            "type": "object",
+            "properties": {
+                "blocked_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "nickname": {
+                    "type": "string"
+                },
+                "photo_url": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.CreateItemRequest": {
             "type": "object",
             "properties": {
@@ -742,6 +1194,15 @@ const docTemplate = `{
                         "consoles",
                         "phones"
                     ]
+                }
+            }
+        },
+        "dto.CreateMessageRequest": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "type": "string",
+                    "example": "Могу привезти в субботу к метро, удобно?"
                 }
             }
         },
@@ -782,6 +1243,9 @@ const docTemplate = `{
                 },
                 "status": {
                     "type": "string"
+                },
+                "unread_count": {
+                    "type": "integer"
                 },
                 "updated_at": {
                     "type": "string"
@@ -848,6 +1312,26 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.MessageResponse": {
+            "type": "object",
+            "properties": {
+                "author": {
+                    "$ref": "#/definitions/dto.ParticipantUserResponse"
+                },
+                "body": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.ParticipantItemResponse": {
             "type": "object",
             "properties": {
@@ -871,6 +1355,9 @@ const docTemplate = `{
         "dto.ParticipantResponse": {
             "type": "object",
             "properties": {
+                "completion_confirmed_at": {
+                    "type": "string"
+                },
                 "decided_at": {
                     "type": "string"
                 },

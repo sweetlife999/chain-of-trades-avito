@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	db "github.com/sweetlife999/chain-of-trades-avito/internal/db"
 )
@@ -67,6 +68,17 @@ func (r *Repository) CompleteParticipation(
 			return fmt.Errorf("confirm exchange participant completion: %w", err)
 		}
 
+		err = recordExchangeEvent(
+			ctx,
+			queries,
+			exchangeID,
+			pgUUID(userID),
+			db.ChainMessageKindParticipantCompleted,
+		)
+		if err != nil {
+			return err
+		}
+
 		incomplete, err := queries.CountIncompleteExchangeParticipants(ctx, pgUUID(exchangeID))
 		if err != nil {
 			return fmt.Errorf("count incomplete exchange participants: %w", err)
@@ -122,5 +134,11 @@ func finalizeExchange(
 		return ErrConflict
 	}
 
-	return nil
+	return recordExchangeEvent(
+		ctx,
+		queries,
+		exchangeID,
+		pgtype.UUID{},
+		db.ChainMessageKindExchangeCompleted,
+	)
 }

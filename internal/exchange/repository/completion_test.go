@@ -33,6 +33,7 @@ func TestCompleteParticipationWaitsForOtherParticipants(t *testing.T) {
 	if !transactions.committed {
 		t.Fatal("successful completion confirmation was not committed")
 	}
+	assertRecordedEvents(t, queries, db.ChainMessageKindParticipantCompleted)
 }
 
 func TestCompleteParticipationFinalizesExchange(t *testing.T) {
@@ -57,6 +58,16 @@ func TestCompleteParticipationFinalizesExchange(t *testing.T) {
 	}
 	if !transactions.committed {
 		t.Fatal("finalized exchange was not committed")
+	}
+
+	assertRecordedEvents(
+		t,
+		queries,
+		db.ChainMessageKindParticipantCompleted,
+		db.ChainMessageKindExchangeCompleted,
+	)
+	if queries.systemMessages[1].AuthorID.Valid {
+		t.Fatal("exchange completion must belong to the exchange, not to a participant")
 	}
 }
 

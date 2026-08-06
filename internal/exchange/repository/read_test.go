@@ -20,7 +20,9 @@ func TestListByUserGroupsParticipants(t *testing.T) {
 	firstExchangeID := uuid.New()
 	secondExchangeID := uuid.New()
 	firstParticipant := listExchangeRow(firstExchangeID, uuid.New(), 0)
+	firstParticipant.UnreadCount = 3
 	secondParticipant := listExchangeRow(firstExchangeID, uuid.New(), 1)
+	secondParticipant.UnreadCount = 3
 	thirdParticipant := listExchangeRow(secondExchangeID, userID, 0)
 
 	queries := &fakeExchangeReadQueries{listRows: []db.ListExchangesByUserRow{
@@ -45,6 +47,11 @@ func TestListByUserGroupsParticipants(t *testing.T) {
 
 	if exchanges[0].ID != firstExchangeID || len(exchanges[0].Participants) != 2 {
 		t.Fatalf("first exchange = %+v, want ID %s with 2 participants", exchanges[0], firstExchangeID)
+	}
+
+	// Счётчик приходит одинаковым в строке каждого участника и относится к обмену целиком.
+	if exchanges[0].UnreadCount != 3 {
+		t.Fatalf("unread count = %d, want 3", exchanges[0].UnreadCount)
 	}
 
 	if exchanges[1].ID != secondExchangeID || len(exchanges[1].Participants) != 1 {
@@ -101,7 +108,7 @@ func TestGetByID(t *testing.T) {
 	queries := &fakeExchangeReadQueries{getRows: rows}
 	repository := newRepositoryWithReads(queries)
 
-	exchange, err := repository.GetByID(context.Background(), exchangeID)
+	exchange, err := repository.GetByID(context.Background(), exchangeID, uuid.New())
 	if err != nil {
 		t.Fatalf("GetByID() error = %v", err)
 	}
@@ -124,7 +131,7 @@ func TestGetByIDNotFound(t *testing.T) {
 	t.Parallel()
 
 	repository := newRepositoryWithReads(&fakeExchangeReadQueries{})
-	_, err := repository.GetByID(context.Background(), uuid.New())
+	_, err := repository.GetByID(context.Background(), uuid.New(), uuid.New())
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("GetByID() error = %v, want %v", err, ErrNotFound)
 	}
@@ -136,7 +143,7 @@ func TestGetByIDError(t *testing.T) {
 	databaseError := errors.New("database unavailable")
 	repository := newRepositoryWithReads(&fakeExchangeReadQueries{getErr: databaseError})
 
-	_, err := repository.GetByID(context.Background(), uuid.New())
+	_, err := repository.GetByID(context.Background(), uuid.New(), uuid.New())
 	if !errors.Is(err, databaseError) {
 		t.Fatalf("GetByID() error = %v, want wrapped %v", err, databaseError)
 	}
@@ -169,6 +176,7 @@ type fakeExchangeReadQueries struct {
 	getRows       []db.GetExchangeByIDRow
 	getErr        error
 	getExchangeID pgtype.UUID
+	getUserID     pgtype.UUID
 }
 
 func (f *fakeExchangeReadQueries) ListExchangesByUser(
@@ -181,9 +189,10 @@ func (f *fakeExchangeReadQueries) ListExchangesByUser(
 
 func (f *fakeExchangeReadQueries) GetExchangeByID(
 	_ context.Context,
-	exchangeID pgtype.UUID,
+	params db.GetExchangeByIDParams,
 ) ([]db.GetExchangeByIDRow, error) {
-	f.getExchangeID = exchangeID
+	f.getExchangeID = params.ExchangeID
+	f.getUserID = params.UserID
 	return f.getRows, f.getErr
 }
 

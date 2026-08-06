@@ -22,6 +22,8 @@ type Service interface {
 	ConfirmParticipation(context.Context, uuid.UUID, uuid.UUID) error
 	DeclineParticipation(context.Context, uuid.UUID, uuid.UUID) error
 	CompleteParticipation(context.Context, uuid.UUID, uuid.UUID) error
+	PostMessage(context.Context, uuid.UUID, uuid.UUID, string) (exchangemodel.Message, error)
+	ListMessages(context.Context, uuid.UUID, uuid.UUID) ([]exchangemodel.Message, error)
 }
 
 type Handler struct {
@@ -38,6 +40,8 @@ func (h *Handler) RegisterRoutes(router chi.Router, requireAuth func(http.Handle
 	router.With(requireAuth).Post("/exchanges/{id}/confirm", h.confirm)
 	router.With(requireAuth).Post("/exchanges/{id}/decline", h.decline)
 	router.With(requireAuth).Post("/exchanges/{id}/complete", h.complete)
+	router.With(requireAuth).Post("/exchanges/{id}/messages", h.postMessage)
+	router.With(requireAuth).Get("/exchanges/{id}/messages", h.listMessages)
 }
 
 // @Summary     Получить свои обмены
@@ -76,14 +80,8 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 // @Failure     500 {object} exchangedto.ErrorResponse    "Внутренняя ошибка"
 // @Router      /exchanges/{id} [get]
 func (h *Handler) getByID(w http.ResponseWriter, r *http.Request) {
-	userID, ok := currentUserID(w, r)
+	exchangeID, userID, ok := exchangeRequest(w, r)
 	if !ok {
-		return
-	}
-
-	exchangeID, err := uuid.Parse(chi.URLParam(r, "id"))
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid exchange id")
 		return
 	}
 
@@ -113,15 +111,15 @@ func (h *Handler) confirm(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary     Отказаться от участия в обмене
-// @Description Сохраняет отказ текущего участника и отменяет предложенный обмен.
+// @Description Отменяет предложенный или подтверждённый обмен. Для подтверждённого обмена освобождает объявления, увеличивает счётчик сорванных обменов отказавшегося пользователя и запускает поиск новых вариантов.
 // @Tags        exchanges
 // @Param       id path string true "UUID обмена"
-// @Success     204 "Отказ сохранён, обмен отменён"
+// @Success     204 "Обмен отменён, доступные объявления возвращены в поиск"
 // @Failure     400 {object} exchangedto.ErrorResponse "ID не является UUID"
 // @Failure     401 {object} exchangedto.ErrorResponse "Пользователь не авторизован"
 // @Failure     403 {object} exchangedto.ErrorResponse "Пользователь не участвует в обмене"
 // @Failure     404 {object} exchangedto.ErrorResponse "Обмен не найден"
-// @Failure     409 {object} exchangedto.ErrorResponse "Решение уже принято или обмен закрыт"
+// @Failure     409 {object} exchangedto.ErrorResponse "Обмен уже закрыт, объявление недоступно или получение уже подтверждено"
 // @Failure     500 {object} exchangedto.ErrorResponse "Внутренняя ошибка"
 // @Router      /exchanges/{id}/decline [post]
 func (h *Handler) decline(w http.ResponseWriter, r *http.Request) {
@@ -144,19 +142,76 @@ func (h *Handler) complete(w http.ResponseWriter, r *http.Request) {
 	h.handleDecision(w, r, h.service.CompleteParticipation)
 }
 
+// @Summary     Написать в тред обмена
+// @Description Добавляет сообщение участника в обсуждение обмена. Писать могут только участники и только пока обмен не закрыт.
+// @Tags        exchanges
+// @Accept      json
+// @Produce     json
+// @Param       id      path string                       true "UUID обмена"
+// @Param       message body exchangedto.CreateMessageRequest true "Текст сообщения"
+// @Success     201 {object} exchangedto.MessageResponse "Сообщение добавлено"
+// @Failure     400 {object} exchangedto.ErrorResponse   "ID не является UUID или текст пустой либо длиннее 2000 символов"
+// @Failure     401 {object} exchangedto.ErrorResponse   "Пользователь не авторизован"
+// @Failure     403 {object} exchangedto.ErrorResponse   "Пользователь не участвует в обмене"
+// @Failure     404 {object} exchangedto.ErrorResponse   "Обмен не найден"
+// @Failure     409 {object} exchangedto.ErrorResponse   "Обмен закрыт: тред доступен только на чтение"
+// @Failure     500 {object} exchangedto.ErrorResponse   "Внутренняя ошибка"
+// @Router      /exchanges/{id}/messages [post]
+func (h *Handler) postMessage(w http.ResponseWriter, r *http.Request) {
+	exchangeID, userID, ok := exchangeRequest(w, r)
+	if !ok {
+		return
+	}
+
+	var request exchangedto.CreateMessageRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	message, err := h.service.PostMessage(r.Context(), exchangeID, userID, request.Body)
+	if err != nil {
+		handleServiceError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, exchangedto.MessageFromModel(message))
+}
+
+// @Summary     Прочитать тред обмена
+// @Description Возвращает обсуждение и события обмена одной лентой в хронологическом порядке. Доступен только участнику.
+// @Tags        exchanges
+// @Produce     json
+// @Param       id path string true "UUID обмена"
+// @Success     200 {array}  exchangedto.MessageResponse "Тред; если сообщений нет, возвращается []"
+// @Failure     400 {object} exchangedto.ErrorResponse   "ID не является UUID"
+// @Failure     401 {object} exchangedto.ErrorResponse   "Пользователь не авторизован"
+// @Failure     403 {object} exchangedto.ErrorResponse   "Пользователь не участвует в обмене"
+// @Failure     404 {object} exchangedto.ErrorResponse   "Обмен не найден"
+// @Failure     500 {object} exchangedto.ErrorResponse   "Внутренняя ошибка"
+// @Router      /exchanges/{id}/messages [get]
+func (h *Handler) listMessages(w http.ResponseWriter, r *http.Request) {
+	exchangeID, userID, ok := exchangeRequest(w, r)
+	if !ok {
+		return
+	}
+
+	messages, err := h.service.ListMessages(r.Context(), exchangeID, userID)
+	if err != nil {
+		handleServiceError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, exchangedto.MessagesFromModels(messages))
+}
+
 func (h *Handler) handleDecision(
 	w http.ResponseWriter,
 	r *http.Request,
 	decision func(context.Context, uuid.UUID, uuid.UUID) error,
 ) {
-	userID, ok := currentUserID(w, r)
+	exchangeID, userID, ok := exchangeRequest(w, r)
 	if !ok {
-		return
-	}
-
-	exchangeID, err := uuid.Parse(chi.URLParam(r, "id"))
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid exchange id")
 		return
 	}
 
@@ -166,6 +221,24 @@ func (h *Handler) handleDecision(
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// exchangeRequest достаёт то, что нужно каждому маршруту с {id}: кто спрашивает и о каком
+// обмене. Ответ клиенту уже отправлен, если вернулось false.
+func exchangeRequest(w http.ResponseWriter, r *http.Request) (uuid.UUID, uuid.UUID, bool) {
+	userID, ok := authcontext.UserID(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return uuid.Nil, uuid.Nil, false
+	}
+
+	exchangeID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid exchange id")
+		return uuid.Nil, uuid.Nil, false
+	}
+
+	return exchangeID, userID, true
 }
 
 func currentUserID(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
@@ -180,6 +253,8 @@ func currentUserID(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
 
 func handleServiceError(w http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, exchangeservice.ErrValidation):
+		writeError(w, http.StatusBadRequest, err.Error())
 	case errors.Is(err, exchangeservice.ErrForbidden):
 		writeError(w, http.StatusForbidden, "forbidden")
 	case errors.Is(err, exchangeservice.ErrNotFound):
