@@ -1,21 +1,21 @@
 import { memo } from "react";
-import { Post } from "../Post/Post";
 import { useQuery } from "@tanstack/react-query";
+
+import styles from "./Styles.module.scss";
 import { getItems } from "../../../Api/items/items";
 import { FetchStatus } from "../FetchStatus/FetchStatus";
+import { Post } from "../Post/Post";
 
 const PostsListComponent = () => {
-  const postsList = useQuery({
-    queryFn: () => getItems(),
-    queryKey: ["posts"],
+  const itemsQuery = useQuery({
+    queryKey: ["items"],
+    queryFn: getItems,
   });
 
-  
-
   return (
-    <FetchStatus status={postsList.status}>
-      <ul>
-         {postsList.data?.map((item) => (
+    <FetchStatus status={itemsQuery.status}>
+      <ul className={styles.posts}>
+        {itemsQuery.data?.map((item) => (
           <li key={item.id}>
             <Post post={item} />
           </li>
