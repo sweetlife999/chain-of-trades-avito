@@ -55,7 +55,7 @@ func (h *Handler) RegisterRoutes(router chi.Router, requireAuth func(http.Handle
 // @Accept      json
 // @Produce     json
 // @Param       request body     authdto.LoginRequest  true "Учётные данные"
-// @Success     200     {object} userdto.UserResponse  "Вошедший пользователь, cookie в заголовке Set-Cookie"
+// @Success     200     {object} authdto.AuthenticatedUserResponse "Вошедший пользователь и его роль, cookie в заголовке Set-Cookie"
 // @Failure     400     {object} userdto.ErrorResponse "Некорректное тело запроса"
 // @Failure     401     {object} userdto.ErrorResponse "Неверный nickname или пароль"
 // @Failure     500     {object} userdto.ErrorResponse "Внутренняя ошибка"
@@ -77,7 +77,7 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.setAccessCookie(w, result.Token, result.ExpiresAt)
-	writeJSON(w, http.StatusOK, userdto.FromModel(result.User))
+	writeJSON(w, http.StatusOK, authdto.UserFromModel(result.User))
 }
 
 // @Summary     Выход
@@ -94,7 +94,7 @@ func (h *Handler) logout(w http.ResponseWriter, _ *http.Request) {
 // @Description Возвращает профиль владельца cookie `access_token`. Удобно для проверки, что вход прошёл.
 // @Tags        auth
 // @Produce     json
-// @Success     200 {object} userdto.UserResponse  "Профиль текущего пользователя"
+// @Success     200 {object} authdto.AuthenticatedUserResponse "Профиль и роль текущего пользователя"
 // @Failure     401 {object} userdto.ErrorResponse "Нет или истекла cookie access_token"
 // @Failure     500 {object} userdto.ErrorResponse "Внутренняя ошибка"
 // @Router      /auth/me [get]
@@ -111,7 +111,7 @@ func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, userdto.FromModel(user))
+	writeJSON(w, http.StatusOK, authdto.UserFromModel(user))
 }
 
 func (h *Handler) setAccessCookie(w http.ResponseWriter, value string, expiresAt time.Time) {

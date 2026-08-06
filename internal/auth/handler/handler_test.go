@@ -45,6 +45,7 @@ func TestLoginReturnsSafeUserAndHttpOnlyCookie(t *testing.T) {
 					ID:           userID,
 					Nickname:     "Samir",
 					PasswordHash: "must-not-be-returned",
+					IsAdmin:      true,
 				},
 				Token:     "signed-token",
 				ExpiresAt: expiresAt,
@@ -62,6 +63,9 @@ func TestLoginReturnsSafeUserAndHttpOnlyCookie(t *testing.T) {
 	}
 	if strings.Contains(response.Body.String(), "password") {
 		t.Fatalf("response exposes password data: %s", response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"is_admin":true`) {
+		t.Fatalf("response does not expose admin flag: %s", response.Body.String())
 	}
 
 	cookies := response.Result().Cookies()
@@ -132,6 +136,7 @@ func TestMeReturnsCurrentUserWithoutPasswordHash(t *testing.T) {
 				ID:           userID,
 				Nickname:     "Samir",
 				PasswordHash: "must-not-be-returned",
+				IsAdmin:      true,
 			}, nil
 		},
 	}
@@ -142,6 +147,9 @@ func TestMeReturnsCurrentUserWithoutPasswordHash(t *testing.T) {
 	}
 	if strings.Contains(response.Body.String(), "password") {
 		t.Fatalf("response exposes password data: %s", response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"is_admin":true`) {
+		t.Fatalf("response does not expose admin flag: %s", response.Body.String())
 	}
 }
 

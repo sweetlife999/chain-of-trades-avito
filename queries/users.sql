@@ -11,6 +11,17 @@ SELECT * FROM users WHERE id = $1;
 -- name: GetUserByNickname :one
 SELECT * FROM users WHERE lower(nickname) = lower(sqlc.arg(nickname));
 
+-- Роль читается из БД при каждом обращении к /admin. Поэтому выданное или отозванное
+-- право начинает действовать сразу, а пользователю не нужно получать новый JWT.
+-- EXISTS всегда возвращает одну строку: удалённый пользователь считается не админом.
+-- name: IsUserAdmin :one
+SELECT EXISTS (
+    SELECT 1
+    FROM users
+    WHERE id = sqlc.arg(user_id)
+      AND is_admin
+);
+
 -- TODO: NULL в аргументе означает «не менять поле», поэтому сбросить photo_url обратно
 -- в NULL этим запросом нельзя. Понадобится отдельный ClearUserPhoto.
 -- name: UpdateUserProfile :one

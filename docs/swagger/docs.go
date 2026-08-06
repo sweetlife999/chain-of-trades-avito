@@ -41,9 +41,9 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Вошедший пользователь, cookie в заголовке Set-Cookie",
+                        "description": "Вошедший пользователь и его роль, cookie в заголовке Set-Cookie",
                         "schema": {
-                            "$ref": "#/definitions/dto.UserResponse"
+                            "$ref": "#/definitions/dto.AuthenticatedUserResponse"
                         }
                     },
                     "400": {
@@ -93,9 +93,9 @@ const docTemplate = `{
                 "summary": "Текущий пользователь",
                 "responses": {
                     "200": {
-                        "description": "Профиль текущего пользователя",
+                        "description": "Профиль и роль текущего пользователя",
                         "schema": {
-                            "$ref": "#/definitions/dto.UserResponse"
+                            "$ref": "#/definitions/dto.AuthenticatedUserResponse"
                         }
                     },
                     "401": {
@@ -1143,6 +1143,41 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "dto.AuthenticatedUserResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "deals_broken": {
+                    "type": "integer"
+                },
+                "deals_completed": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_admin": {
+                    "type": "boolean"
+                },
+                "nickname": {
+                    "type": "string"
+                },
+                "photo_url": {
+                    "type": "string"
+                },
+                "rating": {
+                    "type": "number"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.BlockedUserResponse": {
             "type": "object",
             "properties": {

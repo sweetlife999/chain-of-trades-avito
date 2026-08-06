@@ -47,6 +47,7 @@ erDiagram
         integer deals_completed
         integer deals_broken
         numeric rating
+        boolean is_admin
     }
     categories {
         smallint id PK
@@ -106,6 +107,7 @@ erDiagram
 | `description` | `text` NOT NULL DEFAULT `''` | «О себе» пустое по умолчанию: пустая строка и NULL значили бы одно и то же, поэтому NULL исключён |
 | `deals_completed` / `deals_broken` | `integer` NOT NULL DEFAULT 0, CHECK `>= 0` | Счётчики; отрицательное значение — всегда баг, CHECK ловит его в БД |
 | `rating` | `numeric(3,2)` NULL, CHECK 0..5 | Средняя оценка: `numeric` точен на дробях, в отличие от `real/double`. NULL = сделок ещё не было, это не то же самое, что 0.00 |
+| `is_admin` | `boolean` NOT NULL DEFAULT false | Право доступа к `/admin`; отдельная таблица администраторов не нужна |
 | `created_at` / `updated_at` | `timestamptz` | Всегда `timestamptz`, а не `timestamp`: без таймзоны момент времени неопределён |
 
 ### `categories`

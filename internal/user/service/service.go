@@ -30,6 +30,7 @@ var (
 type Repository interface {
 	Create(context.Context, usermodel.NewUser) (usermodel.User, error)
 	GetByID(context.Context, uuid.UUID) (usermodel.User, error)
+	IsAdmin(context.Context, uuid.UUID) (bool, error)
 	Update(context.Context, uuid.UUID, usermodel.Changes) (usermodel.User, error)
 	Block(context.Context, uuid.UUID, uuid.UUID) error
 	ListBlocked(context.Context, uuid.UUID) ([]usermodel.BlockedUser, error)
@@ -99,6 +100,15 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (usermodel.User
 
 func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (usermodel.User, error) {
 	return s.repository.GetByID(ctx, id)
+}
+
+func (s *Service) IsAdmin(ctx context.Context, id uuid.UUID) (bool, error) {
+	isAdmin, err := s.repository.IsAdmin(ctx, id)
+	if err != nil {
+		return false, fmt.Errorf("check admin access: %w", err)
+	}
+
+	return isAdmin, nil
 }
 
 func (s *Service) Update(ctx context.Context, id uuid.UUID, input UpdateInput) (usermodel.User, error) {

@@ -14,7 +14,7 @@ import (
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (nickname, password_hash, photo_url, description)
 VALUES ($1, $2, $3, $4)
-RETURNING id, nickname, password_hash, photo_url, description, deals_completed, deals_broken, rating, created_at, updated_at
+RETURNING id, nickname, password_hash, photo_url, description, deals_completed, deals_broken, rating, created_at, updated_at, is_admin
 `
 
 type CreateUserParams struct {
@@ -43,12 +43,13 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Rating,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IsAdmin,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, nickname, password_hash, photo_url, description, deals_completed, deals_broken, rating, created_at, updated_at FROM users WHERE id = $1
+SELECT id, nickname, password_hash, photo_url, description, deals_completed, deals_broken, rating, created_at, updated_at, is_admin FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error) {
@@ -65,12 +66,13 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 		&i.Rating,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IsAdmin,
 	)
 	return i, err
 }
 
 const getUserByNickname = `-- name: GetUserByNickname :one
-SELECT id, nickname, password_hash, photo_url, description, deals_completed, deals_broken, rating, created_at, updated_at FROM users WHERE lower(nickname) = lower($1)
+SELECT id, nickname, password_hash, photo_url, description, deals_completed, deals_broken, rating, created_at, updated_at, is_admin FROM users WHERE lower(nickname) = lower($1)
 `
 
 // Логин: nickname уникален регистронезависимо, запрос обязан идти через lower(),
@@ -89,8 +91,28 @@ func (q *Queries) GetUserByNickname(ctx context.Context, nickname string) (User,
 		&i.Rating,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IsAdmin,
 	)
 	return i, err
+}
+
+const isUserAdmin = `-- name: IsUserAdmin :one
+SELECT EXISTS (
+    SELECT 1
+    FROM users
+    WHERE id = $1
+      AND is_admin
+)
+`
+
+// Роль читается из БД при каждом обращении к /admin. Поэтому выданное или отозванное
+// право начинает действовать сразу, а пользователю не нужно получать новый JWT.
+// EXISTS всегда возвращает одну строку: удалённый пользователь считается не админом.
+func (q *Queries) IsUserAdmin(ctx context.Context, userID pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, isUserAdmin, userID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const updateUserProfile = `-- name: UpdateUserProfile :one
@@ -99,7 +121,7 @@ UPDATE users SET
     photo_url   = COALESCE($2, photo_url),
     description = COALESCE($3, description)
 WHERE id = $4
-RETURNING id, nickname, password_hash, photo_url, description, deals_completed, deals_broken, rating, created_at, updated_at
+RETURNING id, nickname, password_hash, photo_url, description, deals_completed, deals_broken, rating, created_at, updated_at, is_admin
 `
 
 type UpdateUserProfileParams struct {
@@ -130,6 +152,7 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		&i.Rating,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IsAdmin,
 	)
 	return i, err
 }
