@@ -18,9 +18,12 @@ import (
 )
 
 type fakeService struct {
-	create func(context.Context, userservice.CreateInput) (usermodel.User, error)
-	get    func(context.Context, uuid.UUID) (usermodel.User, error)
-	update func(context.Context, uuid.UUID, userservice.UpdateInput) (usermodel.User, error)
+	create      func(context.Context, userservice.CreateInput) (usermodel.User, error)
+	get         func(context.Context, uuid.UUID) (usermodel.User, error)
+	update      func(context.Context, uuid.UUID, userservice.UpdateInput) (usermodel.User, error)
+	block       func(context.Context, uuid.UUID, uuid.UUID) error
+	listBlocked func(context.Context, uuid.UUID) ([]usermodel.BlockedUser, error)
+	unblock     func(context.Context, uuid.UUID, uuid.UUID) error
 }
 
 func (f *fakeService) Create(ctx context.Context, input userservice.CreateInput) (usermodel.User, error) {
@@ -33,6 +36,27 @@ func (f *fakeService) GetByID(ctx context.Context, id uuid.UUID) (usermodel.User
 
 func (f *fakeService) Update(ctx context.Context, id uuid.UUID, input userservice.UpdateInput) (usermodel.User, error) {
 	return f.update(ctx, id, input)
+}
+
+func (f *fakeService) Block(ctx context.Context, blockerID, blockedID uuid.UUID) error {
+	if f.block == nil {
+		return nil
+	}
+	return f.block(ctx, blockerID, blockedID)
+}
+
+func (f *fakeService) ListBlocked(ctx context.Context, blockerID uuid.UUID) ([]usermodel.BlockedUser, error) {
+	if f.listBlocked == nil {
+		return nil, nil
+	}
+	return f.listBlocked(ctx, blockerID)
+}
+
+func (f *fakeService) Unblock(ctx context.Context, blockerID, blockedID uuid.UUID) error {
+	if f.unblock == nil {
+		return nil
+	}
+	return f.unblock(ctx, blockerID, blockedID)
 }
 
 func TestCreateReturns201AndSafeUser(t *testing.T) {
@@ -144,6 +168,103 @@ func TestUpdateReturns403ForDifferentUser(t *testing.T) {
 	)
 	if response.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, want %d; body = %s", response.Code, http.StatusForbidden, response.Body.String())
+	}
+}
+
+func TestBlockRoutes(t *testing.T) {
+	t.Parallel()
+
+	currentUserID := uuid.New()
+	otherUserID := uuid.New()
+	blockedAt := time.Date(2026, 8, 6, 10, 0, 0, 0, time.UTC)
+	service := &fakeService{
+		block: func(_ context.Context, blockerID, blockedID uuid.UUID) error {
+			if blockerID != currentUserID || blockedID != otherUserID {
+				t.Fatalf("Block() args = (%s, %s), want (%s, %s)", blockerID, blockedID, currentUserID, otherUserID)
+			}
+			return nil
+		},
+		listBlocked: func(_ context.Context, blockerID uuid.UUID) ([]usermodel.BlockedUser, error) {
+			if blockerID != currentUserID {
+				t.Fatalf("ListBlocked() user = %s, want %s", blockerID, currentUserID)
+			}
+			return []usermodel.BlockedUser{{ID: otherUserID, Nickname: "blocked-user", BlockedAt: blockedAt}}, nil
+		},
+		unblock: func(_ context.Context, blockerID, blockedID uuid.UUID) error {
+			if blockerID != currentUserID || blockedID != otherUserID {
+				t.Fatalf("Unblock() args = (%s, %s), want (%s, %s)", blockerID, blockedID, currentUserID, otherUserID)
+			}
+			return nil
+		},
+	}
+	authenticate := authenticateAs(currentUserID)
+
+	blockResponse := performRequestWithAuth(service, http.MethodPost, "/users/me/blocks/"+otherUserID.String(), "", authenticate)
+	if blockResponse.Code != http.StatusNoContent {
+		t.Fatalf("block status = %d, want %d; body = %s", blockResponse.Code, http.StatusNoContent, blockResponse.Body.String())
+	}
+
+	listResponse := performRequestWithAuth(service, http.MethodGet, "/users/me/blocks", "", authenticate)
+	if listResponse.Code != http.StatusOK {
+		t.Fatalf("list status = %d, want %d; body = %s", listResponse.Code, http.StatusOK, listResponse.Body.String())
+	}
+	if !strings.Contains(listResponse.Body.String(), otherUserID.String()) || !strings.Contains(listResponse.Body.String(), "blocked_at") {
+		t.Fatalf("list response does not contain blocked user: %s", listResponse.Body.String())
+	}
+
+	unblockResponse := performRequestWithAuth(service, http.MethodDelete, "/users/me/blocks/"+otherUserID.String(), "", authenticate)
+	if unblockResponse.Code != http.StatusNoContent {
+		t.Fatalf("unblock status = %d, want %d; body = %s", unblockResponse.Code, http.StatusNoContent, unblockResponse.Body.String())
+	}
+}
+
+func TestBlockRoutesRequireAuthentication(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeService{
+		block: func(context.Context, uuid.UUID, uuid.UUID) error {
+			t.Fatal("Block() must not be called")
+			return nil
+		},
+		listBlocked: func(context.Context, uuid.UUID) ([]usermodel.BlockedUser, error) {
+			t.Fatal("ListBlocked() must not be called")
+			return nil, nil
+		},
+		unblock: func(context.Context, uuid.UUID, uuid.UUID) error {
+			t.Fatal("Unblock() must not be called")
+			return nil
+		},
+	}
+	otherID := uuid.New().String()
+	tests := []struct {
+		method string
+		path   string
+	}{
+		{method: http.MethodGet, path: "/users/me/blocks"},
+		{method: http.MethodPost, path: "/users/me/blocks/" + otherID},
+		{method: http.MethodDelete, path: "/users/me/blocks/" + otherID},
+	}
+
+	for _, test := range tests {
+		response := performRequestWithAuth(service, test.method, test.path, "", passThroughAuth)
+		if response.Code != http.StatusUnauthorized {
+			t.Fatalf("%s %s status = %d, want %d", test.method, test.path, response.Code, http.StatusUnauthorized)
+		}
+	}
+}
+
+func TestBlockRouteRejectsInvalidUserID(t *testing.T) {
+	t.Parallel()
+
+	response := performRequestWithAuth(
+		&fakeService{},
+		http.MethodPost,
+		"/users/me/blocks/not-a-uuid",
+		"",
+		authenticateAs(uuid.New()),
+	)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d; body = %s", response.Code, http.StatusBadRequest, response.Body.String())
 	}
 }
 

@@ -12,9 +12,12 @@ import (
 )
 
 type fakeRepository struct {
-	create func(context.Context, usermodel.NewUser) (usermodel.User, error)
-	get    func(context.Context, uuid.UUID) (usermodel.User, error)
-	update func(context.Context, uuid.UUID, usermodel.Changes) (usermodel.User, error)
+	create      func(context.Context, usermodel.NewUser) (usermodel.User, error)
+	get         func(context.Context, uuid.UUID) (usermodel.User, error)
+	update      func(context.Context, uuid.UUID, usermodel.Changes) (usermodel.User, error)
+	block       func(context.Context, uuid.UUID, uuid.UUID) error
+	listBlocked func(context.Context, uuid.UUID) ([]usermodel.BlockedUser, error)
+	unblock     func(context.Context, uuid.UUID, uuid.UUID) error
 }
 
 func (f *fakeRepository) Create(ctx context.Context, user usermodel.NewUser) (usermodel.User, error) {
@@ -27,6 +30,27 @@ func (f *fakeRepository) GetByID(ctx context.Context, id uuid.UUID) (usermodel.U
 
 func (f *fakeRepository) Update(ctx context.Context, id uuid.UUID, changes usermodel.Changes) (usermodel.User, error) {
 	return f.update(ctx, id, changes)
+}
+
+func (f *fakeRepository) Block(ctx context.Context, blockerID, blockedID uuid.UUID) error {
+	if f.block == nil {
+		return nil
+	}
+	return f.block(ctx, blockerID, blockedID)
+}
+
+func (f *fakeRepository) ListBlocked(ctx context.Context, blockerID uuid.UUID) ([]usermodel.BlockedUser, error) {
+	if f.listBlocked == nil {
+		return nil, nil
+	}
+	return f.listBlocked(ctx, blockerID)
+}
+
+func (f *fakeRepository) Unblock(ctx context.Context, blockerID, blockedID uuid.UUID) error {
+	if f.unblock == nil {
+		return nil
+	}
+	return f.unblock(ctx, blockerID, blockedID)
 }
 
 func TestCreateCleansInputAndHashesPassword(t *testing.T) {
@@ -130,5 +154,66 @@ func TestUpdateRejectsEmptyChanges(t *testing.T) {
 	_, err := service.Update(context.Background(), uuid.New(), UpdateInput{})
 	if !errors.Is(err, ErrValidation) {
 		t.Fatalf("Update() error = %v, want validation error", err)
+	}
+}
+
+func TestBlockDelegatesToRepository(t *testing.T) {
+	t.Parallel()
+
+	blockerID := uuid.New()
+	blockedID := uuid.New()
+	repository := &fakeRepository{block: func(_ context.Context, actualBlockerID, actualBlockedID uuid.UUID) error {
+		if actualBlockerID != blockerID || actualBlockedID != blockedID {
+			t.Fatalf("Block() args = (%s, %s), want (%s, %s)", actualBlockerID, actualBlockedID, blockerID, blockedID)
+		}
+		return nil
+	}}
+
+	if err := newWithCost(repository, bcrypt.MinCost).Block(context.Background(), blockerID, blockedID); err != nil {
+		t.Fatalf("Block() error = %v", err)
+	}
+}
+
+func TestBlockRejectsSelf(t *testing.T) {
+	t.Parallel()
+
+	userID := uuid.New()
+	repository := &fakeRepository{block: func(context.Context, uuid.UUID, uuid.UUID) error {
+		t.Fatal("repository Block() must not be called")
+		return nil
+	}}
+
+	err := newWithCost(repository, bcrypt.MinCost).Block(context.Background(), userID, userID)
+	if !errors.Is(err, ErrValidation) {
+		t.Fatalf("Block() error = %v, want validation error", err)
+	}
+}
+
+func TestListBlockedReturnsEmptySlice(t *testing.T) {
+	t.Parallel()
+
+	blocked, err := newWithCost(&fakeRepository{}, bcrypt.MinCost).ListBlocked(context.Background(), uuid.New())
+	if err != nil {
+		t.Fatalf("ListBlocked() error = %v", err)
+	}
+	if blocked == nil || len(blocked) != 0 {
+		t.Fatalf("ListBlocked() = %#v, want []", blocked)
+	}
+}
+
+func TestUnblockDelegatesToRepository(t *testing.T) {
+	t.Parallel()
+
+	blockerID := uuid.New()
+	blockedID := uuid.New()
+	repository := &fakeRepository{unblock: func(_ context.Context, actualBlockerID, actualBlockedID uuid.UUID) error {
+		if actualBlockerID != blockerID || actualBlockedID != blockedID {
+			t.Fatalf("Unblock() args = (%s, %s), want (%s, %s)", actualBlockerID, actualBlockedID, blockerID, blockedID)
+		}
+		return nil
+	}}
+
+	if err := newWithCost(repository, bcrypt.MinCost).Unblock(context.Background(), blockerID, blockedID); err != nil {
+		t.Fatalf("Unblock() error = %v", err)
 	}
 }

@@ -1,7 +1,7 @@
 -include .env
 export
 
-.PHONY: run up down reset migrate-up migrate-down migrate-status sqlc smoke swagger test-exchange-integration
+.PHONY: run up down reset migrate-up migrate-down migrate-status sqlc smoke swagger test-exchange-integration test-user-blocks-integration
 
 run:
 	go run ./cmd/api
@@ -47,3 +47,8 @@ smoke:
 test-exchange-integration:
 	go test -tags=integration ./internal/exchange/handler \
 		-run 'Test(ThreeUserExchange|ExchangeDecisions)Integration' -count=1
+
+# Живой сценарий блокировок: API, отмена proposed-обмена и фильтрация DFS.
+test-user-blocks-integration:
+	go test -tags=integration ./internal/user/handler \
+		-run TestUserBlocksIntegration -count=1

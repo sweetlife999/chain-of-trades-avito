@@ -198,3 +198,9 @@ type User struct {
 	CreatedAt      pgtype.Timestamptz
 	UpdatedAt      pgtype.Timestamptz
 }
+
+type UserBlock struct {
+	BlockerID pgtype.UUID
+	BlockedID pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+}

@@ -73,6 +73,55 @@ func (r *Repository) Update(ctx context.Context, id uuid.UUID, changes usermodel
 	return toModel(updated)
 }
 
+func (r *Repository) Block(ctx context.Context, blockerID, blockedID uuid.UUID) error {
+	_, err := r.queries.AddUserBlockAndCancelProposals(ctx, db.AddUserBlockAndCancelProposalsParams{
+		BlockerID: pgUUID(blockerID),
+		BlockedID: pgUUID(blockedID),
+	})
+	if err != nil {
+		return fmt.Errorf("add user block: %w", translateError(err))
+	}
+
+	return nil
+}
+
+func (r *Repository) ListBlocked(ctx context.Context, blockerID uuid.UUID) ([]usermodel.BlockedUser, error) {
+	rows, err := r.queries.ListUserBlocks(ctx, pgUUID(blockerID))
+	if err != nil {
+		return nil, fmt.Errorf("list user blocks: %w", err)
+	}
+
+	blocked := make([]usermodel.BlockedUser, len(rows))
+	for index, row := range rows {
+		var photoURL *string
+		if row.PhotoUrl.Valid {
+			value := row.PhotoUrl.String
+			photoURL = &value
+		}
+
+		blocked[index] = usermodel.BlockedUser{
+			ID:        uuid.UUID(row.ID.Bytes),
+			Nickname:  row.Nickname,
+			PhotoURL:  photoURL,
+			BlockedAt: row.BlockedAt.Time,
+		}
+	}
+
+	return blocked, nil
+}
+
+func (r *Repository) Unblock(ctx context.Context, blockerID, blockedID uuid.UUID) error {
+	err := r.queries.DeleteUserBlock(ctx, db.DeleteUserBlockParams{
+		BlockerID: pgUUID(blockerID),
+		BlockedID: pgUUID(blockedID),
+	})
+	if err != nil {
+		return fmt.Errorf("delete user block: %w", err)
+	}
+
+	return nil
+}
+
 func optionalText(value *string) pgtype.Text {
 	if value == nil {
 		return pgtype.Text{}
@@ -124,6 +173,9 @@ func translateError(err error) error {
 	}
 
 	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23503" && pgErr.ConstraintName == "user_blocks_blocked_id_fkey" {
+		return ErrNotFound
+	}
 	if errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "users_nickname_lower_key" {
 		return ErrNicknameTaken
 	}

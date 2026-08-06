@@ -22,6 +22,7 @@ var (
 
 type Repository interface {
 	FindNeighbors(context.Context, uuid.UUID) ([]exchangemodel.Node, error)
+	HasUserBlockConflict(context.Context, uuid.UUID, []uuid.UUID) (bool, error)
 	SaveExchange(context.Context, exchangemodel.Exchange) (uuid.UUID, error)
 	ListByUser(context.Context, uuid.UUID) ([]exchangemodel.Details, error)
 	GetByID(context.Context, uuid.UUID) (exchangemodel.Details, error)
@@ -78,6 +79,19 @@ func (s *Service) FindCycle(ctx context.Context, start exchangemodel.Node) ([]ex
 			}
 
 			if _, visited := visitedOwners[next.OwnerID]; visited {
+				continue
+			}
+
+			pathOwnerIDs := make([]uuid.UUID, len(path))
+			for index, node := range path {
+				pathOwnerIDs[index] = node.OwnerID
+			}
+
+			blocked, err := s.repository.HasUserBlockConflict(ctx, next.OwnerID, pathOwnerIDs)
+			if err != nil {
+				return false, fmt.Errorf("check blocks for user %s: %w", next.OwnerID, err)
+			}
+			if blocked {
 				continue
 			}
 

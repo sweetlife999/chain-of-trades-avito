@@ -82,6 +82,46 @@ func TestFindNeighborsError(t *testing.T) {
 	}
 }
 
+func TestHasUserBlockConflict(t *testing.T) {
+	t.Parallel()
+
+	candidateID := uuid.New()
+	pathIDs := []uuid.UUID{uuid.New(), uuid.New()}
+	queries := &fakeNeighborQueries{blockConflict: true}
+	repository := newRepository(queries, nil)
+
+	conflict, err := repository.HasUserBlockConflict(context.Background(), candidateID, pathIDs)
+	if err != nil {
+		t.Fatalf("HasUserBlockConflict() error = %v", err)
+	}
+	if !conflict {
+		t.Fatal("HasUserBlockConflict() = false, want true")
+	}
+	if queries.blockConflictParams.CandidateUserID != pgUUID(candidateID) {
+		t.Fatalf("candidate ID = %v, want %v", queries.blockConflictParams.CandidateUserID, pgUUID(candidateID))
+	}
+	if len(queries.blockConflictParams.PathUserIds) != len(pathIDs) {
+		t.Fatalf("path length = %d, want %d", len(queries.blockConflictParams.PathUserIds), len(pathIDs))
+	}
+	for index, id := range pathIDs {
+		if queries.blockConflictParams.PathUserIds[index] != pgUUID(id) {
+			t.Fatalf("path[%d] = %v, want %v", index, queries.blockConflictParams.PathUserIds[index], pgUUID(id))
+		}
+	}
+}
+
+func TestHasUserBlockConflictError(t *testing.T) {
+	t.Parallel()
+
+	databaseError := errors.New("database unavailable")
+	repository := newRepository(&fakeNeighborQueries{blockConflictErr: databaseError}, nil)
+
+	_, err := repository.HasUserBlockConflict(context.Background(), uuid.New(), []uuid.UUID{uuid.New()})
+	if !errors.Is(err, databaseError) {
+		t.Fatalf("HasUserBlockConflict() error = %v, want wrapped %v", err, databaseError)
+	}
+}
+
 func TestSaveExchange(t *testing.T) {
 	t.Parallel()
 
@@ -206,9 +246,12 @@ func TestSaveExchangeTransactionError(t *testing.T) {
 }
 
 type fakeNeighborQueries struct {
-	rows           []db.FindExchangeNeighborsRow
-	err            error
-	receivedItemID pgtype.UUID
+	rows                []db.FindExchangeNeighborsRow
+	err                 error
+	receivedItemID      pgtype.UUID
+	blockConflict       bool
+	blockConflictErr    error
+	blockConflictParams db.HasUserBlockConflictParams
 }
 
 type fakeExchangeWriteQueries struct {
@@ -412,4 +455,12 @@ func (f *fakeNeighborQueries) FindExchangeNeighbors(
 ) ([]db.FindExchangeNeighborsRow, error) {
 	f.receivedItemID = itemID
 	return f.rows, f.err
+}
+
+func (f *fakeNeighborQueries) HasUserBlockConflict(
+	_ context.Context,
+	params db.HasUserBlockConflictParams,
+) (bool, error) {
+	f.blockConflictParams = params
+	return f.blockConflict, f.blockConflictErr
 }

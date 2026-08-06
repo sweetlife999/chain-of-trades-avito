@@ -29,12 +29,12 @@ func TestExchangeDecisionsIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open database: %v", err)
 	}
-	defer pool.Close()
 
 	users := []uuid.UUID{uuid.New(), uuid.New(), uuid.New()}
 	items := []uuid.UUID{uuid.New(), uuid.New(), uuid.New()}
 	t.Cleanup(func() {
 		cleanupIntegrationData(context.Background(), pool, users, items)
+		pool.Close()
 	})
 
 	for index, userID := range users {
