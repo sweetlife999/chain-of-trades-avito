@@ -33,8 +33,8 @@ func TestExchangeMessagesIntegration(t *testing.T) {
 		t.Fatalf("open database: %v", err)
 	}
 
-	users := []uuid.UUID{uuid.New(), uuid.New()}
-	items := []uuid.UUID{uuid.New(), uuid.New()}
+	users := []uuid.UUID{uuid.New(), uuid.New(), uuid.New()}
+	items := []uuid.UUID{uuid.New(), uuid.New(), uuid.New()}
 	t.Cleanup(func() {
 		cleanupIntegrationData(context.Background(), pool, users, items)
 		pool.Close()
@@ -83,9 +83,13 @@ func TestExchangeMessagesIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create exchange: %v", err)
 	}
-	// Второй обмен на тех же вещах: подтверждение первого обязано закрыть его и объяснить
-	// участникам, почему он закрылся.
-	competingID, err := repository.SaveExchange(ctx, exchangemodel.Exchange{Participants: participants})
+	// Конкурирующий обмен использует одно общее объявление, но имеет другую подпись:
+	// подтверждение первого обязано закрыть его и объяснить участникам причину.
+	competingParticipants := []exchangemodel.Participant{
+		{UserID: users[0], GivesItemID: items[0], ReceivesItemID: items[2], Position: 0},
+		{UserID: users[2], GivesItemID: items[2], ReceivesItemID: items[0], Position: 1},
+	}
+	competingID, err := repository.SaveExchange(ctx, exchangemodel.Exchange{Participants: competingParticipants})
 	if err != nil {
 		t.Fatalf("create competing exchange: %v", err)
 	}

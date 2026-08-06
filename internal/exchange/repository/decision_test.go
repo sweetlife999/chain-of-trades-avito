@@ -140,8 +140,8 @@ func TestDeclineParticipationCancelsExchange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DeclineParticipation() error = %v", err)
 	}
-	if len(nodes) != 1 || nodes[0].ItemID != itemID || nodes[0].OwnerID != ownerID {
-		t.Fatalf("recovery nodes = %+v, want item %s owned by %s", nodes, itemID, ownerID)
+	if len(nodes) != 0 {
+		t.Fatalf("recovery nodes = %+v, want none for proposed exchange", nodes)
 	}
 	if !queries.declined || !queries.cancelled {
 		t.Fatalf(

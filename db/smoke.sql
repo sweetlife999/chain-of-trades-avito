@@ -32,7 +32,8 @@ INSERT INTO item_wants (item_id, category_id) VALUES
     ('bbbbbbbb-0000-0000-0000-000000000000', (SELECT id FROM categories WHERE slug = 'phones')),
     ('cccccccc-0000-0000-0000-000000000000', (SELECT id FROM categories WHERE slug = 'bikes'));
 
-INSERT INTO chains (id) VALUES ('dddddddd-0000-0000-0000-000000000000');
+INSERT INTO chains (id, signature)
+VALUES ('dddddddd-0000-0000-0000-000000000000', 'smoke:dddddddd-0000-0000-0000-000000000000');
 
 INSERT INTO chain_participants (chain_id, user_id, gives_item_id, receives_item_id, position) VALUES
     ('dddddddd-0000-0000-0000-000000000000', '11111111-1111-1111-1111-111111111111',

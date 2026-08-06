@@ -11,7 +11,7 @@ import (
 )
 
 type exchangeWriteQueries interface {
-	CreateExchange(context.Context) (pgtype.UUID, error)
+	CreateExchange(context.Context, string) (pgtype.UUID, error)
 	CreateExchangeParticipant(context.Context, db.CreateExchangeParticipantParams) error
 	LockExchangeDecisionItems(context.Context, pgtype.UUID) error
 	LockExchange(context.Context, pgtype.UUID) (db.ChainStatus, error)

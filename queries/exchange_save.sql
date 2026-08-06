@@ -1,5 +1,7 @@
 -- name: CreateExchange :one
-INSERT INTO chains DEFAULT VALUES
+INSERT INTO chains (signature)
+VALUES (sqlc.arg(signature))
+ON CONFLICT (signature) DO NOTHING
 RETURNING id;
 
 -- name: CreateExchangeParticipant :exec
