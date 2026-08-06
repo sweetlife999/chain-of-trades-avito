@@ -1,0 +1,193 @@
+.loaderWrapper {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.fullScreen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+
+  width: 100%;
+  min-height: 100vh;
+
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(8px);
+}
+
+.loader {
+  --loader-size: 48px;
+  --link-size: 13px;
+  --orbit-radius: 17px;
+  --loader-color: #00aaff;
+  --loader-secondary-color: #7a5cff;
+
+  position: relative;
+
+  width: var(--loader-size);
+  height: var(--loader-size);
+
+  animation: loader-rotate 1.8s linear infinite;
+
+  &::before {
+    content: "";
+
+    position: absolute;
+    inset: 0;
+
+    border: 2px solid rgba(0, 170, 255, 0.12);
+    border-radius: 50%;
+
+    animation: loader-pulse 1.8s ease-in-out infinite;
+  }
+}
+
+.link {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+
+  width: var(--link-size);
+  height: var(--link-size);
+
+  border: 3px solid var(--loader-color);
+  border-radius: 50%;
+
+  background: #ffffff;
+  box-shadow:
+    0 4px 12px rgba(0, 170, 255, 0.22),
+    inset 0 0 0 2px rgba(255, 255, 255, 0.8);
+
+  transform-origin: center;
+  animation: link-pulse 1.2s ease-in-out infinite;
+
+  &:nth-child(1) {
+    transform:
+      translate(-50%, -50%)
+      rotate(0deg)
+      translateY(calc(var(--orbit-radius) * -1));
+
+    animation-delay: 0s;
+  }
+
+  &:nth-child(2) {
+    border-color: var(--loader-secondary-color);
+
+    transform:
+      translate(-50%, -50%)
+      rotate(120deg)
+      translateY(calc(var(--orbit-radius) * -1));
+
+    animation-delay: -0.4s;
+  }
+
+  &:nth-child(3) {
+    transform:
+      translate(-50%, -50%)
+      rotate(240deg)
+      translateY(calc(var(--orbit-radius) * -1));
+
+    animation-delay: -0.8s;
+  }
+}
+
+.small {
+  --loader-size: 28px;
+  --link-size: 8px;
+  --orbit-radius: 10px;
+
+  .link {
+    border-width: 2px;
+  }
+}
+
+.medium {
+  --loader-size: 48px;
+  --link-size: 13px;
+  --orbit-radius: 17px;
+}
+
+.large {
+  --loader-size: 72px;
+  --link-size: 18px;
+  --orbit-radius: 26px;
+}
+
+.extraLarge {
+  --loader-size: 104px;
+  --link-size: 24px;
+  --orbit-radius: 38px;
+
+  .link {
+    border-width: 4px;
+  }
+}
+
+.text {
+  color: #454545;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  text-align: center;
+
+  animation: text-fade 1.4s ease-in-out infinite;
+}
+
+@keyframes loader-rotate {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes loader-pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(0.88);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes link-pulse {
+  0%,
+  100% {
+    scale: 0.72;
+    opacity: 0.55;
+  }
+
+  50% {
+    scale: 1.16;
+    opacity: 1;
+  }
+}
+
+@keyframes text-fade {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loader,
+  .loader::before,
+  .link,
+  .text {
+    animation-duration: 3s;
+  }
+}

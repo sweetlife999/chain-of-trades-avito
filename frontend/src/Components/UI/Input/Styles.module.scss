@@ -1,78 +1,106 @@
-.title {
-  font-family: var(--poppins);
-  font-weight: 600;
-  font-size: 36px;
-  line-height: 100%;
-  padding-bottom: 20px;
-}
+.input {
+  width: 100%;
 
-.form {
-  &__label {
-    display: flex;
-    flex-direction: column;
-    padding-bottom: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 
-    &_cover {
-      display: flex;
-      justify-content: space-between;
-    }
-  }
-  &__title {
-    font-family: var(--poppins);
-    font-weight: 400;
+  &__labelText {
+    color: #292929;
     font-size: 14px;
-    color: var(--light-black-color);
-    line-height: 22px;
-    padding-bottom: 8px;
+    font-weight: 600;
 
-    &::before {
-      content: "*";
-      padding-right: 4px;
-      color: var(--red-color);
+    &_required {
+      &::after {
+        content: " *";
+
+        color: red;
+      }
     }
   }
 
-  &__input {
-    border: 1px solid var(--gray-color);
-    border-radius: 2px;
-    padding: 5px 12px;
+  &__field {
+    width: 100%;
+    height: 48px;
 
-    &_error {
-      border: 1px solid var(--red-color);
-    }
+    padding: 0 16px;
+
+    border: 1px solid $green-input;
+    border-radius: $border-radius;
+    outline: none;
+
+    background-color: $background-input;
+    color: #171717;
+
+    font-family: inherit;
+    font-size: 15px;
+
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.2s ease,
+      background-color 0.2s ease;
 
     &::placeholder {
-      color: var(--gray-color);
-      font-family: var(--poppins);
-      font-weight: 400;
-      font-size: 14px;
-      line-height: 22px;
+      color: #a1a1a1;
     }
 
-    &_comm {
+    &:hover {
+      border-color: $green-button;
+    }
+
+    &:focus {
+      border-color: $green-button;
+      background-color: #fff;
+      box-shadow: 0 0 0 4px rgba($green-button, 0.12);
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    &_textarea {
+      height: auto;
+      min-height: 112px;
+
+      padding: 14px 16px;
+
+      line-height: 1.5;
+
       resize: vertical;
-      max-height: 100px;
+    }
+
+    &_error {
+      border-color: red;
+
+      &:hover,
+      &:focus {
+        border-color: red;
+      }
+
+      &:focus {
+        box-shadow: 0 0 0 4px rgba(red, 0.1);
+      }
     }
   }
 
-  &__counter {
-    font-family: var(--poppins);
-    font-weight: 400;
-    font-size: 14px;
-    line-height: 22px;
-    text-align: right;
-    color: var(--dark-gray-color);
-    margin-left: auto;
-  }
-
-  &__buttons {
+  &__footer {
     display: flex;
+    align-items: flex-start;
     justify-content: space-between;
-    align-items: center;
+    gap: 12px;
   }
 
   &__error {
-    padding-top: 5px;
     color: red;
+    font-size: 13px;
+  }
+
+  &__counter {
+    margin-left: auto;
+
+    color: #777;
+    font-size: 13px;
+    white-space: nowrap;
   }
 }

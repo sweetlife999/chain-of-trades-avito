@@ -1,0 +1,48 @@
+.card {
+  overflow: hidden;
+  color: #111;
+  border: 1px solid #ddd;
+  border-radius: $border-radius;
+  cursor: pointer;
+
+  &:hover { border-color: $green-button; }
+
+  &__imageBox {
+    position: relative;
+    display: grid;
+    aspect-ratio: 16 / 10;
+    place-items: center;
+    color: #777;
+    background: #f3f3f3;
+  }
+
+  &__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &__status {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    padding: 5px 9px;
+    font-size: 12px;
+    border-radius: 14px;
+
+    &_available { color: #166534; background: #e4f7ea; }
+    &_reserved { color: #155b89; background: #e3f2ff; }
+    &_traded { color: #5b21b6; background: #f0e8ff; }
+    &_withdrawn { color: #555; background: #eee; }
+  }
+
+  &__content {
+    display: grid;
+    gap: 8px;
+    padding: 16px;
+
+    h2 { font-size: 18px; }
+    span { color: #777; font-size: 12px; }
+    p { color: #555; font-size: 14px; }
+  }
+}

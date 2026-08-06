@@ -1,0 +1,220 @@
+.details {
+  width: 100%;
+
+  &__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+
+    a { color: $green-button; font-size: 14px; }
+    h1 { margin: 14px 0 10px; font-size: 32px; font-weight: 500; }
+    p { color: #666; font-size: 13px; }
+
+    > span {
+      padding: 8px 12px;
+      font-size: 12px;
+      border-radius: 6px;
+    }
+  }
+
+  &__progress {
+    margin: 34px 0;
+    padding: 24px 12px;
+    border-block: 1px solid #eee;
+  }
+
+  &__columns {
+    display: grid;
+    grid-template-columns: 1.8fr 1fr;
+    gap: 24px;
+  }
+
+  &__scheme,
+  &__actions,
+  &__pvz {
+    padding: 24px;
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 14px;
+
+    h2 { margin-bottom: 20px; font-size: 20px; }
+  }
+
+  &__scheme {
+    display: grid;
+    justify-items: center;
+    gap: 20px;
+
+    h2 { justify-self: start; }
+  }
+
+  &__current,
+  &__receive {
+    display: grid;
+    justify-items: center;
+    gap: 5px;
+
+    span {
+      display: grid;
+      width: 68px;
+      height: 68px;
+      place-items: center;
+      color: #fff;
+      background: #1688f0;
+      border-radius: 50%;
+    }
+
+    small { color: #666; }
+  }
+
+  &__receive {
+    padding: 14px 28px;
+    background: #e7f7ef;
+    border-radius: 12px;
+  }
+
+  &__participants {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 26px;
+
+    > div {
+      display: grid;
+      justify-items: center;
+      gap: 6px;
+      min-width: 90px;
+      font-size: 12px;
+    }
+  }
+
+  &__avatar {
+    display: grid;
+    width: 48px;
+    height: 48px;
+    place-items: center;
+    color: #fff;
+    background: $green-button;
+    border-radius: 50%;
+  }
+
+  &__actions {
+    display: grid;
+    align-content: start;
+    gap: 18px;
+
+    h2, h3 { margin: 0; }
+    h3 { font-size: 14px; }
+  }
+
+  &__notice,
+  &__address {
+    display: grid;
+    gap: 8px;
+    padding: 18px;
+    background: #e7f2ff;
+    border-radius: 12px;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  &__buttons {
+    display: flex;
+    gap: 10px;
+
+    button {
+      flex: 1;
+      padding: 11px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+
+    button:first-child { color: #fff; background: $green-button; }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+  }
+
+  &__pvz {
+    max-width: 660px;
+    margin: 0 auto;
+
+    > p { margin-bottom: 20px; color: #555; }
+  }
+
+  &__address { margin-bottom: 24px; }
+
+  &__qrRow {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    align-items: center;
+    gap: 24px;
+
+    h3 { margin-bottom: 10px; }
+    p { margin-bottom: 16px; color: #555; font-size: 13px; line-height: 1.4; }
+    span { display: block; padding: 12px; background: #e7f7ef; border-radius: 10px; font-size: 12px; }
+  }
+
+  &__qr {
+    display: grid;
+    aspect-ratio: 1;
+    place-items: center;
+    font-size: 38px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    background: repeating-conic-gradient(#111 0 25%, #fff 0 50%) 0 / 28px 28px;
+    border: 10px solid #fff;
+    outline: 1px solid #ddd;
+  }
+
+  &__result {
+    display: grid;
+    justify-items: center;
+    gap: 16px;
+    padding: 54px 20px;
+    text-align: center;
+
+    p { color: #555; }
+    > a, .details__resultButtons a { padding: 12px 18px; color: #fff; background: $green-button; border-radius: 9px; }
+  }
+
+  &__resultIcon {
+    display: grid;
+    width: 68px;
+    height: 68px;
+    place-items: center;
+    color: #166534;
+    font-size: 28px;
+    background: #e4f7ea;
+    border-radius: 50%;
+
+    &_error { color: #991b1b; background: #feecec; }
+  }
+
+  &__resultButtons {
+    display: flex;
+    gap: 12px;
+
+    a:last-child { color: #333; background: #fff; border: 1px solid #ddd; }
+  }
+}
+
+.status_proposed { color: #6b5310; background: #fff5cf; }
+.status_confirmed { color: #155b89; background: #e3f2ff; }
+.status_completed { color: #166534; background: #e4f7ea; }
+.status_cancelled { color: #991b1b; background: #feecec; }
+
+@media (max-width: 760px) {
+  .details {
+    &__header { flex-direction: column; }
+    &__columns, &__qrRow { grid-template-columns: 1fr; }
+    &__resultButtons { flex-direction: column; }
+  }
+}
+
+.details__join {
+  padding: 12px;
+  color: #fff;
+  text-align: center;
+  background: $green-button;
+  border-radius: 8px;
+}
