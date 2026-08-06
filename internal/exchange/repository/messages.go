@@ -17,6 +17,7 @@ type messageQueries interface {
 	GetExchangeAccess(context.Context, db.GetExchangeAccessParams) (db.GetExchangeAccessRow, error)
 	CreateChainMessage(context.Context, db.CreateChainMessageParams) (db.CreateChainMessageRow, error)
 	ListChainMessages(context.Context, pgtype.UUID) ([]db.ListChainMessagesRow, error)
+	MarkChainMessagesRead(context.Context, db.MarkChainMessagesReadParams) error
 }
 
 type messageRecord struct {
@@ -83,6 +84,22 @@ func (r *Repository) ListMessages(
 	}
 
 	return messages, nil
+}
+
+func (r *Repository) MarkMessagesRead(
+	ctx context.Context,
+	exchangeID uuid.UUID,
+	userID uuid.UUID,
+) error {
+	err := r.messages.MarkChainMessagesRead(ctx, db.MarkChainMessagesReadParams{
+		ExchangeID: pgUUID(exchangeID),
+		UserID:     pgUUID(userID),
+	})
+	if err != nil {
+		return fmt.Errorf("mark chain messages read: %w", err)
+	}
+
+	return nil
 }
 
 // recordExchangeEvent пишет событие сделки в тред обмена. Вызывается внутри транзакции,

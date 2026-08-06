@@ -32,13 +32,14 @@ type Repository interface {
 	HasUserBlockConflict(context.Context, uuid.UUID, []uuid.UUID) (bool, error)
 	SaveExchange(context.Context, exchangemodel.Exchange) (uuid.UUID, error)
 	ListByUser(context.Context, uuid.UUID) ([]exchangemodel.Details, error)
-	GetByID(context.Context, uuid.UUID) (exchangemodel.Details, error)
+	GetByID(context.Context, uuid.UUID, uuid.UUID) (exchangemodel.Details, error)
 	ConfirmParticipation(context.Context, uuid.UUID, uuid.UUID) error
 	DeclineParticipation(context.Context, uuid.UUID, uuid.UUID) error
 	CompleteParticipation(context.Context, uuid.UUID, uuid.UUID) error
 	ExchangeAccess(context.Context, uuid.UUID, uuid.UUID) (string, bool, error)
 	CreateMessage(context.Context, uuid.UUID, uuid.UUID, string) (exchangemodel.Message, error)
 	ListMessages(context.Context, uuid.UUID) ([]exchangemodel.Message, error)
+	MarkMessagesRead(context.Context, uuid.UUID, uuid.UUID) error
 }
 
 type Service struct {
@@ -208,7 +209,7 @@ func (s *Service) GetForUser(
 	exchangeID uuid.UUID,
 	userID uuid.UUID,
 ) (exchangemodel.Details, error) {
-	exchange, err := s.repository.GetByID(ctx, exchangeID)
+	exchange, err := s.repository.GetByID(ctx, exchangeID, userID)
 	if err != nil {
 		return exchangemodel.Details{}, fmt.Errorf("get exchange for user: %w", err)
 	}
@@ -312,6 +313,14 @@ func (s *Service) ListMessages(
 	messages, err := s.repository.ListMessages(ctx, exchangeID)
 	if err != nil {
 		return nil, fmt.Errorf("list exchange messages: %w", err)
+	}
+
+	// Отдельного «пометить прочитанным» нет: frontend читает тред только когда тот открыт
+	// у пользователя на экране, поэтому чтение и есть отметка о прочтении.
+	// ponytail: если появится фоновый опрос треда, счётчик обнулится вслепую — тогда
+	// отметку нужно выносить в отдельный POST /exchanges/{id}/messages/read.
+	if err := s.repository.MarkMessagesRead(ctx, exchangeID, userID); err != nil {
+		return nil, fmt.Errorf("mark exchange messages read: %w", err)
 	}
 
 	return messages, nil

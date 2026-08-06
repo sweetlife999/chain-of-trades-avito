@@ -521,6 +521,11 @@ func TestGetForUserAllowsParticipant(t *testing.T) {
 		t.Fatalf("GetByID() exchange ID = %s, want %s", repository.requestedExchangeID, exchangeID)
 	}
 
+	// Читатель доезжает до запроса: по нему считается счётчик непрочитанного.
+	if repository.detailsUserID != userID {
+		t.Fatalf("GetByID() user ID = %s, want %s", repository.detailsUserID, userID)
+	}
+
 	if !reflect.DeepEqual(actual, want) {
 		t.Fatalf("GetForUser() = %+v, want %+v", actual, want)
 	}
@@ -800,6 +805,28 @@ func TestListMessagesReturnsThread(t *testing.T) {
 	}
 }
 
+func TestListMessagesMarksThreadRead(t *testing.T) {
+	t.Parallel()
+
+	exchangeID := uuid.New()
+	userID := uuid.New()
+	repository := &fakeRepository{accessIsParticipant: true}
+
+	if _, err := New(repository).ListMessages(context.Background(), exchangeID, userID); err != nil {
+		t.Fatalf("ListMessages() error = %v", err)
+	}
+
+	if repository.readExchangeID != exchangeID || repository.readUserID != userID {
+		t.Fatalf(
+			"MarkMessagesRead() args = (%s, %s), want (%s, %s)",
+			repository.readExchangeID,
+			repository.readUserID,
+			exchangeID,
+			userID,
+		)
+	}
+}
+
 func TestListMessagesRejectsNonParticipant(t *testing.T) {
 	t.Parallel()
 
@@ -807,6 +834,9 @@ func TestListMessagesRejectsNonParticipant(t *testing.T) {
 
 	if _, err := New(repository).ListMessages(context.Background(), uuid.New(), uuid.New()); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("ListMessages() error = %v, want ErrForbidden", err)
+	}
+	if repository.readExchangeID != uuid.Nil {
+		t.Fatal("thread was marked read for a non-participant")
 	}
 }
 
@@ -860,6 +890,9 @@ type fakeRepository struct {
 	threadMessages      []exchangemodel.Message
 	threadExchangeID    uuid.UUID
 	threadErr           error
+	detailsUserID       uuid.UUID
+	readExchangeID      uuid.UUID
+	readUserID          uuid.UUID
 }
 
 func (f *fakeRepository) ExchangeAccess(
@@ -941,9 +974,21 @@ func (f *fakeRepository) ListByUser(
 func (f *fakeRepository) GetByID(
 	_ context.Context,
 	exchangeID uuid.UUID,
+	userID uuid.UUID,
 ) (exchangemodel.Details, error) {
 	f.requestedExchangeID = exchangeID
+	f.detailsUserID = userID
 	return f.exchangeDetails, f.getErr
+}
+
+func (f *fakeRepository) MarkMessagesRead(
+	_ context.Context,
+	exchangeID uuid.UUID,
+	userID uuid.UUID,
+) error {
+	f.readExchangeID = exchangeID
+	f.readUserID = userID
+	return nil
 }
 
 func (f *fakeRepository) ConfirmParticipation(

@@ -10,6 +10,7 @@ type ExchangeResponse struct {
 	ID           string                `json:"id"`
 	Status       string                `json:"status"`
 	Participants []ParticipantResponse `json:"participants"`
+	UnreadCount  int64                 `json:"unread_count"`
 	CreatedAt    time.Time             `json:"created_at"`
 	UpdatedAt    time.Time             `json:"updated_at"`
 	ClosedAt     *time.Time            `json:"closed_at"`
@@ -112,6 +113,7 @@ func FromModel(exchange exchangemodel.Details) ExchangeResponse {
 		ID:           exchange.ID.String(),
 		Status:       exchange.Status,
 		Participants: participants,
+		UnreadCount:  exchange.UnreadCount,
 		CreatedAt:    exchange.CreatedAt,
 		UpdatedAt:    exchange.UpdatedAt,
 		ClosedAt:     exchange.ClosedAt,

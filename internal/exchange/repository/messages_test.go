@@ -150,6 +150,24 @@ func TestListMessagesReturnsEmptySlice(t *testing.T) {
 	}
 }
 
+func TestMarkMessagesReadTargetsTheReader(t *testing.T) {
+	t.Parallel()
+
+	exchangeID := uuid.New()
+	userID := uuid.New()
+	queries := &fakeMessageQueries{}
+
+	if err := newRepositoryWithMessages(queries).
+		MarkMessagesRead(context.Background(), exchangeID, userID); err != nil {
+		t.Fatalf("MarkMessagesRead() error = %v", err)
+	}
+
+	if queries.readParams.ExchangeID != pgUUID(exchangeID) ||
+		queries.readParams.UserID != pgUUID(userID) {
+		t.Fatalf("MarkChainMessagesRead() params = %+v", queries.readParams)
+	}
+}
+
 type fakeMessageQueries struct {
 	access         db.GetExchangeAccessRow
 	accessErr      error
@@ -160,6 +178,15 @@ type fakeMessageQueries struct {
 	list           []db.ListChainMessagesRow
 	listErr        error
 	listExchangeID pgtype.UUID
+	readParams     db.MarkChainMessagesReadParams
+}
+
+func (f *fakeMessageQueries) MarkChainMessagesRead(
+	_ context.Context,
+	params db.MarkChainMessagesReadParams,
+) error {
+	f.readParams = params
+	return nil
 }
 
 func (f *fakeMessageQueries) GetExchangeAccess(

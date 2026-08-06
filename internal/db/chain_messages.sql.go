@@ -171,7 +171,7 @@ func (q *Queries) ListChainMessages(ctx context.Context, exchangeID pgtype.UUID)
 
 const markChainMessagesRead = `-- name: MarkChainMessagesRead :exec
 UPDATE chain_participants
-SET messages_read_at = now()
+SET messages_read_at = clock_timestamp()
 WHERE chain_id = $1
   AND user_id = $2
 `
@@ -181,6 +181,9 @@ type MarkChainMessagesReadParams struct {
 	UserID     pgtype.UUID
 }
 
+// clock_timestamp(), а не now(): сообщения тоже помечаются им, и метка о прочтении
+// обязана лежать в той же шкале. С now() (время начала транзакции) сообщение, попавшее
+// в базу позже её начала, осталось бы непрочитанным навсегда.
 func (q *Queries) MarkChainMessagesRead(ctx context.Context, arg MarkChainMessagesReadParams) error {
 	_, err := q.db.Exec(ctx, markChainMessagesRead, arg.ExchangeID, arg.UserID)
 	return err

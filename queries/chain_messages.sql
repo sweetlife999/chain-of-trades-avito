@@ -55,8 +55,11 @@ LEFT JOIN users AS author
 WHERE message.chain_id = sqlc.arg(exchange_id)
 ORDER BY message.created_at, message.id;
 
+-- clock_timestamp(), а не now(): сообщения тоже помечаются им, и метка о прочтении
+-- обязана лежать в той же шкале. С now() (время начала транзакции) сообщение, попавшее
+-- в базу позже её начала, осталось бы непрочитанным навсегда.
 -- name: MarkChainMessagesRead :exec
 UPDATE chain_participants
-SET messages_read_at = now()
+SET messages_read_at = clock_timestamp()
 WHERE chain_id = sqlc.arg(exchange_id)
   AND user_id = sqlc.arg(user_id);

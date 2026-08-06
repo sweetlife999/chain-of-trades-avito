@@ -17,7 +17,7 @@ var ErrNotFound = errors.New("exchange not found")
 
 type exchangeReadQueries interface {
 	ListExchangesByUser(context.Context, pgtype.UUID) ([]db.ListExchangesByUserRow, error)
-	GetExchangeByID(context.Context, pgtype.UUID) ([]db.GetExchangeByIDRow, error)
+	GetExchangeByID(context.Context, db.GetExchangeByIDParams) ([]db.GetExchangeByIDRow, error)
 }
 
 type exchangeRecord struct {
@@ -45,6 +45,7 @@ type exchangeRecord struct {
 	ReceivesItemStatus      db.ItemStatus
 	ReceivesCategorySlug    string
 	ReceivesCategoryName    string
+	UnreadCount             int64
 }
 
 func (r *Repository) ListByUser(ctx context.Context, userID uuid.UUID) ([]exchangemodel.Details, error) {
@@ -61,8 +62,15 @@ func (r *Repository) ListByUser(ctx context.Context, userID uuid.UUID) ([]exchan
 	return groupExchangeRecords(records), nil
 }
 
-func (r *Repository) GetByID(ctx context.Context, exchangeID uuid.UUID) (exchangemodel.Details, error) {
-	rows, err := r.reads.GetExchangeByID(ctx, pgUUID(exchangeID))
+func (r *Repository) GetByID(
+	ctx context.Context,
+	exchangeID uuid.UUID,
+	userID uuid.UUID,
+) (exchangemodel.Details, error) {
+	rows, err := r.reads.GetExchangeByID(ctx, db.GetExchangeByIDParams{
+		ExchangeID: pgUUID(exchangeID),
+		UserID:     pgUUID(userID),
+	})
 	if err != nil {
 		return exchangemodel.Details{}, fmt.Errorf("get exchange by ID: %w", err)
 	}
@@ -94,6 +102,7 @@ func groupExchangeRecords(records []exchangeRecord) []exchangemodel.Details {
 				ID:           exchangeID,
 				Status:       string(record.ExchangeStatus),
 				Participants: make([]exchangemodel.DetailsParticipant, 0),
+				UnreadCount:  record.UnreadCount,
 				CreatedAt:    record.ExchangeCreatedAt.Time,
 				UpdatedAt:    record.ExchangeUpdatedAt.Time,
 				ClosedAt:     optionalTime(record.ExchangeClosedAt),
@@ -169,6 +178,7 @@ func recordFromListRow(row db.ListExchangesByUserRow) exchangeRecord {
 		ReceivesItemStatus:      row.ReceivesItemStatus,
 		ReceivesCategorySlug:    row.ReceivesCategorySlug,
 		ReceivesCategoryName:    row.ReceivesCategoryName,
+		UnreadCount:             row.UnreadCount,
 	}
 }
 
@@ -198,6 +208,7 @@ func recordFromGetRow(row db.GetExchangeByIDRow) exchangeRecord {
 		ReceivesItemStatus:      row.ReceivesItemStatus,
 		ReceivesCategorySlug:    row.ReceivesCategorySlug,
 		ReceivesCategoryName:    row.ReceivesCategoryName,
+		UnreadCount:             row.UnreadCount,
 	}
 }
 
