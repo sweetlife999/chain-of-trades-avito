@@ -6,8 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "lint": "eslint . --cache",
+    "preview": "vite preview",
+    "lint:fix": "eslint . --fix --cache",
+    "lint:ci": "eslint . --max-warnings=0",
+    "check": "npm run lint:ci && npm run build"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.7.1",

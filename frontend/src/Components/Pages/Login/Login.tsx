@@ -20,7 +20,7 @@ const LoginComponent = () => {
     register,
     handleSubmit,
     formState: { errors },
-
+    setError,
   } = useForm<FormState>({
     resolver: zodResolver(formSchema),
     
@@ -30,20 +30,20 @@ const loginMutation = useMutation({
   mutationFn: (data: FormState) => login(data),
 
   onSuccess: (data) => {
-    console.log("SUCCESS", data);
-
     dispatch(setUserState(data));
-    navigate('/profile');
+    navigate("/profile");
   },
 
-  onError: (error) => {
-    console.log("ERROR", error);
+  onError: () => {
+    setError("root", {
+      type: "server",
+      message: "Неверный nickname или пароль",
+    });
   },
 });
 
   const onSubmit = (data: FormState) => {
     loginMutation.mutate(data);
-    console.log("Вход");
   };
 
   return (
@@ -59,8 +59,8 @@ const loginMutation = useMutation({
           <p className={styles.login__description}>
             Войдите в аккаунт, чтобы продолжить
           </p>
-          {errors.form && (
-            <span className={styles.login__error}>{errors.form.message}</span>
+          {errors.root && (
+            <span className={styles.login__error}>{errors.root.message}</span>
           )}
         </div>
 
@@ -72,7 +72,7 @@ const loginMutation = useMutation({
               className={styles.login__input}
               type="text"
               placeholder="nickname"
-              autoComplete="username"
+              // autoComplete="email"
               {...register("nickname")}
             />
             {errors.nickname && (

@@ -28,7 +28,7 @@ const ProfilePreviewComponent = ({ user }: TProfilePreviewProps) => {
       dispatch(logoutState());
       navigate("/");
     } catch (error) {
-      console.log("Не удалось выйти", error);
+      console.error("Не удалось выйти", error);
     }
   };
 

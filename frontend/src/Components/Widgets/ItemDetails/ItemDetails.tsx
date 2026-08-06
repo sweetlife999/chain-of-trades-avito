@@ -21,8 +21,8 @@ const ItemDetailsComponent = () => {
     enabled: Boolean(id),
   });
 
-  if (isPending) return <p>Загрузка...</p>;
-  if (isError || !item) return <p>Не удалось загрузить вещь</p>;
+  if (isPending) {return <p>Загрузка...</p>};
+  if (isError || !item) {return <p>Не удалось загрузить вещь</p>};
 
   return (
     <article className={styles.item}>

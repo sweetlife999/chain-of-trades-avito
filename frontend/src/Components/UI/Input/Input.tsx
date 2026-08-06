@@ -12,27 +12,18 @@ type TInput = {
   className?: string;
   placeholder?: string;
   error?: string;
-
   type?: "password" | "email" | "text";
   required?: boolean;
   disabled?: boolean;
-
   textarea?: boolean;
   rows?: number;
   maxLength?: number;
   counter?: string;
-
   defaultValue?: string;
   autoComplete?: string;
   name?: string;
-
-  onChange?: ChangeEventHandler<
-    HTMLInputElement | HTMLTextAreaElement
-  >;
-
-  onBlur?: FocusEventHandler<
-    HTMLInputElement | HTMLTextAreaElement
-  >;
+  onChange?: ChangeEventHandler<HTMLInputElement | HTMLTextAreaElement>;
+  onBlur?: FocusEventHandler<HTMLInputElement | HTMLTextAreaElement>;
 };
 
 const InputComponent = forwardRef<
@@ -46,29 +37,21 @@ const InputComponent = forwardRef<
       required = false,
       disabled = false,
       className = "",
-
       type = "text",
       placeholder,
-
       textarea = false,
       rows = 4,
       maxLength,
       counter,
-
       defaultValue,
       autoComplete,
       name,
-
       onChange,
       onBlur,
-
-      ...rest
     },
     ref,
   ) => {
-    const Tag = textarea ? "textarea" : "input";
-
-    const inputClassName = [
+    const fieldClassName = [
       styles.input__field,
       textarea ? styles.input__field_textarea : "",
       error ? styles.input__field_error : "",
@@ -76,6 +59,19 @@ const InputComponent = forwardRef<
     ]
       .filter(Boolean)
       .join(" ");
+
+    const commonProps = {
+      className: fieldClassName,
+      placeholder,
+      maxLength,
+      defaultValue,
+      autoComplete,
+      name,
+      required,
+      disabled,
+      onChange,
+      onBlur,
+    };
 
     return (
       <label className={styles.input}>
@@ -89,35 +85,25 @@ const InputComponent = forwardRef<
           </span>
         )}
 
-        <Tag
-          ref={ref as any}
-          className={inputClassName}
-          type={textarea ? undefined : type}
-          placeholder={placeholder}
-          rows={textarea ? rows : undefined}
-          maxLength={maxLength}
-          defaultValue={defaultValue}
-          autoComplete={autoComplete}
-          name={name}
-          required={required}
-          disabled={disabled}
-          onChange={onChange}
-          onBlur={onBlur}
-          {...rest}
-        />
+        {textarea ? (
+          <textarea
+            {...commonProps}
+            ref={ref as React.Ref<HTMLTextAreaElement>}
+            rows={rows}
+          />
+        ) : (
+          <input
+            {...commonProps}
+            ref={ref as React.Ref<HTMLInputElement>}
+            type={type}
+          />
+        )}
 
         {(error || counter) && (
           <span className={styles.input__footer}>
-            {error && (
-              <span className={styles.input__error}>
-                {error}
-              </span>
-            )}
-
+            {error && <span className={styles.input__error}>{error}</span>}
             {counter && (
-              <span className={styles.input__counter}>
-                {counter}
-              </span>
+              <span className={styles.input__counter}>{counter}</span>
             )}
           </span>
         )}
