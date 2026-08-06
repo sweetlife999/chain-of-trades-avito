@@ -595,6 +595,82 @@ func TestDeclineParticipation(t *testing.T) {
 	}
 }
 
+func TestDeclineParticipationRecoversWithDifferentCycle(t *testing.T) {
+	t.Parallel()
+
+	original := makeNodes(3)
+	alternative := testNode(4)
+	repository := &fakeRepository{
+		declineRecovery: original,
+		neighbors: map[uuid.UUID][]exchangemodel.Node{
+			original[0].ItemID: {original[1]},
+			original[1].ItemID: {original[2], alternative},
+			original[2].ItemID: {original[0]},
+			alternative.ItemID: {original[0]},
+		},
+	}
+
+	if err := New(repository).DeclineParticipation(context.Background(), uuid.New(), original[0].OwnerID); err != nil {
+		t.Fatalf("DeclineParticipation() error = %v", err)
+	}
+	if repository.saveCalls != 1 {
+		t.Fatalf("SaveExchange() calls = %d, want 1", repository.saveCalls)
+	}
+
+	wantItems := map[uuid.UUID]bool{
+		original[0].ItemID: true,
+		original[1].ItemID: true,
+		alternative.ItemID: true,
+	}
+	for _, participant := range repository.savedExchange.Participants {
+		if !wantItems[participant.GivesItemID] {
+			t.Fatalf("recovered exchange contains unexpected item %s", participant.GivesItemID)
+		}
+		delete(wantItems, participant.GivesItemID)
+	}
+	if len(wantItems) != 0 {
+		t.Fatalf("recovered exchange misses items: %v", wantItems)
+	}
+}
+
+func TestDeclineParticipationDoesNotRecreateSameCycle(t *testing.T) {
+	t.Parallel()
+
+	nodes := makeNodes(3)
+	repository := &fakeRepository{
+		declineRecovery: nodes,
+		neighbors:       cycleGraph(nodes),
+	}
+
+	if err := New(repository).DeclineParticipation(context.Background(), uuid.New(), nodes[0].OwnerID); err != nil {
+		t.Fatalf("DeclineParticipation() error = %v", err)
+	}
+	if repository.saveCalls != 0 {
+		t.Fatalf("SaveExchange() calls = %d, want 0", repository.saveCalls)
+	}
+}
+
+func TestDeclineParticipationKeepsSuccessWhenRecoveryFails(t *testing.T) {
+	t.Parallel()
+
+	nodes := makeNodes(2)
+	databaseError := errors.New("database unavailable")
+	logger := &fakeLogger{}
+	repository := &fakeRepository{
+		declineRecovery: nodes,
+		errors:          map[uuid.UUID]error{nodes[0].ItemID: databaseError},
+	}
+
+	err := newWithDependencies(repository, logger).
+		DeclineParticipation(context.Background(), uuid.New(), nodes[0].OwnerID)
+	if err != nil {
+		t.Fatalf("DeclineParticipation() error = %v, want successful decline", err)
+	}
+	if logger.calls == 0 {
+		t.Fatal("recovery error was not logged")
+	}
+}
+
 func TestCompleteParticipation(t *testing.T) {
 	t.Parallel()
 
@@ -653,6 +729,7 @@ type fakeRepository struct {
 	confirmErr          error
 	declinedExchangeID  uuid.UUID
 	declinedUserID      uuid.UUID
+	declineRecovery     []exchangemodel.Node
 	declineErr          error
 	blockConflicts      map[uuid.UUID]bool
 	blockConflictErrors map[uuid.UUID]error
@@ -660,6 +737,14 @@ type fakeRepository struct {
 	completedExchangeID uuid.UUID
 	completedUserID     uuid.UUID
 	completeErr         error
+}
+
+type fakeLogger struct {
+	calls int
+}
+
+func (f *fakeLogger) Printf(string, ...any) {
+	f.calls++
 }
 
 func (f *fakeRepository) FindNeighbors(
@@ -729,10 +814,10 @@ func (f *fakeRepository) DeclineParticipation(
 	_ context.Context,
 	exchangeID uuid.UUID,
 	userID uuid.UUID,
-) error {
+) ([]exchangemodel.Node, error) {
 	f.declinedExchangeID = exchangeID
 	f.declinedUserID = userID
-	return f.declineErr
+	return append([]exchangemodel.Node(nil), f.declineRecovery...), f.declineErr
 }
 
 func (f *fakeRepository) CompleteParticipation(

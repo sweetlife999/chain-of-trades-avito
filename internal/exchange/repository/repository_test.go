@@ -263,6 +263,7 @@ type fakeExchangeWriteQueries struct {
 	chainStatus                  db.ChainStatus
 	lockExchangeErr              error
 	participantStatus            db.ParticipantStatus
+	participantCompletedAt       pgtype.Timestamptz
 	lockParticipantErr           error
 	decisionItemsLocked          bool
 	lockDecisionItemsErr         error
@@ -280,6 +281,12 @@ type fakeExchangeWriteQueries struct {
 	confirmErr                   error
 	cancelled                    bool
 	cancelErr                    error
+	released                     int64
+	releaseErr                   error
+	releaseCalled                bool
+	dealsBrokenUpdated           int64
+	dealsBrokenErr               error
+	dealsBrokenCalled            bool
 	competingCancelled           int64
 	cancelCompetingErr           error
 	cancelCompetingCalled        bool
@@ -327,8 +334,11 @@ func (f *fakeExchangeWriteQueries) LockExchangeDecisionItems(
 func (f *fakeExchangeWriteQueries) LockExchangeParticipant(
 	context.Context,
 	db.LockExchangeParticipantParams,
-) (db.ParticipantStatus, error) {
-	return f.participantStatus, f.lockParticipantErr
+) (db.LockExchangeParticipantRow, error) {
+	return db.LockExchangeParticipantRow{
+		Status:                f.participantStatus,
+		CompletionConfirmedAt: f.participantCompletedAt,
+	}, f.lockParticipantErr
 }
 
 func (f *fakeExchangeWriteQueries) AcceptExchangeParticipant(
@@ -384,6 +394,22 @@ func (f *fakeExchangeWriteQueries) CancelCompetingProposedExchanges(
 func (f *fakeExchangeWriteQueries) CancelExchange(context.Context, pgtype.UUID) error {
 	f.cancelled = true
 	return f.cancelErr
+}
+
+func (f *fakeExchangeWriteQueries) ReleaseExchangeItems(
+	context.Context,
+	pgtype.UUID,
+) (int64, error) {
+	f.releaseCalled = true
+	return f.released, f.releaseErr
+}
+
+func (f *fakeExchangeWriteQueries) IncrementUserDealsBroken(
+	context.Context,
+	pgtype.UUID,
+) (int64, error) {
+	f.dealsBrokenCalled = true
+	return f.dealsBrokenUpdated, f.dealsBrokenErr
 }
 
 func (f *fakeExchangeWriteQueries) LockExchangeCompletionParticipant(

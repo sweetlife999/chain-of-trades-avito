@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	db "github.com/sweetlife999/chain-of-trades-avito/internal/db"
+	exchangemodel "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/model"
 )
 
 var (
@@ -28,8 +29,93 @@ func (r *Repository) DeclineParticipation(
 	ctx context.Context,
 	exchangeID uuid.UUID,
 	userID uuid.UUID,
-) error {
-	return r.decideParticipation(ctx, exchangeID, userID, db.ParticipantStatusDeclined)
+) ([]exchangemodel.Node, error) {
+	var recoveryNodes []exchangemodel.Node
+
+	err := r.transactions.WithinTransaction(ctx, func(queries exchangeWriteQueries) error {
+		if err := queries.LockExchangeDecisionItems(ctx, pgUUID(exchangeID)); err != nil {
+			return fmt.Errorf("lock exchange decline items: %w", err)
+		}
+
+		exchangeStatus, err := queries.LockExchange(ctx, pgUUID(exchangeID))
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		}
+		if err != nil {
+			return fmt.Errorf("lock exchange for decline: %w", err)
+		}
+		if exchangeStatus != db.ChainStatusProposed && exchangeStatus != db.ChainStatusConfirmed {
+			return ErrConflict
+		}
+
+		participant, err := queries.LockExchangeParticipant(ctx, db.LockExchangeParticipantParams{
+			ExchangeID: pgUUID(exchangeID),
+			UserID:     pgUUID(userID),
+		})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotParticipant
+		}
+		if err != nil {
+			return fmt.Errorf("lock exchange participant for decline: %w", err)
+		}
+		if participant.Status == db.ParticipantStatusDeclined || participant.CompletionConfirmedAt.Valid {
+			return ErrConflict
+		}
+		if exchangeStatus == db.ChainStatusConfirmed && participant.Status != db.ParticipantStatusAccepted {
+			return ErrConflict
+		}
+
+		items, err := queries.LockExchangeItems(ctx, pgUUID(exchangeID))
+		if err != nil {
+			return fmt.Errorf("lock exchange items for decline: %w", err)
+		}
+		if len(items) == 0 {
+			return ErrConflict
+		}
+
+		expectedItemStatus := db.ItemStatusAvailable
+		if exchangeStatus == db.ChainStatusConfirmed {
+			expectedItemStatus = db.ItemStatusReserved
+		}
+		for _, item := range items {
+			if item.Status != expectedItemStatus {
+				return ErrConflict
+			}
+			recoveryNodes = append(recoveryNodes, exchangemodel.Node{
+				ItemID:  uuid.UUID(item.ID.Bytes),
+				OwnerID: uuid.UUID(item.OwnerID.Bytes),
+			})
+		}
+
+		if err := declineParticipation(ctx, queries, exchangeID, userID); err != nil {
+			return err
+		}
+
+		if exchangeStatus == db.ChainStatusConfirmed {
+			released, err := queries.ReleaseExchangeItems(ctx, pgUUID(exchangeID))
+			if err != nil {
+				return fmt.Errorf("release exchange items: %w", err)
+			}
+			if released != int64(len(items)) {
+				return ErrConflict
+			}
+
+			updated, err := queries.IncrementUserDealsBroken(ctx, pgUUID(userID))
+			if err != nil {
+				return fmt.Errorf("increment user broken exchanges: %w", err)
+			}
+			if updated != 1 {
+				return ErrConflict
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("decline exchange participation: %w", err)
+	}
+
+	return recoveryNodes, nil
 }
 
 func (r *Repository) decideParticipation(
@@ -58,22 +144,20 @@ func (r *Repository) decideParticipation(
 			ExchangeID: pgUUID(exchangeID),
 			UserID:     pgUUID(userID),
 		}
-		participantStatus, err := queries.LockExchangeParticipant(ctx, participantParams)
+		participant, err := queries.LockExchangeParticipant(ctx, participantParams)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotParticipant
 		}
 		if err != nil {
 			return fmt.Errorf("lock exchange participant: %w", err)
 		}
-		if participantStatus != db.ParticipantStatusPending {
+		if participant.Status != db.ParticipantStatusPending {
 			return ErrConflict
 		}
 
 		switch decision {
 		case db.ParticipantStatusAccepted:
 			return confirmParticipation(ctx, queries, exchangeID, userID)
-		case db.ParticipantStatusDeclined:
-			return declineParticipation(ctx, queries, exchangeID, userID)
 		default:
 			return fmt.Errorf("unsupported participant decision %q", decision)
 		}

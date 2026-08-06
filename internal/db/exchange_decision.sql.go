@@ -119,6 +119,22 @@ func (q *Queries) DeclineExchangeParticipant(ctx context.Context, arg DeclineExc
 	return err
 }
 
+const incrementUserDealsBroken = `-- name: IncrementUserDealsBroken :execrows
+UPDATE users
+SET deals_broken = deals_broken + 1
+WHERE id = $1
+`
+
+// deals_broken показывает, сколько уже подтверждённых обменов сорвал пользователь.
+// Отказ от ещё не подтверждённого предложения в этот счётчик не входит.
+func (q *Queries) IncrementUserDealsBroken(ctx context.Context, userID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, incrementUserDealsBroken, userID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const lockExchange = `-- name: LockExchange :one
 SELECT status
 FROM chains
@@ -159,7 +175,7 @@ func (q *Queries) LockExchangeDecisionItems(ctx context.Context, exchangeID pgty
 }
 
 const lockExchangeItems = `-- name: LockExchangeItems :many
-SELECT item.id, item.status
+SELECT item.id, item.owner_id, item.status
 FROM items AS item
 JOIN chain_participants AS participant
   ON participant.gives_item_id = item.id
@@ -169,8 +185,9 @@ FOR UPDATE OF item
 `
 
 type LockExchangeItemsRow struct {
-	ID     pgtype.UUID
-	Status ItemStatus
+	ID      pgtype.UUID
+	OwnerID pgtype.UUID
+	Status  ItemStatus
 }
 
 // Вещи блокируются в одинаковом порядке UUID. Это защищает конкурирующие обмены
@@ -184,7 +201,7 @@ func (q *Queries) LockExchangeItems(ctx context.Context, exchangeID pgtype.UUID)
 	var items []LockExchangeItemsRow
 	for rows.Next() {
 		var i LockExchangeItemsRow
-		if err := rows.Scan(&i.ID, &i.Status); err != nil {
+		if err := rows.Scan(&i.ID, &i.OwnerID, &i.Status); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -196,7 +213,7 @@ func (q *Queries) LockExchangeItems(ctx context.Context, exchangeID pgtype.UUID)
 }
 
 const lockExchangeParticipant = `-- name: LockExchangeParticipant :one
-SELECT status
+SELECT status, completion_confirmed_at
 FROM chain_participants
 WHERE chain_id = $1
   AND user_id = $2
@@ -208,11 +225,37 @@ type LockExchangeParticipantParams struct {
 	UserID     pgtype.UUID
 }
 
-func (q *Queries) LockExchangeParticipant(ctx context.Context, arg LockExchangeParticipantParams) (ParticipantStatus, error) {
+type LockExchangeParticipantRow struct {
+	Status                ParticipantStatus
+	CompletionConfirmedAt pgtype.Timestamptz
+}
+
+func (q *Queries) LockExchangeParticipant(ctx context.Context, arg LockExchangeParticipantParams) (LockExchangeParticipantRow, error) {
 	row := q.db.QueryRow(ctx, lockExchangeParticipant, arg.ExchangeID, arg.UserID)
-	var status ParticipantStatus
-	err := row.Scan(&status)
-	return status, err
+	var i LockExchangeParticipantRow
+	err := row.Scan(&i.Status, &i.CompletionConfirmedAt)
+	return i, err
+}
+
+const releaseExchangeItems = `-- name: ReleaseExchangeItems :execrows
+UPDATE items
+SET status = 'available'
+WHERE id IN (
+    SELECT gives_item_id
+    FROM chain_participants
+    WHERE chain_id = $1
+)
+  AND status = 'reserved'
+`
+
+// Подтверждённый обмен уже зарезервировал вещи. При его отмене освобождаем только
+// вещи этого обмена и только из reserved: чужое параллельное изменение не затирается.
+func (q *Queries) ReleaseExchangeItems(ctx context.Context, exchangeID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, releaseExchangeItems, exchangeID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const reserveExchangeItems = `-- name: ReserveExchangeItems :execrows
