@@ -14,6 +14,7 @@ import (
 
 type neighborQueries interface {
 	FindExchangeNeighbors(context.Context, pgtype.UUID) ([]db.FindExchangeNeighborsRow, error)
+	HasUserBlockConflict(context.Context, db.HasUserBlockConflictParams) (bool, error)
 }
 
 type Repository struct {
@@ -57,6 +58,27 @@ func (r *Repository) FindNeighbors(ctx context.Context, itemID uuid.UUID) ([]exc
 	}
 
 	return neighbors, nil
+}
+
+func (r *Repository) HasUserBlockConflict(
+	ctx context.Context,
+	candidateUserID uuid.UUID,
+	pathUserIDs []uuid.UUID,
+) (bool, error) {
+	path := make([]pgtype.UUID, len(pathUserIDs))
+	for index, id := range pathUserIDs {
+		path[index] = pgUUID(id)
+	}
+
+	conflict, err := r.queries.HasUserBlockConflict(ctx, db.HasUserBlockConflictParams{
+		CandidateUserID: pgUUID(candidateUserID),
+		PathUserIds:     path,
+	})
+	if err != nil {
+		return false, fmt.Errorf("check user block conflict: %w", err)
+	}
+
+	return conflict, nil
 }
 
 func (r *Repository) SaveExchange(

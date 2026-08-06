@@ -35,6 +35,13 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
+type BlockedUserResponse struct {
+	ID        string    `json:"id"`
+	Nickname  string    `json:"nickname"`
+	PhotoURL  *string   `json:"photo_url"`
+	BlockedAt time.Time `json:"blocked_at"`
+}
+
 func FromModel(user usermodel.User) UserResponse {
 	return UserResponse{
 		ID:             user.ID.String(),
@@ -47,4 +54,18 @@ func FromModel(user usermodel.User) UserResponse {
 		CreatedAt:      user.CreatedAt,
 		UpdatedAt:      user.UpdatedAt,
 	}
+}
+
+func BlockedFromModels(users []usermodel.BlockedUser) []BlockedUserResponse {
+	result := make([]BlockedUserResponse, len(users))
+	for index, user := range users {
+		result[index] = BlockedUserResponse{
+			ID:        user.ID.String(),
+			Nickname:  user.Nickname,
+			PhotoURL:  user.PhotoURL,
+			BlockedAt: user.BlockedAt,
+		}
+	}
+
+	return result
 }

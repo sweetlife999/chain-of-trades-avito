@@ -55,3 +55,31 @@ func (q *Queries) FindExchangeNeighbors(ctx context.Context, itemID pgtype.UUID)
 	}
 	return items, nil
 }
+
+const hasUserBlockConflict = `-- name: HasUserBlockConflict :one
+SELECT EXISTS (
+    SELECT 1
+    FROM user_blocks AS block
+    WHERE (
+        block.blocker_id = $1
+        AND block.blocked_id = ANY($2::uuid[])
+    ) OR (
+        block.blocked_id = $1
+        AND block.blocker_id = ANY($2::uuid[])
+    )
+)
+`
+
+type HasUserBlockConflictParams struct {
+	CandidateUserID pgtype.UUID
+	PathUserIds     []pgtype.UUID
+}
+
+// Кандидат несовместим с текущим путём, если он заблокировал хотя бы одного
+// уже выбранного владельца или кто-то из них заблокировал кандидата.
+func (q *Queries) HasUserBlockConflict(ctx context.Context, arg HasUserBlockConflictParams) (bool, error) {
+	row := q.db.QueryRow(ctx, hasUserBlockConflict, arg.CandidateUserID, arg.PathUserIds)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}

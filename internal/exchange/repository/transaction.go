@@ -13,6 +13,32 @@ import (
 type exchangeWriteQueries interface {
 	CreateExchange(context.Context) (pgtype.UUID, error)
 	CreateExchangeParticipant(context.Context, db.CreateExchangeParticipantParams) error
+	LockExchangeDecisionItems(context.Context, pgtype.UUID) error
+	LockExchange(context.Context, pgtype.UUID) (db.ChainStatus, error)
+	LockExchangeParticipant(
+		context.Context,
+		db.LockExchangeParticipantParams,
+	) (db.ParticipantStatus, error)
+	AcceptExchangeParticipant(context.Context, db.AcceptExchangeParticipantParams) error
+	DeclineExchangeParticipant(context.Context, db.DeclineExchangeParticipantParams) error
+	CountPendingExchangeParticipants(context.Context, pgtype.UUID) (int64, error)
+	LockExchangeItems(context.Context, pgtype.UUID) ([]db.LockExchangeItemsRow, error)
+	ReserveExchangeItems(context.Context, pgtype.UUID) (int64, error)
+	ConfirmExchange(context.Context, pgtype.UUID) error
+	CancelCompetingProposedExchanges(context.Context, pgtype.UUID) (int64, error)
+	CancelExchange(context.Context, pgtype.UUID) error
+	LockExchangeCompletionParticipant(
+		context.Context,
+		db.LockExchangeCompletionParticipantParams,
+	) (db.LockExchangeCompletionParticipantRow, error)
+	ConfirmExchangeParticipantCompletion(
+		context.Context,
+		db.ConfirmExchangeParticipantCompletionParams,
+	) error
+	CountIncompleteExchangeParticipants(context.Context, pgtype.UUID) (int64, error)
+	MarkExchangeItemsTraded(context.Context, pgtype.UUID) (int64, error)
+	CompleteExchange(context.Context, pgtype.UUID) error
+	IncrementExchangeParticipantsDealsCompleted(context.Context, pgtype.UUID) (int64, error)
 }
 
 type transactionManager interface {

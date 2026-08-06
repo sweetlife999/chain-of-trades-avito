@@ -92,6 +92,82 @@ func TestFindCycleReturnsFirstCycle(t *testing.T) {
 	assertCycle(t, cycle, []exchangemodel.Node{start, first})
 }
 
+func TestFindCycleSkipsBlockedUserAndUsesAnotherBranch(t *testing.T) {
+	t.Parallel()
+
+	start := testNode(1)
+	blocked := testNode(2)
+	allowed := testNode(3)
+	repository := &fakeRepository{
+		neighbors: map[uuid.UUID][]exchangemodel.Node{
+			start.ItemID:   {blocked, allowed},
+			blocked.ItemID: {start},
+			allowed.ItemID: {start},
+		},
+		blockConflicts: map[uuid.UUID]bool{blocked.OwnerID: true},
+	}
+
+	cycle, err := New(repository).FindCycle(context.Background(), start)
+	if err != nil {
+		t.Fatalf("FindCycle() error = %v", err)
+	}
+
+	assertCycle(t, cycle, []exchangemodel.Node{start, allowed})
+	if !reflect.DeepEqual(repository.blockChecks[blocked.OwnerID], []uuid.UUID{start.OwnerID}) {
+		t.Fatalf(
+			"blocked candidate was checked against %v, want start owner %v",
+			repository.blockChecks[blocked.OwnerID],
+			start.OwnerID,
+		)
+	}
+}
+
+func TestFindCycleChecksCandidateAgainstWholePath(t *testing.T) {
+	t.Parallel()
+
+	start := testNode(1)
+	middle := testNode(2)
+	blockedLast := testNode(3)
+	repository := &fakeRepository{
+		neighbors: map[uuid.UUID][]exchangemodel.Node{
+			start.ItemID:       {middle},
+			middle.ItemID:      {blockedLast},
+			blockedLast.ItemID: {start},
+		},
+		blockConflicts: map[uuid.UUID]bool{blockedLast.OwnerID: true},
+	}
+
+	cycle, err := New(repository).FindCycle(context.Background(), start)
+	if err != nil {
+		t.Fatalf("FindCycle() error = %v", err)
+	}
+	if cycle != nil {
+		t.Fatalf("FindCycle() = %+v, want no cycle", cycle)
+	}
+
+	wantPath := []uuid.UUID{start.OwnerID, middle.OwnerID}
+	if !reflect.DeepEqual(repository.blockChecks[blockedLast.OwnerID], wantPath) {
+		t.Fatalf("block check path = %v, want %v", repository.blockChecks[blockedLast.OwnerID], wantPath)
+	}
+}
+
+func TestFindCycleBlockCheckError(t *testing.T) {
+	t.Parallel()
+
+	start := testNode(1)
+	next := testNode(2)
+	databaseError := errors.New("database unavailable")
+	repository := &fakeRepository{
+		neighbors:           map[uuid.UUID][]exchangemodel.Node{start.ItemID: {next}},
+		blockConflictErrors: map[uuid.UUID]error{next.OwnerID: databaseError},
+	}
+
+	_, err := New(repository).FindCycle(context.Background(), start)
+	if !errors.Is(err, databaseError) {
+		t.Fatalf("FindCycle() error = %v, want wrapped %v", err, databaseError)
+	}
+}
+
 func TestFindCycleSkipsRepeatedOwner(t *testing.T) {
 	t.Parallel()
 
@@ -477,6 +553,87 @@ func TestGetForUserRepositoryError(t *testing.T) {
 	}
 }
 
+func TestConfirmParticipation(t *testing.T) {
+	t.Parallel()
+
+	exchangeID := uuid.New()
+	userID := uuid.New()
+	repository := &fakeRepository{}
+
+	if err := New(repository).ConfirmParticipation(context.Background(), exchangeID, userID); err != nil {
+		t.Fatalf("ConfirmParticipation() error = %v", err)
+	}
+	if repository.confirmedExchangeID != exchangeID || repository.confirmedUserID != userID {
+		t.Fatalf(
+			"ConfirmParticipation() repository args = (%s, %s), want (%s, %s)",
+			repository.confirmedExchangeID,
+			repository.confirmedUserID,
+			exchangeID,
+			userID,
+		)
+	}
+}
+
+func TestDeclineParticipation(t *testing.T) {
+	t.Parallel()
+
+	exchangeID := uuid.New()
+	userID := uuid.New()
+	repository := &fakeRepository{}
+
+	if err := New(repository).DeclineParticipation(context.Background(), exchangeID, userID); err != nil {
+		t.Fatalf("DeclineParticipation() error = %v", err)
+	}
+	if repository.declinedExchangeID != exchangeID || repository.declinedUserID != userID {
+		t.Fatalf(
+			"DeclineParticipation() repository args = (%s, %s), want (%s, %s)",
+			repository.declinedExchangeID,
+			repository.declinedUserID,
+			exchangeID,
+			userID,
+		)
+	}
+}
+
+func TestCompleteParticipation(t *testing.T) {
+	t.Parallel()
+
+	exchangeID := uuid.New()
+	userID := uuid.New()
+	repository := &fakeRepository{}
+
+	if err := New(repository).CompleteParticipation(context.Background(), exchangeID, userID); err != nil {
+		t.Fatalf("CompleteParticipation() error = %v", err)
+	}
+	if repository.completedExchangeID != exchangeID || repository.completedUserID != userID {
+		t.Fatalf(
+			"CompleteParticipation() repository args = (%s, %s), want (%s, %s)",
+			repository.completedExchangeID,
+			repository.completedUserID,
+			exchangeID,
+			userID,
+		)
+	}
+}
+
+func TestParticipationDecisionWrapsRepositoryError(t *testing.T) {
+	t.Parallel()
+
+	databaseError := errors.New("database unavailable")
+	repository := &fakeRepository{confirmErr: databaseError, declineErr: databaseError, completeErr: databaseError}
+	service := New(repository)
+
+	if err := service.ConfirmParticipation(context.Background(), uuid.New(), uuid.New()); !errors.Is(err, databaseError) {
+		t.Fatalf("ConfirmParticipation() error = %v, want wrapped %v", err, databaseError)
+	}
+	if err := service.DeclineParticipation(context.Background(), uuid.New(), uuid.New()); !errors.Is(err, databaseError) {
+		t.Fatalf("DeclineParticipation() error = %v, want wrapped %v", err, databaseError)
+	}
+	if err := service.CompleteParticipation(context.Background(), uuid.New(), uuid.New()); !errors.Is(err, databaseError) {
+		t.Fatalf("CompleteParticipation() error = %v, want wrapped %v", err, databaseError)
+	}
+}
+
 type fakeRepository struct {
 	neighbors           map[uuid.UUID][]exchangemodel.Node
 	errors              map[uuid.UUID]error
@@ -491,6 +648,18 @@ type fakeRepository struct {
 	exchangeDetails     exchangemodel.Details
 	requestedExchangeID uuid.UUID
 	getErr              error
+	confirmedExchangeID uuid.UUID
+	confirmedUserID     uuid.UUID
+	confirmErr          error
+	declinedExchangeID  uuid.UUID
+	declinedUserID      uuid.UUID
+	declineErr          error
+	blockConflicts      map[uuid.UUID]bool
+	blockConflictErrors map[uuid.UUID]error
+	blockChecks         map[uuid.UUID][]uuid.UUID
+	completedExchangeID uuid.UUID
+	completedUserID     uuid.UUID
+	completeErr         error
 }
 
 func (f *fakeRepository) FindNeighbors(
@@ -504,6 +673,21 @@ func (f *fakeRepository) FindNeighbors(
 	}
 
 	return append([]exchangemodel.Node(nil), f.neighbors[itemID]...), nil
+}
+
+func (f *fakeRepository) HasUserBlockConflict(
+	_ context.Context,
+	candidateUserID uuid.UUID,
+	pathUserIDs []uuid.UUID,
+) (bool, error) {
+	if f.blockChecks == nil {
+		f.blockChecks = make(map[uuid.UUID][]uuid.UUID)
+	}
+	f.blockChecks[candidateUserID] = append([]uuid.UUID(nil), pathUserIDs...)
+	if err := f.blockConflictErrors[candidateUserID]; err != nil {
+		return false, err
+	}
+	return f.blockConflicts[candidateUserID], nil
 }
 
 func (f *fakeRepository) SaveExchange(
@@ -529,6 +713,36 @@ func (f *fakeRepository) GetByID(
 ) (exchangemodel.Details, error) {
 	f.requestedExchangeID = exchangeID
 	return f.exchangeDetails, f.getErr
+}
+
+func (f *fakeRepository) ConfirmParticipation(
+	_ context.Context,
+	exchangeID uuid.UUID,
+	userID uuid.UUID,
+) error {
+	f.confirmedExchangeID = exchangeID
+	f.confirmedUserID = userID
+	return f.confirmErr
+}
+
+func (f *fakeRepository) DeclineParticipation(
+	_ context.Context,
+	exchangeID uuid.UUID,
+	userID uuid.UUID,
+) error {
+	f.declinedExchangeID = exchangeID
+	f.declinedUserID = userID
+	return f.declineErr
+}
+
+func (f *fakeRepository) CompleteParticipation(
+	_ context.Context,
+	exchangeID uuid.UUID,
+	userID uuid.UUID,
+) error {
+	f.completedExchangeID = exchangeID
+	f.completedUserID = userID
+	return f.completeErr
 }
 
 func cycleGraph(nodes []exchangemodel.Node) map[uuid.UUID][]exchangemodel.Node {

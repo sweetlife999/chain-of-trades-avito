@@ -23,6 +23,9 @@ type Service interface {
 	Create(context.Context, userservice.CreateInput) (usermodel.User, error)
 	GetByID(context.Context, uuid.UUID) (usermodel.User, error)
 	Update(context.Context, uuid.UUID, userservice.UpdateInput) (usermodel.User, error)
+	Block(context.Context, uuid.UUID, uuid.UUID) error
+	ListBlocked(context.Context, uuid.UUID) ([]usermodel.BlockedUser, error)
+	Unblock(context.Context, uuid.UUID, uuid.UUID) error
 }
 
 type Handler struct {
@@ -37,6 +40,9 @@ func (h *Handler) RegisterRoutes(router chi.Router, requireAuth func(http.Handle
 	router.Post("/users", h.create)
 	router.Get("/users/{id}", h.getByID)
 	router.With(requireAuth).Patch("/users/{id}", h.update)
+	router.With(requireAuth).Get("/users/me/blocks", h.listBlocked)
+	router.With(requireAuth).Post("/users/me/blocks/{user_id}", h.block)
+	router.With(requireAuth).Delete("/users/me/blocks/{user_id}", h.unblock)
 }
 
 // @Summary     Создать пользователя
@@ -145,6 +151,90 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, userdto.FromModel(user))
+}
+
+// @Summary     Получить список заблокированных пользователей
+// @Description Возвращает личный список блокировок текущего пользователя. Заблокированные пользователи об этом не уведомляются.
+// @Tags        users
+// @Produce     json
+// @Success     200 {array}  userdto.BlockedUserResponse "Список блокировок; если он пуст, возвращается []"
+// @Failure     401 {object} userdto.ErrorResponse       "Пользователь не авторизован"
+// @Failure     500 {object} userdto.ErrorResponse       "Внутренняя ошибка"
+// @Router      /users/me/blocks [get]
+func (h *Handler) listBlocked(w http.ResponseWriter, r *http.Request) {
+	currentUserID, ok := authenticatedUserID(w, r)
+	if !ok {
+		return
+	}
+
+	blocked, err := h.service.ListBlocked(r.Context(), currentUserID)
+	if err != nil {
+		handleServiceError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, userdto.BlockedFromModels(blocked))
+}
+
+// @Summary     Заблокировать пользователя
+// @Description Исключает пользователя из будущих совместных обменов и отменяет общие неподтверждённые предложения. Повторный запрос безопасен.
+// @Tags        users
+// @Param       user_id path string true "UUID блокируемого пользователя"
+// @Success     204 "Пользователь заблокирован"
+// @Failure     400 {object} userdto.ErrorResponse "ID не является UUID или пользователь блокирует себя"
+// @Failure     401 {object} userdto.ErrorResponse "Пользователь не авторизован"
+// @Failure     404 {object} userdto.ErrorResponse "Блокируемый пользователь не найден"
+// @Failure     500 {object} userdto.ErrorResponse "Внутренняя ошибка"
+// @Router      /users/me/blocks/{user_id} [post]
+func (h *Handler) block(w http.ResponseWriter, r *http.Request) {
+	h.handleBlockChange(w, r, h.service.Block)
+}
+
+// @Summary     Разблокировать пользователя
+// @Description Разрешает попадание пользователя в новые совместные обмены. Существующие обмены не изменяются.
+// @Tags        users
+// @Param       user_id path string true "UUID разблокируемого пользователя"
+// @Success     204 "Пользователь разблокирован"
+// @Failure     400 {object} userdto.ErrorResponse "ID не является UUID или пользователь указывает себя"
+// @Failure     401 {object} userdto.ErrorResponse "Пользователь не авторизован"
+// @Failure     500 {object} userdto.ErrorResponse "Внутренняя ошибка"
+// @Router      /users/me/blocks/{user_id} [delete]
+func (h *Handler) unblock(w http.ResponseWriter, r *http.Request) {
+	h.handleBlockChange(w, r, h.service.Unblock)
+}
+
+func (h *Handler) handleBlockChange(
+	w http.ResponseWriter,
+	r *http.Request,
+	change func(context.Context, uuid.UUID, uuid.UUID) error,
+) {
+	currentUserID, ok := authenticatedUserID(w, r)
+	if !ok {
+		return
+	}
+
+	blockedID, err := uuid.Parse(chi.URLParam(r, "user_id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid user id")
+		return
+	}
+
+	if err := change(r.Context(), currentUserID, blockedID); err != nil {
+		handleServiceError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func authenticatedUserID(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
+	userID, ok := authcontext.UserID(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return uuid.Nil, false
+	}
+
+	return userID, true
 }
 
 func parseID(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {

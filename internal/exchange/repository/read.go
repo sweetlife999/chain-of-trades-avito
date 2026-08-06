@@ -30,6 +30,7 @@ type exchangeRecord struct {
 	Position                int32
 	ParticipantStatus       db.ParticipantStatus
 	DecidedAt               pgtype.Timestamptz
+	CompletionConfirmedAt   pgtype.Timestamptz
 	Nickname                string
 	UserPhotoURL            pgtype.Text
 	GivesItemID             pgtype.UUID
@@ -135,9 +136,10 @@ func participantFromRecord(record exchangeRecord) exchangemodel.DetailsParticipa
 				Name: record.ReceivesCategoryName,
 			},
 		},
-		Position:  record.Position,
-		Status:    string(record.ParticipantStatus),
-		DecidedAt: optionalTime(record.DecidedAt),
+		Position:              record.Position,
+		Status:                string(record.ParticipantStatus),
+		DecidedAt:             optionalTime(record.DecidedAt),
+		CompletionConfirmedAt: optionalTime(record.CompletionConfirmedAt),
 	}
 }
 
@@ -152,6 +154,7 @@ func recordFromListRow(row db.ListExchangesByUserRow) exchangeRecord {
 		Position:                row.Position,
 		ParticipantStatus:       row.ParticipantStatus,
 		DecidedAt:               row.DecidedAt,
+		CompletionConfirmedAt:   row.CompletionConfirmedAt,
 		Nickname:                row.Nickname,
 		UserPhotoURL:            row.UserPhotoUrl,
 		GivesItemID:             row.GivesItemID,
@@ -180,6 +183,7 @@ func recordFromGetRow(row db.GetExchangeByIDRow) exchangeRecord {
 		Position:                row.Position,
 		ParticipantStatus:       row.ParticipantStatus,
 		DecidedAt:               row.DecidedAt,
+		CompletionConfirmedAt:   row.CompletionConfirmedAt,
 		Nickname:                row.Nickname,
 		UserPhotoURL:            row.UserPhotoUrl,
 		GivesItemID:             row.GivesItemID,

@@ -15,15 +15,20 @@ const maxParticipants = 5
 
 var (
 	ErrInvalidCycle = errors.New("invalid exchange cycle")
-	ErrForbidden    = errors.New("exchange belongs to other users")
+	ErrForbidden    = exchangerepository.ErrNotParticipant
+	ErrConflict     = exchangerepository.ErrConflict
 	ErrNotFound     = exchangerepository.ErrNotFound
 )
 
 type Repository interface {
 	FindNeighbors(context.Context, uuid.UUID) ([]exchangemodel.Node, error)
+	HasUserBlockConflict(context.Context, uuid.UUID, []uuid.UUID) (bool, error)
 	SaveExchange(context.Context, exchangemodel.Exchange) (uuid.UUID, error)
 	ListByUser(context.Context, uuid.UUID) ([]exchangemodel.Details, error)
 	GetByID(context.Context, uuid.UUID) (exchangemodel.Details, error)
+	ConfirmParticipation(context.Context, uuid.UUID, uuid.UUID) error
+	DeclineParticipation(context.Context, uuid.UUID, uuid.UUID) error
+	CompleteParticipation(context.Context, uuid.UUID, uuid.UUID) error
 }
 
 type Service struct {
@@ -74,6 +79,19 @@ func (s *Service) FindCycle(ctx context.Context, start exchangemodel.Node) ([]ex
 			}
 
 			if _, visited := visitedOwners[next.OwnerID]; visited {
+				continue
+			}
+
+			pathOwnerIDs := make([]uuid.UUID, len(path))
+			for index, node := range path {
+				pathOwnerIDs[index] = node.OwnerID
+			}
+
+			blocked, err := s.repository.HasUserBlockConflict(ctx, next.OwnerID, pathOwnerIDs)
+			if err != nil {
+				return false, fmt.Errorf("check blocks for user %s: %w", next.OwnerID, err)
+			}
+			if blocked {
 				continue
 			}
 
@@ -192,6 +210,42 @@ func (s *Service) GetForUser(
 	}
 
 	return exchangemodel.Details{}, ErrForbidden
+}
+
+func (s *Service) ConfirmParticipation(
+	ctx context.Context,
+	exchangeID uuid.UUID,
+	userID uuid.UUID,
+) error {
+	if err := s.repository.ConfirmParticipation(ctx, exchangeID, userID); err != nil {
+		return fmt.Errorf("confirm exchange participation: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Service) DeclineParticipation(
+	ctx context.Context,
+	exchangeID uuid.UUID,
+	userID uuid.UUID,
+) error {
+	if err := s.repository.DeclineParticipation(ctx, exchangeID, userID); err != nil {
+		return fmt.Errorf("decline exchange participation: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Service) CompleteParticipation(
+	ctx context.Context,
+	exchangeID uuid.UUID,
+	userID uuid.UUID,
+) error {
+	if err := s.repository.CompleteParticipation(ctx, exchangeID, userID); err != nil {
+		return fmt.Errorf("complete exchange participation: %w", err)
+	}
+
+	return nil
 }
 
 func validateCycle(cycle []exchangemodel.Node) error {
