@@ -37,7 +37,7 @@ func (r *Repository) Create(ctx context.Context, item itemmodel.NewItem) (itemmo
 	if err != nil {
 		return itemmodel.Item{}, fmt.Errorf("begin transaction: %w", err)
 	}
-	defer transaction.Rollback(ctx)
+	defer func() { _ = transaction.Rollback(ctx) }()
 
 	queries := r.queries.WithTx(transaction)
 
@@ -98,7 +98,7 @@ func (r *Repository) Update(ctx context.Context, id uuid.UUID, changes itemmodel
 	if err != nil {
 		return itemmodel.Item{}, fmt.Errorf("begin transaction: %w", err)
 	}
-	defer transaction.Rollback(ctx)
+	defer func() { _ = transaction.Rollback(ctx) }()
 
 	queries := r.queries.WithTx(transaction)
 
