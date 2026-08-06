@@ -3,12 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 
 import styles from "./Styles.module.scss";
 import { getExchanges } from "../../../Api/exchanges/exchanges";
-import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
 import { FetchStatus } from "../FetchStatus/FetchStatus";
 import { Post } from "../Post/Post";
 
 const PostsListComponent = () => {
-  const { user } = useAuthSelector();
   const exchangesQuery = useQuery({
     queryKey: ["exchanges"],
     queryFn: getExchanges,

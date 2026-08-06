@@ -7,7 +7,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import AvitoLogo from "/src/Assets/avito-logo.svg?react";
+import AvitoLogo from "/src/Assets/avito-logo.svg";
 import styles from "./Styles.module.scss";
 import { Button } from "../../UI/Button/Button";
 import { FetchProfile } from "../../Widgets/FetchProfile/FetchProfile";
@@ -27,7 +27,7 @@ const HeaderComponent = () => {
     <header className={styles.header}>
       <div className={styles.header__wrapp}>
         <NavLink to="/" className={styles.header__logoLink} aria-label="На главную">
-          <AvitoLogo className={styles.header__logo} />
+          <img className={styles.header__logo} src={AvitoLogo}/>
         </NavLink>
 
         <nav className={styles.header__nav} aria-label="Основная навигация">

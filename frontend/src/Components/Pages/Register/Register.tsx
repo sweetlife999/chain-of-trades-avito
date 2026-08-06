@@ -10,12 +10,10 @@ import { Button } from "../../UI/Button/Button";
 import { Input } from "../../UI/Input/Input";
 import { Popup } from "../../UI/Popup/Popup";
 
-import { registerAndLogin, registerUser } from "../../../Api/auth/auth";
+import { registerAndLogin } from "../../../Api/auth/auth";
 import { registerSchema, type TRegister } from "../../../Api/auth/auth.types";
 import { useAuthDispatch } from "../../../Hooks/useAuthDispatch";
 import { setUserState } from "../../../Store/authSlice";
-
-
 
 const RegisterComponent = () => {
   const navigate = useNavigate();
@@ -65,9 +63,7 @@ const RegisterComponent = () => {
         noValidate
       >
         <div className={styles.register__header}>
-          <h2 className={styles.register__title}>
-            Регистрация
-          </h2>
+          <h2 className={styles.register__title}>Регистрация</h2>
 
           <p className={styles.register__description}>
             Создайте аккаунт, чтобы продолжить
@@ -142,9 +138,7 @@ const RegisterComponent = () => {
         </div>
 
         <div className={styles.register__login}>
-          <span className={styles.register__loginText}>
-            Уже есть аккаунт?
-          </span>
+          <span className={styles.register__loginText}>Уже есть аккаунт?</span>
 
           <Button
             color="invisible"

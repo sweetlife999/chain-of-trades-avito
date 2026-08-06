@@ -1,33 +1,23 @@
 import { memo } from "react";
 import axios from "axios";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  useFieldArray,
-  useForm,
-  useWatch,
-} from "react-hook-form";
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
 import styles from "./Styles.module.scss";
 import { createItem, getCategories } from "../../../../Api/items/items";
-import { createChainFormSchema, type TCreateChainForm } from "./shemaCreateChain";
+import {
+  createChainFormSchema,
+  type TCreateChainForm,
+} from "./shemaCreateChain";
 import type { TCreateItemRequest } from "../../../../Api/items/items.types";
 import { Input } from "../../../UI/Input/Input";
 import { Button } from "../../../UI/Button/Button";
 
-
-
 const getRequestErrorMessage = (error: unknown) => {
   if (axios.isAxiosError<{ error?: string }>(error)) {
-    return (
-      error.response?.data?.error ??
-      "Не удалось создать объявление"
-    );
+    return error.response?.data?.error ?? "Не удалось создать объявление";
   }
 
   return "Не удалось создать объявление";
@@ -79,8 +69,7 @@ const CreateChainComponent = () => {
   )?.url;
 
   const createItemMutation = useMutation({
-    mutationFn: (request: TCreateItemRequest) =>
-      createItem(request),
+    mutationFn: (request: TCreateItemRequest) => createItem(request),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["posts"] }),
@@ -103,9 +92,7 @@ const CreateChainComponent = () => {
       title: formData.title.trim(),
       category: formData.category,
       description: formData.description.trim(),
-      photo_urls: formData.photo_urls.map(({ url }) =>
-        url.trim(),
-      ),
+      photo_urls: formData.photo_urls.map(({ url }) => url.trim()),
       wants: formData.wants,
     });
   };
@@ -115,9 +102,7 @@ const CreateChainComponent = () => {
   return (
     <main className={styles.createChain}>
       <header className={styles.createChain__header}>
-        <h1 className={styles.createChain__title}>
-          Создать цепочку
-        </h1>
+        <h1 className={styles.createChain__title}>Создать цепочку</h1>
 
         <p className={styles.createChain__subtitle}>
           Опишите товар и то, что хотите получить взамен
@@ -145,15 +130,11 @@ const CreateChainComponent = () => {
                   />
                 ) : (
                   <div className={styles.createChain__photoPlaceholder}>
-                    <span className={styles.createChain__photoPlus}>
-                      +
-                    </span>
+                    <span className={styles.createChain__photoPlus}>+</span>
 
                     <strong>Добавить фотографии</strong>
 
-                    <small>
-                      Вставьте ссылки, до 10 фотографий
-                    </small>
+                    <small>Вставьте ссылки, до 10 фотографий</small>
                   </div>
                 )}
               </div>
@@ -169,9 +150,7 @@ const CreateChainComponent = () => {
                       type="text"
                       placeholder="https://example.com/photo.jpg"
                       autoComplete="url"
-                      error={
-                        errors.photo_urls?.[index]?.url?.message
-                      }
+                      error={errors.photo_urls?.[index]?.url?.message}
                       {...register(`photo_urls.${index}.url`)}
                     />
 
@@ -218,9 +197,7 @@ const CreateChainComponent = () => {
 
                 <select
                   className={`${styles.createChain__select} ${
-                    errors.category
-                      ? styles.createChain__select_error
-                      : ""
+                    errors.category ? styles.createChain__select_error : ""
                   }`}
                   disabled={categoriesQuery.isPending}
                   {...register("category")}
@@ -232,10 +209,7 @@ const CreateChainComponent = () => {
                   </option>
 
                   {categories.map((category) => (
-                    <option
-                      key={category.slug}
-                      value={category.slug}
-                    >
+                    <option key={category.slug} value={category.slug}>
                       {category.name}
                     </option>
                   ))}
@@ -322,9 +296,7 @@ const CreateChainComponent = () => {
                 categoriesQuery.isError
               }
             >
-              {createItemMutation.isPending
-                ? "Создание..."
-                : "Продолжить"}
+              {createItemMutation.isPending ? "Создание..." : "Продолжить"}
             </Button>
           </div>
         </form>

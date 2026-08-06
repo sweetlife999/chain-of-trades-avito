@@ -1,6 +1,6 @@
 import { memo, useEffect, type ReactNode } from "react";
 import styles from "./Styles.module.scss";
-import CloseIcon from "/src/Assets/close.svg?react";
+import CloseIcon from "/src/Assets/close.svg";
 import { useLocation, useNavigate } from "react-router-dom";
 
 type PopupProps = {
@@ -42,9 +42,10 @@ const PopupComponent = ({ children }: PopupProps) => {
       onClick={handleOverlay}
     >
       <div className={styles.popup}>
-        <CloseIcon
+        <img
           className={styles.popup__close}
           onClick={closePopup}
+          src={CloseIcon}
         />
 
         {children}
