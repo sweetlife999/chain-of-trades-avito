@@ -35,7 +35,7 @@ const ProfilePreviewComponent = ({ user }: TProfilePreviewProps) => {
   return (
     <div className={styles.profile}>
       <Link
-        to={`/profile/${user.id}`}
+        to={'/profile'}
         className={styles.profile__content}
       >
         <div

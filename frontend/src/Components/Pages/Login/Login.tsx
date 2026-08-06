@@ -8,7 +8,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
 import { login } from "../../../Api/auth/auth";
-import type { TUser } from "../../../Api/auth/auth.types";
 import { useAuthDispatch } from "../../../Hooks/useAuthDispatch";
 import { setUserState } from "../../../Store/authSlice";
 import { Input } from "../../UI/Input/Input";
@@ -34,7 +33,7 @@ const loginMutation = useMutation({
     console.log("SUCCESS", data);
 
     dispatch(setUserState(data));
-    navigate(`/profile/${data.id}`);
+    navigate('/profile');
   },
 
   onError: (error) => {

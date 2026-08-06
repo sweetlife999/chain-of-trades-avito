@@ -1,5 +1,4 @@
 import { memo } from "react";
-import { useSelector } from "react-redux";
 import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
 import { Link } from "react-router-dom";
 import { Button } from "../../UI/Button/Button";

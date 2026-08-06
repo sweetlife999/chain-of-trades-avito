@@ -1,0 +1,325 @@
+.chains {
+  width: 100%;
+  max-width: 1200px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+
+  margin: 0 auto;
+  padding: 24px;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+
+  &__title {
+    margin: 0;
+
+    color: #171717;
+    font-size: 28px;
+    font-weight: 600;
+  }
+
+  &__tabs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__tab {
+    padding: 8px 14px;
+
+    border: none;
+    border-radius: $border-radius;
+
+    background-color: #f1f1f1;
+    color: #555;
+
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+
+    cursor: pointer;
+
+    transition:
+      background-color 0.2s ease,
+      color 0.2s ease;
+
+    &:hover {
+      background-color: #e4e4e4;
+    }
+
+    &_active {
+      background-color: $green-button;
+      color: #fff;
+
+      &:hover {
+        background-color: $green-button;
+      }
+    }
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+
+  &__card {
+    display: grid;
+    grid-template-columns: minmax(220px, 0.8fr) minmax(400px, 1.4fr);
+    gap: 30px;
+
+    padding: 24px 28px;
+
+    border: 1px solid #b8b8b8;
+    border-radius: $border-radius;
+
+    background-color: #fff;
+  }
+
+  &__cardInformation {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  &__cardTitle {
+    margin: 0;
+
+    color: #171717;
+    font-size: 18px;
+    font-weight: 500;
+  }
+
+  &__status {
+    padding: 6px 10px;
+
+    border-radius: 20px;
+
+    background-color: #eceff3;
+    color: #4d5661;
+
+    font-size: 12px;
+    font-weight: 600;
+
+    &_proposed {
+      background-color: #fff8d7;
+      color: #74641c;
+    }
+
+    &_confirmed {
+      background-color: #e8f3ff;
+      color: #205d91;
+    }
+
+    &_completed {
+      background-color: #e7f7ec;
+      color: #26713d;
+    }
+
+    &_cancelled {
+      background-color: #fdeaea;
+      color: #9a2f2f;
+    }
+  }
+
+  &__date {
+    margin-top: auto;
+
+    color: #292929;
+    font-size: 15px;
+  }
+
+  &__cardContent {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 28px;
+
+    > button {
+      width: 190px;
+
+      align-self: flex-end;
+    }
+  }
+
+  &__progress {
+    position: relative;
+
+    padding-top: 4px;
+  }
+
+  &__progressLine {
+    position: absolute;
+    top: 11px;
+    right: 6px;
+    left: 6px;
+
+    height: 3px;
+
+    overflow: hidden;
+
+    border-radius: 10px;
+
+    background-color: #e6e8eb;
+  }
+
+  &__progressCompleted {
+    display: block;
+
+    height: 100%;
+
+    border-radius: inherit;
+
+    background-color: $green-button;
+
+    transition: width 0.3s ease;
+  }
+
+  &__progressSteps {
+    position: relative;
+    z-index: 1;
+
+    display: flex;
+    justify-content: space-between;
+  }
+
+  &__progressStep {
+    width: 100px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+
+    text-align: center;
+  }
+
+  &__progressPoint {
+    width: 14px;
+    height: 14px;
+
+    border: 3px solid #fff;
+    border-radius: 50%;
+
+    background-color: #e1e4e8;
+    box-shadow: 0 0 0 1px #e1e4e8;
+
+    &_active {
+      background-color: $green-button;
+      box-shadow: 0 0 0 1px $green-button;
+    }
+  }
+
+  &__progressLabel {
+    color: #777;
+    font-size: 10px;
+  }
+
+  &__cancelledNotice {
+    padding: 14px 16px;
+
+    border: 1px solid #f0caca;
+    border-radius: $border-radius;
+
+    background-color: #fff7f7;
+    color: #8a3434;
+
+    font-size: 13px;
+  }
+
+  &__message {
+    margin: 40px 0;
+
+    color: #777;
+    text-align: center;
+  }
+
+  &__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+
+    padding: 50px 20px;
+
+    border: 1px dashed #c9c9c9;
+    border-radius: $border-radius;
+
+    text-align: center;
+  }
+
+  &__emptyTitle {
+    margin: 0;
+
+    color: #292929;
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  &__emptyDescription {
+    margin: 0;
+
+    color: #777;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 850px) {
+  .chains {
+    &__card {
+      grid-template-columns: 1fr;
+    }
+
+    &__date {
+      margin-top: 4px;
+    }
+  }
+}
+
+@media (max-width: 600px) {
+  .chains {
+    padding: 16px;
+
+    &__header {
+      align-items: stretch;
+      flex-direction: column;
+
+      > button {
+        width: 100%;
+      }
+    }
+
+    &__tabs {
+      overflow-x: auto;
+    }
+
+    &__tab {
+      flex-shrink: 0;
+    }
+
+    &__card {
+      padding: 20px;
+    }
+
+    &__cardContent {
+      > button {
+        width: 100%;
+      }
+    }
+
+    &__progressLabel {
+      display: none;
+    }
+
+    &__progressStep {
+      width: auto;
+    }
+  }
+}

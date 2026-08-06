@@ -2,12 +2,11 @@ import { memo } from "react";
 import AvitoLogo from "/src/Assets/avito-logo.svg?react";
 import styles from "./Styles.module.scss";
 import { Button } from "../../UI/Button/Button";
-import { Link, NavLink } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import {
   ArrowLeftRight as UpdateIcon,
   PackageOpen as MyThings,
   Link2 as ChainsIcon,
-  CircleUserRound as ProfileIcon,
   type LucideIcon,
 } from "lucide-react";
 import { FetchProfile } from "../../Widgets/FetchProfile/FetchProfile";
@@ -20,8 +19,8 @@ type NavigationItem = {
 
 const navigationItems: NavigationItem[] = [
   { to: "/trades", label: "Обмены", Icon: UpdateIcon },
-  { to: "/my-items", label: "Мои вещи", Icon: MyThings },
-  { to: "/my-chains", label: "Мои цепочки", Icon: ChainsIcon },
+  { to: "/myItems", label: "Мои вещи", Icon: MyThings },
+  { to: "/myChains", label: "Мои цепочки", Icon: ChainsIcon },
   // { to: "/profile", label: "Профиль", Icon: ProfileIcon },
 ];
 

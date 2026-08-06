@@ -38,7 +38,7 @@ const RegisterComponent = () => {
     mutationFn: (data: TRegister) => registerUser(data),
 
     onSuccess: () => {
-      navigate("/login");
+      navigate("/profile");
     },
 
     onError: () => {

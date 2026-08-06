@@ -27,7 +27,7 @@ const ProfileComponent = () => {
   }).format(new Date(user.created_at));
 
   return (
-    <main className={styles.profile}>
+    <div className={styles.profile}>
       <section className={styles.profile__card}>
         <div className={styles.profile__main}>
           <div
@@ -75,7 +75,7 @@ const ProfileComponent = () => {
         <div className={styles.profile__statistics}>
           <div className={styles.profile__statistic}>
             <div className={styles.profile__statisticValue}>
-              <span>{(user.rating ?? 0).toFixed(1)}</span>
+              <span>{(user.rating ?? 1).toFixed(1)}</span>
 
               <Star
                 className={styles.profile__ratingIcon}
@@ -132,7 +132,7 @@ const ProfileComponent = () => {
           </p>
         </div>
       </section>
-    </main>
+    </div>
   );
 };
 

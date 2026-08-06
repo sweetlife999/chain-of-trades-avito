@@ -2,8 +2,6 @@ import { memo } from "react";
 import { Post } from "../Post/Post";
 import { useQuery } from "@tanstack/react-query";
 import { getItems } from "../../../Api/items/items";
-import { queryClient } from "../../../Api/queryClient";
-import { Loader } from "../../UI/Loader/Loader";
 import { FetchStatus } from "../FetchStatus/FetchStatus";
 
 const PostsListComponent = () => {
