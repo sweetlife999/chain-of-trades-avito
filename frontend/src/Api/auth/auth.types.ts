@@ -8,7 +8,7 @@ export const UserSchema = z.object({
   id: z.string(),
   nickname: z.string(),
   photo_url: z.string(),
-  rating: z.number().nullable(),
+  rating: z.number().nullable().transform((value) => value ?? 0),
   updated_at: z.string(),
 });
 

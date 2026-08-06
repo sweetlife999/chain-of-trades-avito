@@ -72,7 +72,7 @@ const ExchangeDetailsComponent = () => {
     <section className={styles.details}>
       <header className={styles.details__header}>
         <div>
-          <Link to={isParticipant ? "/myChains" : "/"}>
+          <Link to={isParticipant ? "/exchanges" : "/"}>
             ← {isParticipant ? "Мои цепочки" : "Обмены"}
           </Link>
           <h1>{title}</h1>
