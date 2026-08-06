@@ -357,7 +357,7 @@ const docTemplate = `{
         },
         "/exchanges/{id}/decline": {
             "post": {
-                "description": "Сохраняет отказ текущего участника и отменяет предложенный обмен.",
+                "description": "Отменяет предложенный или подтверждённый обмен. Для подтверждённого обмена освобождает объявления, увеличивает счётчик сорванных обменов отказавшегося пользователя и запускает поиск новых вариантов.",
                 "tags": [
                     "exchanges"
                 ],
@@ -373,7 +373,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "204": {
-                        "description": "Отказ сохранён, обмен отменён"
+                        "description": "Обмен отменён, доступные объявления возвращены в поиск"
                     },
                     "400": {
                         "description": "ID не является UUID",
@@ -400,7 +400,7 @@ const docTemplate = `{
                         }
                     },
                     "409": {
-                        "description": "Решение уже принято или обмен закрыт",
+                        "description": "Обмен уже закрыт, объявление недоступно или получение уже подтверждено",
                         "schema": {
                             "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
                         }

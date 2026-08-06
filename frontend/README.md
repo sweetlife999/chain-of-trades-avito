@@ -27,9 +27,11 @@ cp .env.example .env
 
 ```env
 VITE_BASE_URL=/api
+VITE_BACKEND_URL=http://localhost:8080
 ```
 
-При необходимости измените базовый путь или адрес backend API.
+`VITE_BASE_URL` задаёт путь, который использует Axios. `VITE_BACKEND_URL` задаёт
+адрес Go backend, куда Vite перенаправляет запросы во время локальной разработки.
 
 ### 4. Запустите сервер разработки
 
@@ -107,6 +109,22 @@ frontend/
 ## 🔌 Работа с API
 
 Для запросов к backend используются Axios и TanStack React Query.
+
+### Локальный proxy
+
+Браузер обращается к Vite на `http://localhost:5173`. Запросы с префиксом `/api`
+Vite перенаправляет в Go backend и удаляет `/api` из пути:
+
+```text
+POST http://localhost:5173/api/auth/login
+                         ↓
+POST http://localhost:8080/auth/login
+```
+
+Так frontend и cookie `access_token` работают через один origin, поэтому отдельная
+настройка CORS для локальной разработки не нужна. Не указывайте
+`http://localhost:8080` напрямую в компонентах. Если backend работает на другом
+адресе, измените `VITE_BACKEND_URL` в `frontend/.env` и перезапустите Vite.
 
 Авторизация работает через JWT в HttpOnly cookie. Для защищённых запросов Axios должен отправлять cookie:
 
