@@ -1,106 +1,58 @@
 .post {
-  display: block;
-  overflow: hidden;
-  color: inherit;
-  text-decoration: none;
-  cursor: pointer;
-  background: #fff;
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  color: #111;
   border: 1px solid #ddd;
   border-radius: $border-radius;
+  cursor: pointer;
 
   &:hover {
     border-color: $green-button;
   }
 
-  &__imageBox {
-    position: relative;
-    aspect-ratio: 16 / 10;
-    background: #f3f3f3;
+  h2 {
+    font-size: 20px;
+    font-weight: 500;
   }
 
-  &__image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  &__placeholder {
-    display: grid;
-    height: 100%;
-    place-items: center;
-    color: #888;
+  &__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: #777;
+    font-size: 13px;
   }
 
   &__status {
-    position: absolute;
-    top: 10px;
-    left: 10px;
     padding: 5px 9px;
-    font-size: 12px;
-    border-radius: 20px;
+    border-radius: 14px;
 
-    &_available {
-      color: #26713d;
-      background: #e7f7ec;
-    }
-
-    &_reserved {
-      color: #74641c;
-      background: #fff8d7;
-    }
-
-    &_traded {
-      color: #205d91;
-      background: #e8f3ff;
-    }
-
-    &_withdrawn {
-      color: #666;
-      background: #eee;
-    }
+    &_proposed { color: #6b5310; background: #fff5cf; }
+    &_confirmed { color: #155b89; background: #e3f2ff; }
+    &_completed { color: #166534; background: #e4f7ea; }
+    &_cancelled { color: #991b1b; background: #feecec; }
   }
 
-  &__content {
+  &__participants {
     display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding: 16px;
-  }
-
-  &__heading {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-  }
-
-  &__title {
-    margin: 0;
-    font-size: 18px;
-  }
-
-  &__category {
-    color: #777;
-    font-size: 12px;
-  }
-
-  &__description {
-    margin: 0;
-    color: #555;
-    font-size: 14px;
-    line-height: 1.4;
-  }
-
-  &__wants {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
 
     span {
-      padding: 4px 8px;
-      color: #26713d;
-      font-size: 12px;
-      background: #edf8f1;
-      border-radius: 20px;
+      display: grid;
+      width: 36px;
+      height: 36px;
+      margin-right: -8px;
+      place-items: center;
+      color: #fff;
+      background: $green-button;
+      border: 2px solid #fff;
+      border-radius: 50%;
     }
+  }
+
+  &__open {
+    color: $green-button;
+    font-weight: 600;
   }
 }

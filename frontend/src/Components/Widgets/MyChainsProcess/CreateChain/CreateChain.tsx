@@ -88,7 +88,7 @@ const CreateChainComponent = () => {
         queryClient.invalidateQueries({ queryKey: ["exchanges"] }),
       ]);
 
-      navigate("/myChains");
+      navigate("/myItems");
     },
     onError: (error) => {
       setError("root.server", {

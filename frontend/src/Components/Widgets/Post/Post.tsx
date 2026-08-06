@@ -3,55 +3,49 @@ import { Link } from "react-router-dom";
 
 import styles from "./Styles.module.scss";
 import type {
-  TItem,
-  TItemStatus,
-} from "../../../Api/items/items.types";
+  TExchange,
+  TExchangeStatus,
+} from "../../../Api/exchanges/exchanges.types";
 
-type TPostProps = {
-  post: TItem;
+type TProps = {
+  exchange: TExchange;
 };
 
-const statusLabels: Record<TItemStatus, string> = {
-  available: "Доступно",
-  reserved: "Зарезервировано",
-  traded: "Обменяно",
-  withdrawn: "Снято",
+const statusLabels: Record<TExchangeStatus, string> = {
+  proposed: "Предложение обмена",
+  confirmed: "Обмен подтверждён",
+  completed: "Обмен завершён",
+  cancelled: "Обмен отменён",
 };
 
-const PostComponent = ({ post }: TPostProps) => (
-  <Link className={styles.post} to={`/items/${post.id}`}>
-    <div className={styles.post__imageBox}>
-      {post.photo_urls[0] ? (
-        <img
-          className={styles.post__image}
-          src={post.photo_urls[0]}
-          alt={post.title}
-        />
-      ) : (
-        <span className={styles.post__placeholder}>Нет фото</span>
-      )}
+const getTitle = (exchange: TExchange) => {
+  const participant = exchange.participants[0];
 
-      <span
-        className={`${styles.post__status} ${styles[`post__status_${post.status}`]}`}
-      >
-        {statusLabels[post.status]}
+  return participant
+    ? `${participant.gives_item.title} → ${participant.receives_item.title}`
+    : "Обмен без участников";
+};
+
+const PostComponent = ({ exchange }: TProps) => (
+  <Link className={styles.post} to={`/exchanges/${exchange.id}`}>
+    <div className={styles.post__top}>
+      <span className={`${styles.post__status} ${styles[`post__status_${exchange.status}`]}`}>
+        {statusLabels[exchange.status]}
       </span>
+      <span>{exchange.participants.length} участников</span>
     </div>
 
-    <div className={styles.post__content}>
-      <div className={styles.post__heading}>
-        <h3 className={styles.post__title}>{post.title}</h3>
-        <span className={styles.post__category}>{post.category}</span>
-      </div>
+    <h2>{getTitle(exchange)}</h2>
 
-      <p className={styles.post__description}>{post.description}</p>
-
-      <div className={styles.post__wants}>
-        {post.wants.map((want) => (
-          <span key={want}>{want}</span>
-        ))}
-      </div>
+    <div className={styles.post__participants}>
+      {exchange.participants.slice(0, 4).map(({ user }) => (
+        <span key={user.id} title={user.nickname}>
+          {user.nickname.charAt(0).toUpperCase()}
+        </span>
+      ))}
     </div>
+
+    <span className={styles.post__open}>Открыть обмен</span>
   </Link>
 );
 
