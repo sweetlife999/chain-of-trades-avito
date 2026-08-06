@@ -20,8 +20,8 @@ const statusLabels: Record<TExchangeStatus, string> = {
 
 const participantStatus = (status: string) => {
   const value = status.toLowerCase();
-  if (["confirmed", "accepted"].includes(value)) return "Подтвердил";
-  if (["declined", "rejected"].includes(value)) return "Отказался";
+  if (["confirmed", "accepted"].includes(value)) {return "Подтвердил"};
+  if (["declined", "rejected"].includes(value)) {return "Отказался"};
   return "Ожидает";
 };
 
@@ -56,8 +56,8 @@ const ExchangeDetailsComponent = () => {
     enabled: Boolean(id),
   });
 
-  if (isPending) return <p>Загрузка цепочки...</p>;
-  if (isError || !exchange) return <p>Не удалось загрузить цепочку</p>;
+  if (isPending) {return <p>Загрузка цепочки...</p>};
+  if (isError || !exchange) {return <p>Не удалось загрузить цепочку</p>};
 
   const current = exchange.participants.find(
     ({ user: participant }) => participant.id === user?.id,

@@ -1,7 +1,8 @@
-import { memo, useEffect, type ReactNode } from "react";
-import styles from "./Styles.module.scss";
-import CloseIcon from "/src/Assets/close.svg";
+import { memo, useEffect, type MouseEvent, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+
+import CloseIcon from "/src/Assets/close.svg?react";
+import styles from "./Styles.module.scss";
 
 type PopupProps = {
   children: ReactNode;
@@ -9,45 +10,36 @@ type PopupProps = {
 
 const PopupComponent = ({ children }: PopupProps) => {
   const navigate = useNavigate();
-  const location = useLocation()
+  const location = useLocation();
 
   const closePopup = () => {
-    const link = location.pathname.includes('/login') ? -1 : -2
-    navigate(link);
-  };
-
-  const handleClickAway = (evt: KeyboardEvent) => {
-    if (evt.key === "Escape") {
-      closePopup();
-    }
+    navigate(location.pathname.includes("/login") ? -1 : -2);
   };
 
   useEffect(() => {
-    window.addEventListener("keydown", handleClickAway);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        navigate(location.pathname.includes("/login") ? -1 : -2);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      window.removeEventListener("keydown", handleClickAway);
+      window.removeEventListener("keydown", handleKeyDown);
     };
-  }, []);
+  }, [location.pathname, navigate]);
 
-  const handleOverlay = (evt: React.MouseEvent<HTMLDivElement>) => {
-    if (evt.target === evt.currentTarget) {
+  const handleOverlayClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (event.target === event.currentTarget) {
       closePopup();
     }
   };
 
   return (
-    <div
-      className={styles.popup__overlay}
-      onClick={handleOverlay}
-    >
+    <div className={styles.popup__overlay} onClick={handleOverlayClick}>
       <div className={styles.popup}>
-        <img
-          className={styles.popup__close}
-          onClick={closePopup}
-          src={CloseIcon}
-        />
-
+        <CloseIcon className={styles.popup__close} onClick={closePopup} />
         {children}
       </div>
     </div>
