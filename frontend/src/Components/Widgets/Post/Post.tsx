@@ -1,55 +1,52 @@
 import { memo } from "react";
+import { Link } from "react-router-dom";
+
 import styles from "./Styles.module.scss";
-import arrow from "/src/Assets/thick-arrow.svg";
+import type {
+  TExchange,
+  TExchangeStatus,
+} from "../../../Api/exchanges/exchanges.types";
 
-const PostComponent = () => {
-  const data = {
-    id: 4,
-    img1: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQxGUUrdmZZJuQDy2wOMi_U4K6w52csKmy4UgFBwqdc4A&s=10",
-    img2: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTbOAycTdIR-7yrPHNAmnRYQedvxPgdsW1aGrKfipViTQ&s=10",
-    thing1: "Банан",
-    thing2: "Пирог",
-    status: "Подтверждение",
-    countUsers: 3,
-  };
-
-  const gradients = [
-    "linear-gradient(135deg, aqua, #6a11cb)",
-    "linear-gradient(135deg, #ff6b6b, #feca57)",
-    "linear-gradient(135deg, #48c6ef, #6f86d6)",
-    "linear-gradient(135deg, #f093fb, #f5576c)",
-    "linear-gradient(135deg, #4facfe, #00f2fe)",
-  ];
-
-  return (
-    <article className={styles.post}>
-      <div
-        className={styles.post__imgs}
-        style={{ background: gradients[data.id % gradients.length] }}
-      >
-        <img
-          className={styles.post__img}
-          src={data.img1}
-          alt={data.thing1}
-        />
-        <img
-          className={`${styles.post__img} ${styles.post__arrow}`}
-          src={arrow}
-        />
-        <img
-          className={styles.post__img}
-          src={data.img2}
-          alt={data.thing2}
-        />
-      </div>
-      <h3 className={styles.post__trade}>
-        {data.thing1} → {data.thing2}
-      </h3>
-      <p className={styles.post__users}>
-        Участников: {data.countUsers}
-      </p>
-    </article>
-  );
+type TProps = {
+  exchange: TExchange;
 };
+
+const statusLabels: Record<TExchangeStatus, string> = {
+  proposed: "Предложение обмена",
+  confirmed: "Обмен подтверждён",
+  completed: "Обмен завершён",
+  cancelled: "Обмен отменён",
+};
+
+const getTitle = (exchange: TExchange) => {
+  const participant = exchange.participants[0];
+
+  return participant
+    ? `${participant.gives_item.title} → ${participant.receives_item.title}`
+    : "Обмен без участников";
+};
+
+const PostComponent = ({ exchange }: TProps) => (
+  <Link className={styles.post} to={`/exchanges/${exchange.id}`}>
+    <div className={styles.post__top}>
+      <span className={`${styles.post__status} ${styles[`post__status_${exchange.status}`]}`}>
+        {statusLabels[exchange.status]}
+      </span>
+      <span>{exchange.participants.length} участников</span>
+    </div>
+
+    <h2>{getTitle(exchange)}</h2>
+
+    <div className={styles.post__participants}>
+      {exchange.participants.slice(0, 4).map(({ user }) => (
+        <span key={user.id} title={user.nickname}>
+          {user.nickname.charAt(0).toUpperCase()}
+        </span>
+      ))}
+    </div>
+
+    <span className={styles.post__open}>Открыть обмен</span>
+  </Link>
+);
 
 export const Post = memo(PostComponent);

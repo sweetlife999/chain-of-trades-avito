@@ -35,6 +35,7 @@ func TestConfirmParticipationWaitsForOtherParticipants(t *testing.T) {
 	if !transactions.committed {
 		t.Fatal("decision transaction was not committed")
 	}
+	assertRecordedEvents(t, queries, db.ChainMessageKindParticipantAccepted)
 }
 
 func TestConfirmParticipationReservesItemsAfterLastAcceptance(t *testing.T) {
@@ -50,7 +51,9 @@ func TestConfirmParticipationReservesItemsAfterLastAcceptance(t *testing.T) {
 	transactions := &fakeTransactionManager{queries: queries}
 	repository := newRepository(&fakeNeighborQueries{}, transactions)
 
-	err := repository.ConfirmParticipation(context.Background(), uuid.New(), uuid.New())
+	userID := uuid.New()
+
+	err := repository.ConfirmParticipation(context.Background(), uuid.New(), userID)
 	if err != nil {
 		t.Fatalf("ConfirmParticipation() error = %v", err)
 	}
@@ -62,6 +65,19 @@ func TestConfirmParticipationReservesItemsAfterLastAcceptance(t *testing.T) {
 	}
 	if !transactions.committed {
 		t.Fatal("decision transaction was not committed")
+	}
+
+	assertRecordedEvents(
+		t,
+		queries,
+		db.ChainMessageKindParticipantAccepted,
+		db.ChainMessageKindExchangeConfirmed,
+	)
+	if queries.systemMessages[0].AuthorID != pgUUID(userID) {
+		t.Fatalf("acceptance author = %v, want %v", queries.systemMessages[0].AuthorID, pgUUID(userID))
+	}
+	if queries.systemMessages[1].AuthorID.Valid {
+		t.Fatal("exchange confirmation must belong to the exchange, not to a participant")
 	}
 }
 
@@ -110,12 +126,22 @@ func TestDeclineParticipationCancelsExchange(t *testing.T) {
 	t.Parallel()
 
 	queries := pendingDecisionQueries()
+	itemID := uuid.New()
+	ownerID := uuid.New()
+	queries.items = []db.LockExchangeItemsRow{{
+		ID:      pgUUID(itemID),
+		OwnerID: pgUUID(ownerID),
+		Status:  db.ItemStatusAvailable,
+	}}
 	transactions := &fakeTransactionManager{queries: queries}
 	repository := newRepository(&fakeNeighborQueries{}, transactions)
 
-	err := repository.DeclineParticipation(context.Background(), uuid.New(), uuid.New())
+	nodes, err := repository.DeclineParticipation(context.Background(), uuid.New(), uuid.New())
 	if err != nil {
 		t.Fatalf("DeclineParticipation() error = %v", err)
+	}
+	if len(nodes) != 1 || nodes[0].ItemID != itemID || nodes[0].OwnerID != ownerID {
+		t.Fatalf("recovery nodes = %+v, want item %s owned by %s", nodes, itemID, ownerID)
 	}
 	if !queries.declined || !queries.cancelled {
 		t.Fatalf(
@@ -126,6 +152,65 @@ func TestDeclineParticipationCancelsExchange(t *testing.T) {
 	}
 	if !transactions.committed {
 		t.Fatal("decline transaction was not committed")
+	}
+	assertRecordedEvents(t, queries, db.ChainMessageKindParticipantDeclined)
+}
+
+func TestDeclineConfirmedExchangeReleasesItems(t *testing.T) {
+	t.Parallel()
+
+	itemID := uuid.New()
+	ownerID := uuid.New()
+	queries := pendingDecisionQueries()
+	queries.chainStatus = db.ChainStatusConfirmed
+	queries.participantStatus = db.ParticipantStatusAccepted
+	queries.items = []db.LockExchangeItemsRow{{
+		ID:      pgUUID(itemID),
+		OwnerID: pgUUID(ownerID),
+		Status:  db.ItemStatusReserved,
+	}}
+	queries.released = 1
+	queries.dealsBrokenUpdated = 1
+	transactions := &fakeTransactionManager{queries: queries}
+	repository := newRepository(&fakeNeighborQueries{}, transactions)
+
+	nodes, err := repository.DeclineParticipation(context.Background(), uuid.New(), uuid.New())
+	if err != nil {
+		t.Fatalf("DeclineParticipation() error = %v", err)
+	}
+	if len(nodes) != 1 || nodes[0].ItemID != itemID || nodes[0].OwnerID != ownerID {
+		t.Fatalf("recovery nodes = %+v, want item %s owned by %s", nodes, itemID, ownerID)
+	}
+	if !queries.declined || !queries.cancelled || !queries.releaseCalled || !queries.dealsBrokenCalled {
+		t.Fatalf(
+			"declined=%v cancelled=%v releaseCalled=%v dealsBrokenCalled=%v",
+			queries.declined,
+			queries.cancelled,
+			queries.releaseCalled,
+			queries.dealsBrokenCalled,
+		)
+	}
+	if !transactions.committed {
+		t.Fatal("confirmed decline transaction was not committed")
+	}
+}
+
+func TestDeclineConfirmedExchangeAfterCompletionConfirmationConflicts(t *testing.T) {
+	t.Parallel()
+
+	queries := pendingDecisionQueries()
+	queries.chainStatus = db.ChainStatusConfirmed
+	queries.participantStatus = db.ParticipantStatusAccepted
+	queries.participantCompletedAt.Valid = true
+	transactions := &fakeTransactionManager{queries: queries}
+	repository := newRepository(&fakeNeighborQueries{}, transactions)
+
+	_, err := repository.DeclineParticipation(context.Background(), uuid.New(), uuid.New())
+	if !errors.Is(err, ErrConflict) {
+		t.Fatalf("DeclineParticipation() error = %v, want %v", err, ErrConflict)
+	}
+	if transactions.committed {
+		t.Fatal("conflicting decline transaction was committed")
 	}
 }
 

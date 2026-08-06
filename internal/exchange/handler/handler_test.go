@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -306,12 +307,178 @@ func TestParticipationDecisionRoutesRequireAuthentication(t *testing.T) {
 	}
 }
 
+func TestPostMessageReturnsCreatedMessage(t *testing.T) {
+	t.Parallel()
+
+	exchangeID := uuid.New()
+	userID := uuid.New()
+	body := "заберу в субботу"
+	service := &fakeService{postMessage: func(
+		_ context.Context,
+		actualExchangeID uuid.UUID,
+		actualUserID uuid.UUID,
+		actualBody string,
+	) (exchangemodel.Message, error) {
+		if actualExchangeID != exchangeID || actualUserID != userID || actualBody != body {
+			t.Fatalf("PostMessage() args = (%s, %s, %q)", actualExchangeID, actualUserID, actualBody)
+		}
+		return exchangemodel.Message{
+			ID:        uuid.New(),
+			Kind:      "text",
+			Body:      &body,
+			Author:    &exchangemodel.ParticipantUser{ID: userID, Nickname: "samir"},
+			CreatedAt: time.Now(),
+		}, nil
+	}}
+
+	response := performRequestWithBody(
+		service,
+		http.MethodPost,
+		"/exchanges/"+exchangeID.String()+"/messages",
+		strings.NewReader(`{"body":"`+body+`"}`),
+		authenticateAs(userID),
+	)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d; body = %s", response.Code, http.StatusCreated, response.Body.String())
+	}
+
+	for _, field := range []string{"kind", "body", "author", "created_at"} {
+		if !strings.Contains(response.Body.String(), `"`+field+`"`) {
+			t.Fatalf("response does not contain %q: %s", field, response.Body.String())
+		}
+	}
+}
+
+func TestPostMessageRejectsBrokenJSON(t *testing.T) {
+	t.Parallel()
+
+	response := performRequestWithBody(
+		&fakeService{},
+		http.MethodPost,
+		"/exchanges/"+uuid.New().String()+"/messages",
+		strings.NewReader("{"),
+		authenticateAs(uuid.New()),
+	)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusBadRequest)
+	}
+}
+
+func TestMessageErrorStatuses(t *testing.T) {
+	t.Parallel()
+
+	cases := map[error]int{
+		exchangeservice.ErrValidation:  http.StatusBadRequest,
+		exchangeservice.ErrForbidden:   http.StatusForbidden,
+		exchangeservice.ErrNotFound:    http.StatusNotFound,
+		exchangeservice.ErrConflict:    http.StatusConflict,
+		errors.New("database is down"): http.StatusInternalServerError,
+	}
+
+	for serviceError, want := range cases {
+		serviceError, want := serviceError, want
+		t.Run(fmt.Sprintf("%v", serviceError), func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeService{postMessage: func(
+				context.Context,
+				uuid.UUID,
+				uuid.UUID,
+				string,
+			) (exchangemodel.Message, error) {
+				return exchangemodel.Message{}, serviceError
+			}}
+
+			response := performRequestWithBody(
+				service,
+				http.MethodPost,
+				"/exchanges/"+uuid.New().String()+"/messages",
+				strings.NewReader(`{"body":"привет"}`),
+				authenticateAs(uuid.New()),
+			)
+			if response.Code != want {
+				t.Fatalf("status = %d, want %d", response.Code, want)
+			}
+		})
+	}
+}
+
+func TestListMessagesReturnsEmptyArray(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeService{listMessages: func(
+		context.Context,
+		uuid.UUID,
+		uuid.UUID,
+	) ([]exchangemodel.Message, error) {
+		return nil, nil
+	}}
+
+	response := performRequest(
+		service,
+		http.MethodGet,
+		"/exchanges/"+uuid.New().String()+"/messages",
+		authenticateAs(uuid.New()),
+	)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
+	}
+
+	if response.Body.String() != "[]\n" {
+		t.Fatalf("body = %q, want []", response.Body.String())
+	}
+}
+
+func TestMessageRoutesRequireAuthentication(t *testing.T) {
+	t.Parallel()
+
+	path := "/exchanges/" + uuid.New().String() + "/messages"
+
+	for _, method := range []string{http.MethodGet, http.MethodPost} {
+		response := performRequestWithBody(
+			&fakeService{},
+			method,
+			path,
+			strings.NewReader(`{"body":"привет"}`),
+			passThroughAuth,
+		)
+		if response.Code != http.StatusUnauthorized {
+			t.Fatalf("%s: status = %d, want %d", method, response.Code, http.StatusUnauthorized)
+		}
+	}
+}
+
 type fakeService struct {
-	list     func(context.Context, uuid.UUID) ([]exchangemodel.Details, error)
-	get      func(context.Context, uuid.UUID, uuid.UUID) (exchangemodel.Details, error)
-	confirm  func(context.Context, uuid.UUID, uuid.UUID) error
-	decline  func(context.Context, uuid.UUID, uuid.UUID) error
-	complete func(context.Context, uuid.UUID, uuid.UUID) error
+	list         func(context.Context, uuid.UUID) ([]exchangemodel.Details, error)
+	get          func(context.Context, uuid.UUID, uuid.UUID) (exchangemodel.Details, error)
+	confirm      func(context.Context, uuid.UUID, uuid.UUID) error
+	decline      func(context.Context, uuid.UUID, uuid.UUID) error
+	complete     func(context.Context, uuid.UUID, uuid.UUID) error
+	postMessage  func(context.Context, uuid.UUID, uuid.UUID, string) (exchangemodel.Message, error)
+	listMessages func(context.Context, uuid.UUID, uuid.UUID) ([]exchangemodel.Message, error)
+}
+
+func (f *fakeService) PostMessage(
+	ctx context.Context,
+	exchangeID uuid.UUID,
+	userID uuid.UUID,
+	body string,
+) (exchangemodel.Message, error) {
+	if f.postMessage == nil {
+		return exchangemodel.Message{}, nil
+	}
+	return f.postMessage(ctx, exchangeID, userID, body)
+}
+
+func (f *fakeService) ListMessages(
+	ctx context.Context,
+	exchangeID uuid.UUID,
+	userID uuid.UUID,
+) ([]exchangemodel.Message, error) {
+	if f.listMessages == nil {
+		return nil, nil
+	}
+	return f.listMessages(ctx, exchangeID, userID)
 }
 
 func (f *fakeService) ListForUser(
@@ -368,10 +535,20 @@ func performRequest(
 	path string,
 	requireAuth func(http.Handler) http.Handler,
 ) *httptest.ResponseRecorder {
+	return performRequestWithBody(service, method, path, nil, requireAuth)
+}
+
+func performRequestWithBody(
+	service Service,
+	method string,
+	path string,
+	body io.Reader,
+	requireAuth func(http.Handler) http.Handler,
+) *httptest.ResponseRecorder {
 	router := chi.NewRouter()
 	New(service).RegisterRoutes(router, requireAuth)
 
-	request := httptest.NewRequest(method, path, nil)
+	request := httptest.NewRequest(method, path, body)
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, request)
 	return response

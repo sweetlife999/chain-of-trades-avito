@@ -193,4 +193,42 @@ BEGIN
     RAISE NOTICE 'ok 12: item_wants уходят каскадом вместе с вещью';
 END $$;
 
+-- 13. в чужой тред писать нельзя (композитный ключ на chain_participants)
+DO $$
+DECLARE outsider uuid;
+BEGIN
+    INSERT INTO users (nickname, password_hash) VALUES ('dave', 'hash') RETURNING id INTO outsider;
+    INSERT INTO chain_messages (chain_id, author_id, body)
+    VALUES ('dddddddd-0000-0000-0000-000000000000', outsider, 'подвиньтесь, я тоже хочу');
+    RAISE EXCEPTION 'сообщение от постороннего прошло, а не должно было';
+EXCEPTION WHEN foreign_key_violation THEN
+    RAISE NOTICE 'ok 13: писать в тред может только участник обмена';
+END $$;
+
+-- 14. событие обмена пишется без автора, тот же ключ ему не мешает
+DO $$
+DECLARE n int;
+BEGIN
+    INSERT INTO chain_messages (chain_id, kind)
+    VALUES ('dddddddd-0000-0000-0000-000000000000', 'exchange_confirmed');
+
+    SELECT count(*) INTO n FROM chain_messages
+    WHERE chain_id = 'dddddddd-0000-0000-0000-000000000000' AND author_id IS NULL;
+    IF n <> 1 THEN
+        RAISE EXCEPTION 'ожидали одно событие без автора, получили %', n;
+    END IF;
+    RAISE NOTICE 'ok 14: событие обмена пишется без автора';
+END $$;
+
+-- 15. текстовое сообщение без текста
+DO $$
+BEGIN
+    INSERT INTO chain_messages (chain_id, author_id, kind)
+    VALUES ('dddddddd-0000-0000-0000-000000000000',
+            '11111111-1111-1111-1111-111111111111', 'text');
+    RAISE EXCEPTION 'текстовое сообщение без текста прошло';
+EXCEPTION WHEN check_violation THEN
+    RAISE NOTICE 'ok 15: у текстового сообщения обязателен текст';
+END $$;
+
 ROLLBACK;

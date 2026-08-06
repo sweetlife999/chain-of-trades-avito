@@ -4,6 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
+	"unicode/utf8"
+	"log"
+	"sort"
+	"strings"
 
 	"github.com/google/uuid"
 
@@ -11,10 +16,15 @@ import (
 	exchangerepository "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/repository"
 )
 
-const maxParticipants = 5
+const (
+	maxParticipants = 5
+	// Тред нужен, чтобы договориться о передаче вещей, а не для длинных писем.
+	maxMessageLength = 2000
+)
 
 var (
 	ErrInvalidCycle = errors.New("invalid exchange cycle")
+	ErrValidation   = errors.New("invalid exchange input")
 	ErrForbidden    = exchangerepository.ErrNotParticipant
 	ErrConflict     = exchangerepository.ErrConflict
 	ErrNotFound     = exchangerepository.ErrNotFound
@@ -25,23 +35,44 @@ type Repository interface {
 	HasUserBlockConflict(context.Context, uuid.UUID, []uuid.UUID) (bool, error)
 	SaveExchange(context.Context, exchangemodel.Exchange) (uuid.UUID, error)
 	ListByUser(context.Context, uuid.UUID) ([]exchangemodel.Details, error)
-	GetByID(context.Context, uuid.UUID) (exchangemodel.Details, error)
+	GetByID(context.Context, uuid.UUID, uuid.UUID) (exchangemodel.Details, error)
 	ConfirmParticipation(context.Context, uuid.UUID, uuid.UUID) error
-	DeclineParticipation(context.Context, uuid.UUID, uuid.UUID) error
+	DeclineParticipation(context.Context, uuid.UUID, uuid.UUID) ([]exchangemodel.Node, error)
 	CompleteParticipation(context.Context, uuid.UUID, uuid.UUID) error
+	ExchangeAccess(context.Context, uuid.UUID, uuid.UUID) (string, bool, error)
+	CreateMessage(context.Context, uuid.UUID, uuid.UUID, string) (exchangemodel.Message, error)
+	ListMessages(context.Context, uuid.UUID) ([]exchangemodel.Message, error)
+	MarkMessagesRead(context.Context, uuid.UUID, uuid.UUID) error
 }
 
 type Service struct {
 	repository Repository
+	logger     errorLogger
+}
+
+type errorLogger interface {
+	Printf(string, ...any)
 }
 
 func New(repository Repository) *Service {
-	return &Service{repository: repository}
+	return newWithDependencies(repository, log.Default())
+}
+
+func newWithDependencies(repository Repository, logger errorLogger) *Service {
+	return &Service{repository: repository, logger: logger}
 }
 
 // FindCycle ищет первый обмен, который начинается со start и возвращается в него.
 // Отсутствие подходящего обмена — нормальный результат: в этом случае возвращается nil, nil.
 func (s *Service) FindCycle(ctx context.Context, start exchangemodel.Node) ([]exchangemodel.Node, error) {
+	return s.findCycle(ctx, start, nil)
+}
+
+func (s *Service) findCycle(
+	ctx context.Context,
+	start exchangemodel.Node,
+	excludedCycles map[string]struct{},
+) ([]exchangemodel.Node, error) {
 	path := []exchangemodel.Node{start}
 	visitedItems := map[uuid.UUID]struct{}{start.ItemID: {}}
 	visitedOwners := map[uuid.UUID]struct{}{start.OwnerID: {}}
@@ -63,7 +94,12 @@ func (s *Service) FindCycle(ctx context.Context, start exchangemodel.Node) ([]ex
 			// На глубине 5 ещё можно замкнуть путь, но нельзя добавить шестого участника.
 			if next.ItemID == start.ItemID {
 				if len(path) >= 2 {
-					cycle = append([]exchangemodel.Node(nil), path...)
+					candidate := append([]exchangemodel.Node(nil), path...)
+					if _, excluded := excludedCycles[cycleKey(candidate)]; excluded {
+						continue
+					}
+
+					cycle = candidate
 					return true, nil
 				}
 
@@ -198,7 +234,7 @@ func (s *Service) GetForUser(
 	exchangeID uuid.UUID,
 	userID uuid.UUID,
 ) (exchangemodel.Details, error) {
-	exchange, err := s.repository.GetByID(ctx, exchangeID)
+	exchange, err := s.repository.GetByID(ctx, exchangeID, userID)
 	if err != nil {
 		return exchangemodel.Details{}, fmt.Errorf("get exchange for user: %w", err)
 	}
@@ -229,11 +265,56 @@ func (s *Service) DeclineParticipation(
 	exchangeID uuid.UUID,
 	userID uuid.UUID,
 ) error {
-	if err := s.repository.DeclineParticipation(ctx, exchangeID, userID); err != nil {
+	recoveryNodes, err := s.repository.DeclineParticipation(ctx, exchangeID, userID)
+	if err != nil {
 		return fmt.Errorf("decline exchange participation: %w", err)
 	}
 
+	// Отмена уже зафиксирована в БД. Ошибка дополнительного поиска не должна
+	// превращать успешный decline в HTTP 500: клиент иначе повторит запрос к уже
+	// закрытому обмену. Поэтому поиск выполняется best effort и только логируется.
+	s.recoverExchanges(ctx, recoveryNodes)
+
 	return nil
+}
+
+func (s *Service) recoverExchanges(ctx context.Context, nodes []exchangemodel.Node) {
+	if len(nodes) < 2 {
+		return
+	}
+
+	// Не создаём только что отменённую комбинацию снова в том же запуске DFS.
+	// Новые составы разрешены, а постоянное исключение людей делает user_blocks.
+	excludedCycles := map[string]struct{}{cycleKey(nodes): {}}
+
+	for _, start := range nodes {
+		cycle, err := s.findCycle(ctx, start, excludedCycles)
+		if err != nil {
+			s.logger.Printf("recover exchange search for item %s: %v", start.ItemID, err)
+			continue
+		}
+		if cycle == nil {
+			continue
+		}
+
+		if _, err := s.SaveCycle(ctx, cycle); err != nil {
+			s.logger.Printf("save recovered exchange for item %s: %v", start.ItemID, err)
+			continue
+		}
+
+		// Один и тот же цикл можно обойти с каждого объявления. Сигнатура без
+		// учёта порядка не даёт сохранить его несколько раз за один recovery.
+		excludedCycles[cycleKey(cycle)] = struct{}{}
+	}
+}
+
+func cycleKey(cycle []exchangemodel.Node) string {
+	itemIDs := make([]string, len(cycle))
+	for index, node := range cycle {
+		itemIDs[index] = node.ItemID.String()
+	}
+	sort.Strings(itemIDs)
+	return strings.Join(itemIDs, ",")
 }
 
 func (s *Service) CompleteParticipation(
@@ -246,6 +327,73 @@ func (s *Service) CompleteParticipation(
 	}
 
 	return nil
+}
+
+// PostMessage добавляет сообщение участника в тред обмена.
+func (s *Service) PostMessage(
+	ctx context.Context,
+	exchangeID uuid.UUID,
+	userID uuid.UUID,
+	body string,
+) (exchangemodel.Message, error) {
+	body = strings.TrimSpace(body)
+	if length := utf8.RuneCountInString(body); length == 0 || length > maxMessageLength {
+		return exchangemodel.Message{}, fmt.Errorf(
+			"%w: message body must be between 1 and %d characters",
+			ErrValidation,
+			maxMessageLength,
+		)
+	}
+
+	status, isParticipant, err := s.repository.ExchangeAccess(ctx, exchangeID, userID)
+	if err != nil {
+		return exchangemodel.Message{}, fmt.Errorf("check exchange access: %w", err)
+	}
+	if !isParticipant {
+		return exchangemodel.Message{}, ErrForbidden
+	}
+	// Тред закрытого обмена остаётся историей сделки и дописывать её уже нельзя.
+	if status != "proposed" && status != "confirmed" {
+		return exchangemodel.Message{}, ErrConflict
+	}
+
+	message, err := s.repository.CreateMessage(ctx, exchangeID, userID, body)
+	if err != nil {
+		return exchangemodel.Message{}, fmt.Errorf("post exchange message: %w", err)
+	}
+
+	return message, nil
+}
+
+// ListMessages отдаёт тред целиком: он короткий, а пагинация ради десятка строк
+// заставила бы frontend склеивать страницы при каждом опросе.
+func (s *Service) ListMessages(
+	ctx context.Context,
+	exchangeID uuid.UUID,
+	userID uuid.UUID,
+) ([]exchangemodel.Message, error) {
+	_, isParticipant, err := s.repository.ExchangeAccess(ctx, exchangeID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("check exchange access: %w", err)
+	}
+	if !isParticipant {
+		return nil, ErrForbidden
+	}
+
+	messages, err := s.repository.ListMessages(ctx, exchangeID)
+	if err != nil {
+		return nil, fmt.Errorf("list exchange messages: %w", err)
+	}
+
+	// Отдельного «пометить прочитанным» нет: frontend читает тред только когда тот открыт
+	// у пользователя на экране, поэтому чтение и есть отметка о прочтении.
+	// ponytail: если появится фоновый опрос треда, счётчик обнулится вслепую — тогда
+	// отметку нужно выносить в отдельный POST /exchanges/{id}/messages/read.
+	if err := s.repository.MarkMessagesRead(ctx, exchangeID, userID); err != nil {
+		return nil, fmt.Errorf("mark exchange messages read: %w", err)
+	}
+
+	return messages, nil
 }
 
 func validateCycle(cycle []exchangemodel.Node) error {

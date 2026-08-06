@@ -10,6 +10,7 @@ type Details struct {
 	ID           uuid.UUID
 	Status       string
 	Participants []DetailsParticipant
+	UnreadCount  int64
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 	ClosedAt     *time.Time

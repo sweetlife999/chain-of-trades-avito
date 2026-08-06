@@ -3,52 +3,93 @@ import { useNavigate } from "react-router-dom";
 import styles from "./Styles.module.scss";
 import { Button } from "../../UI/Button/Button";
 import { Popup } from "../../UI/Popup/Popup";
+import { formSchema, type FormState } from "./shemaLogin";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { useMutation } from "@tanstack/react-query";
+import { login } from "../../../Api/auth/auth";
+import { useAuthDispatch } from "../../../Hooks/useAuthDispatch";
+import { setUserState } from "../../../Store/authSlice";
+import { Input } from "../../UI/Input/Input";
 
 const LoginComponent = () => {
   const navigate = useNavigate();
+  const dispatch = useAuthDispatch();
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
 
-    // Здесь позже будет отправка формы
+  } = useForm<FormState>({
+    resolver: zodResolver(formSchema),
+    
+  });
+
+const loginMutation = useMutation({
+  mutationFn: (data: FormState) => login(data),
+
+  onSuccess: (data) => {
+    console.log("SUCCESS", data);
+
+    dispatch(setUserState(data));
+    navigate('/profile');
+  },
+
+  onError: (error) => {
+    console.log("ERROR", error);
+  },
+});
+
+  const onSubmit = (data: FormState) => {
+    loginMutation.mutate(data);
     console.log("Вход");
   };
 
   return (
     <Popup>
-      <form className={styles.login} onSubmit={handleSubmit} noValidate>
+      <form
+        className={styles.login}
+        onSubmit={handleSubmit(onSubmit)}
+        noValidate
+      >
         <div className={styles.login__header}>
           <h2 className={styles.login__title}>Вход</h2>
 
           <p className={styles.login__description}>
             Войдите в аккаунт, чтобы продолжить
           </p>
+          {errors.form && (
+            <span className={styles.login__error}>{errors.form.message}</span>
+          )}
         </div>
 
         <div className={styles.login__fields}>
           <label className={styles.login__label}>
-            <span className={styles.login__labelText}>Email</span>
+            <span className={styles.login__labelText}>Nickname</span>
 
             <input
               className={styles.login__input}
-              type="email"
-              placeholder="example@mail.ru"
-              autoComplete="email"
-              required
+              type="text"
+              placeholder="nickname"
+              autoComplete="username"
+              {...register("nickname")}
             />
+            {errors.nickname && (
+              <span className={styles.login__error}>
+                {errors.nickname.message}
+              </span>
+            )}
           </label>
 
-          <label className={styles.login__label}>
-            <span className={styles.login__labelText}>Пароль</span>
-
-            <input
-              className={styles.login__input}
-              type="password"
-              placeholder="Введите пароль"
-              autoComplete="current-password"
-              required
-            />
-          </label>
+          <Input
+            label="Пароль"
+            type="password"
+            autoComplete="current-password"
+            placeholder="Введите пароль"
+            error={errors.password?.message}
+            {...register("password")}
+          />
         </div>
 
         <div className={styles.login__buttons}>

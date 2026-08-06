@@ -1,5 +1,16 @@
 basePath: /
 definitions:
+  dto.BlockedUserResponse:
+    properties:
+      blocked_at:
+        type: string
+      id:
+        type: string
+      nickname:
+        type: string
+      photo_url:
+        type: string
+    type: object
   dto.CreateItemRequest:
     properties:
       category:
@@ -26,6 +37,12 @@ definitions:
           type: string
         type: array
     type: object
+  dto.CreateMessageRequest:
+    properties:
+      body:
+        example: Могу привезти в субботу к метро, удобно?
+        type: string
+    type: object
   dto.CreateUserRequest:
     properties:
       description:
@@ -51,6 +68,8 @@ definitions:
         type: array
       status:
         type: string
+      unread_count:
+        type: integer
       updated_at:
         type: string
     type: object
@@ -93,6 +112,19 @@ definitions:
       password:
         type: string
     type: object
+  dto.MessageResponse:
+    properties:
+      author:
+        $ref: '#/definitions/dto.ParticipantUserResponse'
+      body:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      kind:
+        type: string
+    type: object
   dto.ParticipantItemResponse:
     properties:
       category:
@@ -108,6 +140,8 @@ definitions:
     type: object
   dto.ParticipantResponse:
     properties:
+      completion_confirmed_at:
+        type: string
       decided_at:
         type: string
       gives_item:
@@ -373,6 +407,219 @@ paths:
           schema:
             $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
       summary: Получить обмен по ID
+      tags:
+      - exchanges
+  /exchanges/{id}/complete:
+    post:
+      description: Сохраняет подтверждение текущего участника. После подтверждения
+        всеми участниками обмен завершается, объявления помечаются переданными, а
+        счётчики завершённых обменов увеличиваются.
+      parameters:
+      - description: UUID обмена
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: Получение подтверждено
+        "400":
+          description: ID не является UUID
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "403":
+          description: Пользователь не участвует в обмене
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "404":
+          description: Обмен не найден
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "409":
+          description: Обмен ещё не подтверждён или уже отменён
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+      summary: Подтвердить получение вещи
+      tags:
+      - exchanges
+  /exchanges/{id}/confirm:
+    post:
+      description: Сохраняет согласие текущего участника. После согласия всех участников
+        обмен подтверждается, а объявления резервируются.
+      parameters:
+      - description: UUID обмена
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: Участие подтверждено
+        "400":
+          description: ID не является UUID
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "403":
+          description: Пользователь не участвует в обмене
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "404":
+          description: Обмен не найден
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "409":
+          description: Решение уже принято, обмен закрыт или объявление недоступно
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+      summary: Подтвердить участие в обмене
+      tags:
+      - exchanges
+  /exchanges/{id}/decline:
+    post:
+      description: Сохраняет отказ текущего участника и отменяет предложенный обмен.
+      parameters:
+      - description: UUID обмена
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: Отказ сохранён, обмен отменён
+        "400":
+          description: ID не является UUID
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "403":
+          description: Пользователь не участвует в обмене
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "404":
+          description: Обмен не найден
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "409":
+          description: Решение уже принято или обмен закрыт
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+      summary: Отказаться от участия в обмене
+      tags:
+      - exchanges
+  /exchanges/{id}/messages:
+    get:
+      description: Возвращает обсуждение и события обмена одной лентой в хронологическом
+        порядке. Доступен только участнику.
+      parameters:
+      - description: UUID обмена
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Тред; если сообщений нет, возвращается []
+          schema:
+            items:
+              $ref: '#/definitions/dto.MessageResponse'
+            type: array
+        "400":
+          description: ID не является UUID
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "403":
+          description: Пользователь не участвует в обмене
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "404":
+          description: Обмен не найден
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+      summary: Прочитать тред обмена
+      tags:
+      - exchanges
+    post:
+      consumes:
+      - application/json
+      description: Добавляет сообщение участника в обсуждение обмена. Писать могут
+        только участники и только пока обмен не закрыт.
+      parameters:
+      - description: UUID обмена
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Текст сообщения
+        in: body
+        name: message
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateMessageRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Сообщение добавлено
+          schema:
+            $ref: '#/definitions/dto.MessageResponse'
+        "400":
+          description: ID не является UUID или текст пустой либо длиннее 2000 символов
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "403":
+          description: Пользователь не участвует в обмене
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "404":
+          description: Обмен не найден
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "409":
+          description: 'Обмен закрыт: тред доступен только на чтение'
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+      summary: Написать в тред обмена
       tags:
       - exchanges
   /health:
@@ -703,6 +950,89 @@ paths:
           schema:
             $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
       summary: Обновить свой профиль
+      tags:
+      - users
+  /users/me/blocks:
+    get:
+      description: Возвращает личный список блокировок текущего пользователя. Заблокированные
+        пользователи об этом не уведомляются.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список блокировок; если он пуст, возвращается []
+          schema:
+            items:
+              $ref: '#/definitions/dto.BlockedUserResponse'
+            type: array
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+      summary: Получить список заблокированных пользователей
+      tags:
+      - users
+  /users/me/blocks/{user_id}:
+    delete:
+      description: Разрешает попадание пользователя в новые совместные обмены. Существующие
+        обмены не изменяются.
+      parameters:
+      - description: UUID разблокируемого пользователя
+        in: path
+        name: user_id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: Пользователь разблокирован
+        "400":
+          description: ID не является UUID или пользователь указывает себя
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+      summary: Разблокировать пользователя
+      tags:
+      - users
+    post:
+      description: Исключает пользователя из будущих совместных обменов и отменяет
+        общие неподтверждённые предложения. Повторный запрос безопасен.
+      parameters:
+      - description: UUID блокируемого пользователя
+        in: path
+        name: user_id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: Пользователь заблокирован
+        "400":
+          description: ID не является UUID или пользователь блокирует себя
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+        "404":
+          description: Блокируемый пользователь не найден
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+      summary: Заблокировать пользователя
       tags:
       - users
 swagger: "2.0"
