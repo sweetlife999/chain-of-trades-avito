@@ -23,7 +23,7 @@ const PostsListComponent = () => {
   const exchanges = exchangesQuery.data
   return (
     <FetchStatus status={exchangesQuery.status}>
-      {exchanges ? (
+      {(exchanges?.length !== 0 && exchanges) ? (
         <ul className={styles.posts}>
           {exchanges.map((exchange) => (
             <li key={exchange.id}>

@@ -10,7 +10,7 @@ import { Button } from "../../UI/Button/Button";
 import { Input } from "../../UI/Input/Input";
 import { Popup } from "../../UI/Popup/Popup";
 
-import { registerUser } from "../../../Api/auth/auth";
+import { registerAndLogin, registerUser } from "../../../Api/auth/auth";
 import { registerSchema, type TRegister } from "../../../Api/auth/auth.types";
 import { useAuthDispatch } from "../../../Hooks/useAuthDispatch";
 import { setUserState } from "../../../Store/authSlice";
@@ -38,7 +38,7 @@ const RegisterComponent = () => {
   });
 
   const registerMutation = useMutation({
-    mutationFn: (data: TRegister) => registerUser(data),
+    mutationFn: (data: TRegister) => registerAndLogin(data),
 
     onSuccess: (data) => {
       dispatch(setUserState(data));
