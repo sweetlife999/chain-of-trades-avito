@@ -1,5 +1,28 @@
 basePath: /
 definitions:
+  dto.AuthenticatedUserResponse:
+    properties:
+      created_at:
+        type: string
+      deals_broken:
+        type: integer
+      deals_completed:
+        type: integer
+      description:
+        type: string
+      id:
+        type: string
+      is_admin:
+        type: boolean
+      nickname:
+        type: string
+      photo_url:
+        type: string
+      rating:
+        type: number
+      updated_at:
+        type: string
+    type: object
   dto.BlockedUserResponse:
     properties:
       blocked_at:
@@ -275,9 +298,9 @@ paths:
       - application/json
       responses:
         "200":
-          description: Вошедший пользователь, cookie в заголовке Set-Cookie
+          description: Вошедший пользователь и его роль, cookie в заголовке Set-Cookie
           schema:
-            $ref: '#/definitions/dto.UserResponse'
+            $ref: '#/definitions/dto.AuthenticatedUserResponse'
         "400":
           description: Некорректное тело запроса
           schema:
@@ -311,9 +334,9 @@ paths:
       - application/json
       responses:
         "200":
-          description: Профиль текущего пользователя
+          description: Профиль и роль текущего пользователя
           schema:
-            $ref: '#/definitions/dto.UserResponse'
+            $ref: '#/definitions/dto.AuthenticatedUserResponse'
         "401":
           description: Нет или истекла cookie access_token
           schema:

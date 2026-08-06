@@ -59,6 +59,15 @@ func (r *Repository) GetByNickname(ctx context.Context, nickname string) (usermo
 	return toModel(found)
 }
 
+func (r *Repository) IsAdmin(ctx context.Context, id uuid.UUID) (bool, error) {
+	isAdmin, err := r.queries.IsUserAdmin(ctx, pgUUID(id))
+	if err != nil {
+		return false, fmt.Errorf("check user admin access: %w", err)
+	}
+
+	return isAdmin, nil
+}
+
 func (r *Repository) Update(ctx context.Context, id uuid.UUID, changes usermodel.Changes) (usermodel.User, error) {
 	updated, err := r.queries.UpdateUserProfile(ctx, db.UpdateUserProfileParams{
 		Nickname:    optionalText(changes.Nickname),
@@ -162,6 +171,7 @@ func toModel(user db.User) (usermodel.User, error) {
 		DealsCompleted: user.DealsCompleted,
 		DealsBroken:    user.DealsBroken,
 		Rating:         rating,
+		IsAdmin:        user.IsAdmin,
 		CreatedAt:      user.CreatedAt.Time,
 		UpdatedAt:      user.UpdatedAt.Time,
 	}, nil

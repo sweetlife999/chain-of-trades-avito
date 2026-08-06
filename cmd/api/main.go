@@ -68,6 +68,7 @@ func main() {
 
 	tokens := authtoken.NewManager(cfg.JWTSecret, authTokenTTL)
 	authenticator := authmiddleware.New(tokens)
+	adminAuthorizer := authmiddleware.NewAdminAuthorizer(users)
 	auth := authservice.New(usersRepository, tokens)
 
 	userhandler.New(users).RegisterRoutes(router, authenticator.RequireAuthentication)
@@ -75,6 +76,13 @@ func main() {
 	authhandler.New(auth, cfg.CookieSecure, authTokenTTL).
 		RegisterRoutes(router, authenticator.RequireAuthentication)
 	exchangehandler.New(exchanges).RegisterRoutes(router, authenticator.RequireAuthentication)
+
+	// Все следующие административные модули регистрируются только внутри этой группы.
+	// JWT сначала определяет пользователя, затем роль проверяется по актуальным данным БД.
+	router.Route("/admin", func(adminRouter chi.Router) {
+		adminRouter.Use(authenticator.RequireAuthentication)
+		adminRouter.Use(adminAuthorizer.RequireAdmin)
+	})
 
 	router.Get("/health", health)
 
