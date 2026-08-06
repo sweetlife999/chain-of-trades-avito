@@ -24,7 +24,7 @@ WHERE id = sqlc.arg(exchange_id)
 FOR UPDATE;
 
 -- name: LockExchangeParticipant :one
-SELECT status
+SELECT status, completion_confirmed_at
 FROM chain_participants
 WHERE chain_id = sqlc.arg(exchange_id)
   AND user_id = sqlc.arg(user_id)
@@ -53,7 +53,7 @@ WHERE chain_id = sqlc.arg(exchange_id)
 -- Вещи блокируются в одинаковом порядке UUID. Это защищает конкурирующие обмены
 -- от двойного резервирования и уменьшает риск взаимной блокировки транзакций.
 -- name: LockExchangeItems :many
-SELECT item.id, item.status
+SELECT item.id, item.owner_id, item.status
 FROM items AS item
 JOIN chain_participants AS participant
   ON participant.gives_item_id = item.id
@@ -107,3 +107,22 @@ UPDATE chains
 SET status = 'cancelled',
     closed_at = now()
 WHERE id = sqlc.arg(exchange_id);
+
+-- Подтверждённый обмен уже зарезервировал вещи. При его отмене освобождаем только
+-- вещи этого обмена и только из reserved: чужое параллельное изменение не затирается.
+-- name: ReleaseExchangeItems :execrows
+UPDATE items
+SET status = 'available'
+WHERE id IN (
+    SELECT gives_item_id
+    FROM chain_participants
+    WHERE chain_id = sqlc.arg(exchange_id)
+)
+  AND status = 'reserved';
+
+-- deals_broken показывает, сколько уже подтверждённых обменов сорвал пользователь.
+-- Отказ от ещё не подтверждённого предложения в этот счётчик не входит.
+-- name: IncrementUserDealsBroken :execrows
+UPDATE users
+SET deals_broken = deals_broken + 1
+WHERE id = sqlc.arg(user_id);

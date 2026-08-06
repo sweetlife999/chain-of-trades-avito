@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
+	"sort"
+	"strings"
 
 	"github.com/google/uuid"
 
@@ -27,21 +30,38 @@ type Repository interface {
 	ListByUser(context.Context, uuid.UUID) ([]exchangemodel.Details, error)
 	GetByID(context.Context, uuid.UUID) (exchangemodel.Details, error)
 	ConfirmParticipation(context.Context, uuid.UUID, uuid.UUID) error
-	DeclineParticipation(context.Context, uuid.UUID, uuid.UUID) error
+	DeclineParticipation(context.Context, uuid.UUID, uuid.UUID) ([]exchangemodel.Node, error)
 	CompleteParticipation(context.Context, uuid.UUID, uuid.UUID) error
 }
 
 type Service struct {
 	repository Repository
+	logger     errorLogger
+}
+
+type errorLogger interface {
+	Printf(string, ...any)
 }
 
 func New(repository Repository) *Service {
-	return &Service{repository: repository}
+	return newWithDependencies(repository, log.Default())
+}
+
+func newWithDependencies(repository Repository, logger errorLogger) *Service {
+	return &Service{repository: repository, logger: logger}
 }
 
 // FindCycle ищет первый обмен, который начинается со start и возвращается в него.
 // Отсутствие подходящего обмена — нормальный результат: в этом случае возвращается nil, nil.
 func (s *Service) FindCycle(ctx context.Context, start exchangemodel.Node) ([]exchangemodel.Node, error) {
+	return s.findCycle(ctx, start, nil)
+}
+
+func (s *Service) findCycle(
+	ctx context.Context,
+	start exchangemodel.Node,
+	excludedCycles map[string]struct{},
+) ([]exchangemodel.Node, error) {
 	path := []exchangemodel.Node{start}
 	visitedItems := map[uuid.UUID]struct{}{start.ItemID: {}}
 	visitedOwners := map[uuid.UUID]struct{}{start.OwnerID: {}}
@@ -63,7 +83,12 @@ func (s *Service) FindCycle(ctx context.Context, start exchangemodel.Node) ([]ex
 			// На глубине 5 ещё можно замкнуть путь, но нельзя добавить шестого участника.
 			if next.ItemID == start.ItemID {
 				if len(path) >= 2 {
-					cycle = append([]exchangemodel.Node(nil), path...)
+					candidate := append([]exchangemodel.Node(nil), path...)
+					if _, excluded := excludedCycles[cycleKey(candidate)]; excluded {
+						continue
+					}
+
+					cycle = candidate
 					return true, nil
 				}
 
@@ -229,11 +254,56 @@ func (s *Service) DeclineParticipation(
 	exchangeID uuid.UUID,
 	userID uuid.UUID,
 ) error {
-	if err := s.repository.DeclineParticipation(ctx, exchangeID, userID); err != nil {
+	recoveryNodes, err := s.repository.DeclineParticipation(ctx, exchangeID, userID)
+	if err != nil {
 		return fmt.Errorf("decline exchange participation: %w", err)
 	}
 
+	// Отмена уже зафиксирована в БД. Ошибка дополнительного поиска не должна
+	// превращать успешный decline в HTTP 500: клиент иначе повторит запрос к уже
+	// закрытому обмену. Поэтому поиск выполняется best effort и только логируется.
+	s.recoverExchanges(ctx, recoveryNodes)
+
 	return nil
+}
+
+func (s *Service) recoverExchanges(ctx context.Context, nodes []exchangemodel.Node) {
+	if len(nodes) < 2 {
+		return
+	}
+
+	// Не создаём только что отменённую комбинацию снова в том же запуске DFS.
+	// Новые составы разрешены, а постоянное исключение людей делает user_blocks.
+	excludedCycles := map[string]struct{}{cycleKey(nodes): {}}
+
+	for _, start := range nodes {
+		cycle, err := s.findCycle(ctx, start, excludedCycles)
+		if err != nil {
+			s.logger.Printf("recover exchange search for item %s: %v", start.ItemID, err)
+			continue
+		}
+		if cycle == nil {
+			continue
+		}
+
+		if _, err := s.SaveCycle(ctx, cycle); err != nil {
+			s.logger.Printf("save recovered exchange for item %s: %v", start.ItemID, err)
+			continue
+		}
+
+		// Один и тот же цикл можно обойти с каждого объявления. Сигнатура без
+		// учёта порядка не даёт сохранить его несколько раз за один recovery.
+		excludedCycles[cycleKey(cycle)] = struct{}{}
+	}
+}
+
+func cycleKey(cycle []exchangemodel.Node) string {
+	itemIDs := make([]string, len(cycle))
+	for index, node := range cycle {
+		itemIDs[index] = node.ItemID.String()
+	}
+	sort.Strings(itemIDs)
+	return strings.Join(itemIDs, ",")
 }
 
 func (s *Service) CompleteParticipation(

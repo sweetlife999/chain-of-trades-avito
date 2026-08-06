@@ -113,15 +113,15 @@ func (h *Handler) confirm(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary     Отказаться от участия в обмене
-// @Description Сохраняет отказ текущего участника и отменяет предложенный обмен.
+// @Description Отменяет предложенный или подтверждённый обмен. Для подтверждённого обмена освобождает объявления, увеличивает счётчик сорванных обменов отказавшегося пользователя и запускает поиск новых вариантов.
 // @Tags        exchanges
 // @Param       id path string true "UUID обмена"
-// @Success     204 "Отказ сохранён, обмен отменён"
+// @Success     204 "Обмен отменён, доступные объявления возвращены в поиск"
 // @Failure     400 {object} exchangedto.ErrorResponse "ID не является UUID"
 // @Failure     401 {object} exchangedto.ErrorResponse "Пользователь не авторизован"
 // @Failure     403 {object} exchangedto.ErrorResponse "Пользователь не участвует в обмене"
 // @Failure     404 {object} exchangedto.ErrorResponse "Обмен не найден"
-// @Failure     409 {object} exchangedto.ErrorResponse "Решение уже принято или обмен закрыт"
+// @Failure     409 {object} exchangedto.ErrorResponse "Обмен уже закрыт, объявление недоступно или получение уже подтверждено"
 // @Failure     500 {object} exchangedto.ErrorResponse "Внутренняя ошибка"
 // @Router      /exchanges/{id}/decline [post]
 func (h *Handler) decline(w http.ResponseWriter, r *http.Request) {
