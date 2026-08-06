@@ -1,14 +1,24 @@
 import { memo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 
 import styles from "./Styles.module.scss";
-import { getExchange } from "../../../../Api/exchanges/exchanges";
+import {
+  completeExchange,
+  confirmExchange,
+  declineExchange,
+  getExchange,
+} from "../../../../Api/exchanges/exchanges";
 import type {
   TExchangeParticipant,
   TExchangeStatus,
 } from "../../../../Api/exchanges/exchanges.types";
 import { useAuthSelector } from "../../../../Hooks/useAuthDispatch";
+import { ExchangeChat } from "../ExchangeChat/ExchangeChat";
 import { ExchangeProgress } from "../ExchangeProgress/ExchangeProgress";
 
 const statusLabels: Record<TExchangeStatus, string> = {
@@ -18,10 +28,20 @@ const statusLabels: Record<TExchangeStatus, string> = {
   cancelled: "Цепочка распалась",
 };
 
+const isParticipationConfirmed = (status: string) =>
+  ["confirmed", "accepted"].includes(status.toLowerCase());
+
 const participantStatus = (status: string) => {
   const value = status.toLowerCase();
-  if (["confirmed", "accepted"].includes(value)) {return "Подтвердил"};
-  if (["declined", "rejected"].includes(value)) {return "Отказался"};
+
+  if (isParticipationConfirmed(value)) {
+    return "Подтвердил";
+  }
+
+  if (["declined", "rejected"].includes(value)) {
+    return "Отказался";
+  }
+
   return "Ожидает";
 };
 
@@ -33,7 +53,11 @@ const formatDate = (value: string) =>
     minute: "2-digit",
   }).format(new Date(value));
 
-const ParticipantList = ({ participants }: { participants: TExchangeParticipant[] }) => (
+const ParticipantList = ({
+  participants,
+}: {
+  participants: TExchangeParticipant[];
+}) => (
   <div className={styles.details__participants}>
     {participants.map((participant) => (
       <div key={participant.user.id}>
@@ -50,20 +74,64 @@ const ParticipantList = ({ participants }: { participants: TExchangeParticipant[
 const ExchangeDetailsComponent = () => {
   const { id = "" } = useParams();
   const { user } = useAuthSelector();
-  const { data: exchange, isPending, isError } = useQuery({
+  const queryClient = useQueryClient();
+
+  const {
+    data: exchange,
+    isPending,
+    isError,
+  } = useQuery({
     queryKey: ["exchanges", id],
     queryFn: () => getExchange(id),
     enabled: Boolean(id),
   });
 
-  if (isPending) {return <p>Загрузка цепочки...</p>};
-  if (isError || !exchange) {return <p>Не удалось загрузить цепочку</p>};
+  const refreshExchange = () =>
+    queryClient.invalidateQueries({ queryKey: ["exchanges"] });
+
+  const confirmMutation = useMutation({
+    mutationFn: () => confirmExchange(id),
+    onSuccess: refreshExchange,
+  });
+
+  const declineMutation = useMutation({
+    mutationFn: () => declineExchange(id),
+    onSuccess: refreshExchange,
+  });
+
+  const completeMutation = useMutation({
+    mutationFn: () => completeExchange(id),
+    onSuccess: refreshExchange,
+  });
+
+  if (isPending) {
+    return <p>Загрузка цепочки...</p>;
+  }
+
+  if (isError || !exchange) {
+    return <p>Не удалось загрузить цепочку</p>;
+  }
 
   const current = exchange.participants.find(
     ({ user: participant }) => participant.id === user?.id,
   );
   const referenceParticipant = current ?? exchange.participants[0];
   const isParticipant = Boolean(current);
+  const participationConfirmed = current
+    ? isParticipationConfirmed(current.status)
+    : false;
+  const receiptConfirmed = Boolean(current?.completion_confirmed_at);
+  const actionPending =
+    confirmMutation.isPending ||
+    declineMutation.isPending ||
+    completeMutation.isPending;
+  const actionError =
+    confirmMutation.isError ||
+    declineMutation.isError ||
+    completeMutation.isError;
+  const showChat =
+    isParticipant &&
+    (exchange.status === "proposed" || exchange.status === "confirmed");
   const title = referenceParticipant
     ? `${referenceParticipant.gives_item.title} → ${referenceParticipant.receives_item.title}`
     : "Цепочка обмена";
@@ -77,7 +145,8 @@ const ExchangeDetailsComponent = () => {
           </Link>
           <h1>{title}</h1>
           <p>
-            {exchange.participants.length} участника · создана {formatDate(exchange.created_at)}
+            {exchange.participants.length} участника · создана{" "}
+            {formatDate(exchange.created_at)}
           </p>
         </div>
         <span className={styles[`status_${exchange.status}`]}>
@@ -119,9 +188,34 @@ const ExchangeDetailsComponent = () => {
                 <h3>Подтверждения участников</h3>
                 <ParticipantList participants={exchange.participants} />
                 <div className={styles.details__buttons}>
-                  <button disabled type="button">Подтвердить</button>
-                  <button disabled type="button">Отказаться</button>
+                  <button
+                    className={styles.details__primaryButton}
+                    disabled={actionPending || participationConfirmed}
+                    onClick={() => confirmMutation.mutate()}
+                    type="button"
+                  >
+                    {participationConfirmed
+                      ? "Участие подтверждено"
+                      : confirmMutation.isPending
+                        ? "Подтверждаем..."
+                        : "Подтвердить"}
+                  </button>
+                  <button
+                    className={styles.details__dangerButton}
+                    disabled={actionPending}
+                    onClick={() => declineMutation.mutate()}
+                    type="button"
+                  >
+                    {declineMutation.isPending
+                      ? "Отказываемся..."
+                      : "Отказаться"}
+                  </button>
                 </div>
+                {actionError && (
+                  <p className={styles.details__error}>
+                    Не удалось выполнить действие. Повторите попытку.
+                  </p>
+                )}
               </>
             ) : (
               <>
@@ -138,23 +232,78 @@ const ExchangeDetailsComponent = () => {
       )}
 
       {exchange.status === "confirmed" && (
-        <section className={styles.details__pvz}>
-          <h2>Сдайте вещь в пункт выдачи</h2>
-          <p>ПВЗ проверит товар и зафиксирует его состояние.</p>
-          <div className={styles.details__address}>
-            <strong>ПВЗ на Невском проспекте</strong>
-            <span>Санкт-Петербург, Невский проспект, 88</span>
-            <span>Сегодня до 22:00 · 1,2 км от вас</span>
-          </div>
-          <div className={styles.details__qrRow}>
-            <div className={styles.details__qr}>QR</div>
-            <div>
-              <h3>Покажите QR-код сотруднику</h3>
-              <p>Сотрудник примет вещь, сверит описание и отметит передачу.</p>
-              <span>После сдачи статус обновится автоматически</span>
+        <>
+          <section className={styles.details__pvz}>
+            <h2>Сдайте вещь в пункт выдачи</h2>
+            <p>ПВЗ проверит товар и зафиксирует его состояние.</p>
+            <div className={styles.details__address}>
+              <strong>ПВЗ на Невском проспекте</strong>
+              <span>Санкт-Петербург, Невский проспект, 88</span>
+              <span>Сегодня до 22:00 · 1,2 км от вас</span>
             </div>
-          </div>
-        </section>
+            <div className={styles.details__qrRow}>
+              <div className={styles.details__qr}>QR</div>
+              <div>
+                <h3>Покажите QR-код сотруднику</h3>
+                <p>
+                  Сотрудник примет вещь, сверит описание и отметит передачу.
+                </p>
+                <span>После сдачи статус обновится автоматически</span>
+              </div>
+            </div>
+          </section>
+
+          {isParticipant && (
+            <section className={styles.details__receipt}>
+              <div>
+                <span>Этап получения</span>
+                <h2>
+                  {receiptConfirmed
+                    ? "Получение подтверждено"
+                    : "Вы получили вещь?"}
+                </h2>
+                <p>
+                  {receiptConfirmed
+                    ? "Ожидаем подтверждения остальных участников."
+                    : "Подтвердите получение только после проверки вещи."}
+                </p>
+              </div>
+              <div className={styles.details__buttons}>
+                <button
+                  className={styles.details__primaryButton}
+                  disabled={actionPending || receiptConfirmed}
+                  onClick={() => completeMutation.mutate()}
+                  type="button"
+                >
+                  {receiptConfirmed
+                    ? "Получение подтверждено"
+                    : completeMutation.isPending
+                      ? "Подтверждаем..."
+                      : "Подтвердить получение"}
+                </button>
+                <button
+                  className={styles.details__dangerButton}
+                  disabled={actionPending || receiptConfirmed}
+                  onClick={() => declineMutation.mutate()}
+                  type="button"
+                >
+                  {declineMutation.isPending
+                    ? "Отказываемся..."
+                    : "Отказаться от обмена"}
+                </button>
+              </div>
+              {actionError && (
+                <p className={styles.details__error}>
+                  Не удалось выполнить действие. Повторите попытку.
+                </p>
+              )}
+            </section>
+          )}
+        </>
+      )}
+
+      {showChat && user && (
+        <ExchangeChat exchangeId={exchange.id} currentUserId={user.id} />
       )}
 
       {exchange.status === "completed" && (
@@ -162,13 +311,17 @@ const ExchangeDetailsComponent = () => {
           <span className={styles.details__resultIcon}>✓</span>
           <h2>Обмен завершён</h2>
           <p>Все участники получили свои вещи.</p>
-          <Link to="/myChains">Вернуться к цепочкам</Link>
+          <Link to="/exchanges">Вернуться к цепочкам</Link>
         </section>
       )}
 
       {exchange.status === "cancelled" && (
         <section className={styles.details__result}>
-          <span className={`${styles.details__resultIcon} ${styles.details__resultIcon_error}`}>!</span>
+          <span
+            className={`${styles.details__resultIcon} ${styles.details__resultIcon_error}`}
+          >
+            !
+          </span>
           <h2>Один из участников отказался</h2>
           <p>Ваша вещь не передана и остаётся доступной.</p>
           <div className={styles.details__resultButtons}>
