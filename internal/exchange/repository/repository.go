@@ -20,6 +20,7 @@ type neighborQueries interface {
 type Repository struct {
 	queries      neighborQueries
 	reads        exchangeReadQueries
+	messages     messageQueries
 	transactions transactionManager
 }
 
@@ -28,6 +29,7 @@ func New(pool *pgxpool.Pool) *Repository {
 	return &Repository{
 		queries:      queries,
 		reads:        queries,
+		messages:     queries,
 		transactions: &pgxTransactionManager{pool: pool},
 	}
 }
@@ -41,6 +43,10 @@ func newRepository(queries neighborQueries, transactions transactionManager) *Re
 
 func newRepositoryWithReads(reads exchangeReadQueries) *Repository {
 	return &Repository{reads: reads}
+}
+
+func newRepositoryWithMessages(messages messageQueries) *Repository {
+	return &Repository{messages: messages}
 }
 
 func (r *Repository) FindNeighbors(ctx context.Context, itemID uuid.UUID) ([]exchangemodel.Node, error) {

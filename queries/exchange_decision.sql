@@ -77,7 +77,9 @@ SET status = 'confirmed'
 WHERE id = sqlc.arg(exchange_id);
 
 -- После победы одного обмена все ещё открытые предложения с любым общим
--- объявлением больше не выполнимы и сразу закрываются для frontend.
+-- объявлением больше не выполнимы и сразу закрываются для frontend. Отмена и запись
+-- события в тред каждой отменённой цепочки — одно выражение: участник не может
+-- увидеть закрытый обмен без объяснения, почему он закрылся.
 -- name: CancelCompetingProposedExchanges :execrows
 WITH current_items AS (
     SELECT participant.gives_item_id AS item_id
@@ -87,20 +89,25 @@ WITH current_items AS (
     SELECT participant.receives_item_id AS item_id
     FROM chain_participants AS participant
     WHERE participant.chain_id = sqlc.arg(exchange_id)
+), cancelled AS (
+    UPDATE chains AS competing_exchange
+    SET status = 'cancelled',
+        closed_at = now()
+    WHERE competing_exchange.id <> sqlc.arg(exchange_id)
+      AND competing_exchange.status = 'proposed'
+      AND EXISTS (
+          SELECT 1
+          FROM chain_participants AS competing_participant
+          JOIN current_items
+            ON current_items.item_id = competing_participant.gives_item_id
+            OR current_items.item_id = competing_participant.receives_item_id
+          WHERE competing_participant.chain_id = competing_exchange.id
+      )
+    RETURNING competing_exchange.id
 )
-UPDATE chains AS competing_exchange
-SET status = 'cancelled',
-    closed_at = now()
-WHERE competing_exchange.id <> sqlc.arg(exchange_id)
-  AND competing_exchange.status = 'proposed'
-  AND EXISTS (
-      SELECT 1
-      FROM chain_participants AS competing_participant
-      JOIN current_items
-        ON current_items.item_id = competing_participant.gives_item_id
-        OR current_items.item_id = competing_participant.receives_item_id
-      WHERE competing_participant.chain_id = competing_exchange.id
-  );
+INSERT INTO chain_messages (chain_id, kind)
+SELECT cancelled.id, 'exchange_superseded'
+FROM cancelled;
 
 -- name: CancelExchange :exec
 UPDATE chains

@@ -59,6 +59,10 @@ make sqlc swagger && git status --short   # дерево должно остат
 | `docs/users.md`   | CRU пользователей, маршруты и коды ответа                        |
 | `docs/items.md`   | CRUD объявлений: фотографии, желаемые категории, коды ответа     |
 | `docs/auth.md`    | Вход, JWT, cookie и защищённые маршруты                          |
+| `docs/exchanges.md` | Обмены: чтение, решения участников и счётчик непрочитанного    |
+| `docs/exchange-search.md` | Как DFS находит замкнутый обмен по графу объявлений      |
+| `docs/exchange-messages.md` | Тред обмена: переписка участников и события сделки    |
+| `docs/user-blocks.md` | Блокировка пользователей и её влияние на подбор обменов      |
 | `docs/swagger.md` | Интерактивная документация: как открыть и как перегенерировать   |
 | `docs/swagger/`   | Сгенерированная спека — РУКАМИ НЕ ПРАВИТЬ! Только `make swagger` |
 | `internal/user/`  | Handler, service, repository, DTO и model пользователей          |

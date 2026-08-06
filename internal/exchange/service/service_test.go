@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -520,6 +521,11 @@ func TestGetForUserAllowsParticipant(t *testing.T) {
 		t.Fatalf("GetByID() exchange ID = %s, want %s", repository.requestedExchangeID, exchangeID)
 	}
 
+	// Читатель доезжает до запроса: по нему считается счётчик непрочитанного.
+	if repository.detailsUserID != userID {
+		t.Fatalf("GetByID() user ID = %s, want %s", repository.detailsUserID, userID)
+	}
+
 	if !reflect.DeepEqual(actual, want) {
 		t.Fatalf("GetForUser() = %+v, want %+v", actual, want)
 	}
@@ -710,6 +716,217 @@ func TestParticipationDecisionWrapsRepositoryError(t *testing.T) {
 	}
 }
 
+func TestPostMessageTrimsBodyAndReturnsMessage(t *testing.T) {
+	t.Parallel()
+
+	exchangeID := uuid.New()
+	userID := uuid.New()
+	stored := exchangemodel.Message{ID: uuid.New(), Kind: "text"}
+	repository := &fakeRepository{
+		accessStatus:        "proposed",
+		accessIsParticipant: true,
+		createdMessage:      stored,
+	}
+
+	message, err := New(repository).PostMessage(
+		context.Background(),
+		exchangeID,
+		userID,
+		"  забираю в субботу  ",
+	)
+	if err != nil {
+		t.Fatalf("PostMessage() error = %v", err)
+	}
+
+	if message.ID != stored.ID {
+		t.Fatalf("PostMessage() message = %+v, want %+v", message, stored)
+	}
+	if repository.createdBody != "забираю в субботу" {
+		t.Fatalf("stored body = %q, want trimmed", repository.createdBody)
+	}
+	if repository.accessExchangeID != exchangeID || repository.accessUserID != userID {
+		t.Fatalf(
+			"ExchangeAccess() args = (%s, %s), want (%s, %s)",
+			repository.accessExchangeID,
+			repository.accessUserID,
+			exchangeID,
+			userID,
+		)
+	}
+	if repository.createdAuthorID != userID {
+		t.Fatalf("message author = %s, want %s", repository.createdAuthorID, userID)
+	}
+}
+
+func TestPostMessageAllowsConfirmedExchange(t *testing.T) {
+	t.Parallel()
+
+	repository := &fakeRepository{accessStatus: "confirmed", accessIsParticipant: true}
+
+	if _, err := New(repository).PostMessage(
+		context.Background(),
+		uuid.New(),
+		uuid.New(),
+		"встречаемся у метро",
+	); err != nil {
+		t.Fatalf("PostMessage() error = %v, want nil for confirmed exchange", err)
+	}
+}
+
+func TestPostMessageRejectsInvalidBody(t *testing.T) {
+	t.Parallel()
+
+	bodies := map[string]string{
+		"empty":      "",
+		"whitespace": "   \n\t ",
+		"too long":   strings.Repeat("я", maxMessageLength+1),
+	}
+
+	for name, body := range bodies {
+		body := body
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			repository := &fakeRepository{accessStatus: "proposed", accessIsParticipant: true}
+
+			_, err := New(repository).PostMessage(context.Background(), uuid.New(), uuid.New(), body)
+			if !errors.Is(err, ErrValidation) {
+				t.Fatalf("PostMessage() error = %v, want ErrValidation", err)
+			}
+			if repository.createMessageCalls != 0 {
+				t.Fatal("PostMessage() reached the repository with an invalid body")
+			}
+		})
+	}
+}
+
+func TestPostMessageAcceptsBodyAtLengthLimit(t *testing.T) {
+	t.Parallel()
+
+	repository := &fakeRepository{accessStatus: "proposed", accessIsParticipant: true}
+
+	if _, err := New(repository).PostMessage(
+		context.Background(),
+		uuid.New(),
+		uuid.New(),
+		strings.Repeat("я", maxMessageLength),
+	); err != nil {
+		t.Fatalf("PostMessage() error = %v, want nil at the length limit", err)
+	}
+}
+
+func TestPostMessageRejectsNonParticipant(t *testing.T) {
+	t.Parallel()
+
+	repository := &fakeRepository{accessStatus: "proposed", accessIsParticipant: false}
+
+	_, err := New(repository).PostMessage(context.Background(), uuid.New(), uuid.New(), "привет")
+	if !errors.Is(err, ErrForbidden) {
+		t.Fatalf("PostMessage() error = %v, want ErrForbidden", err)
+	}
+	if repository.createMessageCalls != 0 {
+		t.Fatal("PostMessage() wrote a message for a non-participant")
+	}
+}
+
+func TestPostMessageRejectsClosedExchange(t *testing.T) {
+	t.Parallel()
+
+	for _, status := range []string{"cancelled", "completed"} {
+		status := status
+		t.Run(status, func(t *testing.T) {
+			t.Parallel()
+
+			repository := &fakeRepository{accessStatus: status, accessIsParticipant: true}
+
+			_, err := New(repository).PostMessage(context.Background(), uuid.New(), uuid.New(), "привет")
+			if !errors.Is(err, ErrConflict) {
+				t.Fatalf("PostMessage() error = %v, want ErrConflict", err)
+			}
+			if repository.createMessageCalls != 0 {
+				t.Fatalf("PostMessage() wrote a message into a %s exchange", status)
+			}
+		})
+	}
+}
+
+func TestPostMessageWrapsAccessError(t *testing.T) {
+	t.Parallel()
+
+	repository := &fakeRepository{accessErr: ErrNotFound}
+
+	_, err := New(repository).PostMessage(context.Background(), uuid.New(), uuid.New(), "привет")
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("PostMessage() error = %v, want ErrNotFound", err)
+	}
+}
+
+func TestListMessagesReturnsThread(t *testing.T) {
+	t.Parallel()
+
+	exchangeID := uuid.New()
+	thread := []exchangemodel.Message{{ID: uuid.New(), Kind: "text"}}
+	repository := &fakeRepository{accessIsParticipant: true, accessStatus: "cancelled", threadMessages: thread}
+
+	messages, err := New(repository).ListMessages(context.Background(), exchangeID, uuid.New())
+	if err != nil {
+		t.Fatalf("ListMessages() error = %v", err)
+	}
+
+	if !reflect.DeepEqual(messages, thread) {
+		t.Fatalf("ListMessages() = %+v, want %+v", messages, thread)
+	}
+	if repository.threadExchangeID != exchangeID {
+		t.Fatalf("ListMessages() exchange ID = %s, want %s", repository.threadExchangeID, exchangeID)
+	}
+}
+
+func TestListMessagesMarksThreadRead(t *testing.T) {
+	t.Parallel()
+
+	exchangeID := uuid.New()
+	userID := uuid.New()
+	repository := &fakeRepository{accessIsParticipant: true}
+
+	if _, err := New(repository).ListMessages(context.Background(), exchangeID, userID); err != nil {
+		t.Fatalf("ListMessages() error = %v", err)
+	}
+
+	if repository.readExchangeID != exchangeID || repository.readUserID != userID {
+		t.Fatalf(
+			"MarkMessagesRead() args = (%s, %s), want (%s, %s)",
+			repository.readExchangeID,
+			repository.readUserID,
+			exchangeID,
+			userID,
+		)
+	}
+}
+
+func TestListMessagesRejectsNonParticipant(t *testing.T) {
+	t.Parallel()
+
+	repository := &fakeRepository{accessIsParticipant: false}
+
+	if _, err := New(repository).ListMessages(context.Background(), uuid.New(), uuid.New()); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("ListMessages() error = %v, want ErrForbidden", err)
+	}
+	if repository.readExchangeID != uuid.Nil {
+		t.Fatal("thread was marked read for a non-participant")
+	}
+}
+
+func TestListMessagesWrapsRepositoryError(t *testing.T) {
+	t.Parallel()
+
+	databaseError := errors.New("database unavailable")
+	repository := &fakeRepository{accessIsParticipant: true, threadErr: databaseError}
+
+	if _, err := New(repository).ListMessages(context.Background(), uuid.New(), uuid.New()); !errors.Is(err, databaseError) {
+		t.Fatalf("ListMessages() error = %v, want wrapped %v", err, databaseError)
+	}
+}
+
 type fakeRepository struct {
 	neighbors           map[uuid.UUID][]exchangemodel.Node
 	errors              map[uuid.UUID]error
@@ -737,6 +954,53 @@ type fakeRepository struct {
 	completedExchangeID uuid.UUID
 	completedUserID     uuid.UUID
 	completeErr         error
+	accessStatus        string
+	accessIsParticipant bool
+	accessErr           error
+	accessExchangeID    uuid.UUID
+	accessUserID        uuid.UUID
+	createdMessage      exchangemodel.Message
+	createdBody         string
+	createdAuthorID     uuid.UUID
+	createMessageErr    error
+	createMessageCalls  int
+	threadMessages      []exchangemodel.Message
+	threadExchangeID    uuid.UUID
+	threadErr           error
+	detailsUserID       uuid.UUID
+	readExchangeID      uuid.UUID
+	readUserID          uuid.UUID
+}
+
+func (f *fakeRepository) ExchangeAccess(
+	_ context.Context,
+	exchangeID uuid.UUID,
+	userID uuid.UUID,
+) (string, bool, error) {
+	f.accessExchangeID = exchangeID
+	f.accessUserID = userID
+	return f.accessStatus, f.accessIsParticipant, f.accessErr
+}
+
+func (f *fakeRepository) CreateMessage(
+	_ context.Context,
+	exchangeID uuid.UUID,
+	authorID uuid.UUID,
+	body string,
+) (exchangemodel.Message, error) {
+	f.createMessageCalls++
+	f.requestedExchangeID = exchangeID
+	f.createdAuthorID = authorID
+	f.createdBody = body
+	return f.createdMessage, f.createMessageErr
+}
+
+func (f *fakeRepository) ListMessages(
+	_ context.Context,
+	exchangeID uuid.UUID,
+) ([]exchangemodel.Message, error) {
+	f.threadExchangeID = exchangeID
+	return f.threadMessages, f.threadErr
 }
 
 type fakeLogger struct {
@@ -795,9 +1059,21 @@ func (f *fakeRepository) ListByUser(
 func (f *fakeRepository) GetByID(
 	_ context.Context,
 	exchangeID uuid.UUID,
+	userID uuid.UUID,
 ) (exchangemodel.Details, error) {
 	f.requestedExchangeID = exchangeID
+	f.detailsUserID = userID
 	return f.exchangeDetails, f.getErr
+}
+
+func (f *fakeRepository) MarkMessagesRead(
+	_ context.Context,
+	exchangeID uuid.UUID,
+	userID uuid.UUID,
+) error {
+	f.readExchangeID = exchangeID
+	f.readUserID = userID
+	return nil
 }
 
 func (f *fakeRepository) ConfirmParticipation(

@@ -35,6 +35,7 @@ func TestConfirmParticipationWaitsForOtherParticipants(t *testing.T) {
 	if !transactions.committed {
 		t.Fatal("decision transaction was not committed")
 	}
+	assertRecordedEvents(t, queries, db.ChainMessageKindParticipantAccepted)
 }
 
 func TestConfirmParticipationReservesItemsAfterLastAcceptance(t *testing.T) {
@@ -50,7 +51,9 @@ func TestConfirmParticipationReservesItemsAfterLastAcceptance(t *testing.T) {
 	transactions := &fakeTransactionManager{queries: queries}
 	repository := newRepository(&fakeNeighborQueries{}, transactions)
 
-	err := repository.ConfirmParticipation(context.Background(), uuid.New(), uuid.New())
+	userID := uuid.New()
+
+	err := repository.ConfirmParticipation(context.Background(), uuid.New(), userID)
 	if err != nil {
 		t.Fatalf("ConfirmParticipation() error = %v", err)
 	}
@@ -62,6 +65,19 @@ func TestConfirmParticipationReservesItemsAfterLastAcceptance(t *testing.T) {
 	}
 	if !transactions.committed {
 		t.Fatal("decision transaction was not committed")
+	}
+
+	assertRecordedEvents(
+		t,
+		queries,
+		db.ChainMessageKindParticipantAccepted,
+		db.ChainMessageKindExchangeConfirmed,
+	)
+	if queries.systemMessages[0].AuthorID != pgUUID(userID) {
+		t.Fatalf("acceptance author = %v, want %v", queries.systemMessages[0].AuthorID, pgUUID(userID))
+	}
+	if queries.systemMessages[1].AuthorID.Valid {
+		t.Fatal("exchange confirmation must belong to the exchange, not to a participant")
 	}
 }
 
@@ -137,6 +153,7 @@ func TestDeclineParticipationCancelsExchange(t *testing.T) {
 	if !transactions.committed {
 		t.Fatal("decline transaction was not committed")
 	}
+	assertRecordedEvents(t, queries, db.ChainMessageKindParticipantDeclined)
 }
 
 func TestDeclineConfirmedExchangeReleasesItems(t *testing.T) {

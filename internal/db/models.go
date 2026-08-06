@@ -11,6 +11,53 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type ChainMessageKind string
+
+const (
+	ChainMessageKindText                 ChainMessageKind = "text"
+	ChainMessageKindParticipantAccepted  ChainMessageKind = "participant_accepted"
+	ChainMessageKindParticipantDeclined  ChainMessageKind = "participant_declined"
+	ChainMessageKindParticipantCompleted ChainMessageKind = "participant_completed"
+	ChainMessageKindExchangeConfirmed    ChainMessageKind = "exchange_confirmed"
+	ChainMessageKindExchangeCompleted    ChainMessageKind = "exchange_completed"
+	ChainMessageKindExchangeSuperseded   ChainMessageKind = "exchange_superseded"
+)
+
+func (e *ChainMessageKind) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ChainMessageKind(s)
+	case string:
+		*e = ChainMessageKind(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ChainMessageKind: %T", src)
+	}
+	return nil
+}
+
+type NullChainMessageKind struct {
+	ChainMessageKind ChainMessageKind
+	Valid            bool // Valid is true if ChainMessageKind is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullChainMessageKind) Scan(value interface{}) error {
+	if value == nil {
+		ns.ChainMessageKind, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ChainMessageKind.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullChainMessageKind) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ChainMessageKind), nil
+}
+
 type ChainStatus string
 
 const (
@@ -156,6 +203,15 @@ type Chain struct {
 	ClosedAt  pgtype.Timestamptz
 }
 
+type ChainMessage struct {
+	ID        pgtype.UUID
+	ChainID   pgtype.UUID
+	AuthorID  pgtype.UUID
+	Kind      ChainMessageKind
+	Body      pgtype.Text
+	CreatedAt pgtype.Timestamptz
+}
+
 type ChainParticipant struct {
 	ID                    pgtype.UUID
 	ChainID               pgtype.UUID
@@ -167,6 +223,7 @@ type ChainParticipant struct {
 	DecidedAt             pgtype.Timestamptz
 	CreatedAt             pgtype.Timestamptz
 	CompletionConfirmedAt pgtype.Timestamptz
+	MessagesReadAt        pgtype.Timestamptz
 }
 
 type Item struct {
