@@ -1,10 +1,14 @@
 name: CI
 
+# Чисто фронтовые изменения бэкенд не трогают: поднимать ради них Postgres и гонять
+# Go-тесты незачем. Фронт проверяет отдельный workflow frontend.yml.
 on:
   pull_request:
     branches: [main, develop]
+    paths-ignore: ['frontend/**']
   push:
     branches: [main, develop]
+    paths-ignore: ['frontend/**']
 
 # Новый push в ту же ветку отменяет предыдущий прогон.
 concurrency:

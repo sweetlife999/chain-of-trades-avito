@@ -1,0 +1,38 @@
+name: Frontend
+
+# Зеркало paths-ignore из ci.yml. Сам workflow тоже в списке, иначе правку в нём
+# нечем проверить: без изменений в frontend/ он бы просто не запустился.
+on:
+  pull_request:
+    branches: [main, develop]
+    paths: ['frontend/**', '.github/workflows/frontend.yml']
+  push:
+    branches: [main, develop]
+    paths: ['frontend/**', '.github/workflows/frontend.yml']
+
+# Группа своя: с общей этот workflow и CI отменяли бы прогоны друг другу.
+concurrency:
+  group: frontend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          # В package.json нет engines, а eslint 10 и vite 8 требуют >= 20.19.
+          node-version: 22
+          cache: npm
+          # Путь от корня репозитория, working-directory на него не влияет.
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      # lint:ci, а не lint: без --cache (в чистой машине он бесполезен)
+      # и с --max-warnings=0, то есть no-console тоже красит прогон.
+      - run: npm run lint:ci
