@@ -31,6 +31,9 @@ type Repository interface {
 	Create(context.Context, usermodel.NewUser) (usermodel.User, error)
 	GetByID(context.Context, uuid.UUID) (usermodel.User, error)
 	Update(context.Context, uuid.UUID, usermodel.Changes) (usermodel.User, error)
+	Block(context.Context, uuid.UUID, uuid.UUID) error
+	ListBlocked(context.Context, uuid.UUID) ([]usermodel.BlockedUser, error)
+	Unblock(context.Context, uuid.UUID, uuid.UUID) error
 }
 
 type Service struct {
@@ -117,6 +120,42 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, input UpdateInput) (
 	}
 
 	return s.repository.Update(ctx, id, changes)
+}
+
+func (s *Service) Block(ctx context.Context, blockerID, blockedID uuid.UUID) error {
+	if blockerID == blockedID {
+		return validationError("user cannot block themselves")
+	}
+
+	if err := s.repository.Block(ctx, blockerID, blockedID); err != nil {
+		return fmt.Errorf("block user: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Service) ListBlocked(ctx context.Context, blockerID uuid.UUID) ([]usermodel.BlockedUser, error) {
+	blocked, err := s.repository.ListBlocked(ctx, blockerID)
+	if err != nil {
+		return nil, fmt.Errorf("list blocked users: %w", err)
+	}
+	if blocked == nil {
+		return []usermodel.BlockedUser{}, nil
+	}
+
+	return blocked, nil
+}
+
+func (s *Service) Unblock(ctx context.Context, blockerID, blockedID uuid.UUID) error {
+	if blockerID == blockedID {
+		return validationError("user cannot unblock themselves")
+	}
+
+	if err := s.repository.Unblock(ctx, blockerID, blockedID); err != nil {
+		return fmt.Errorf("unblock user: %w", err)
+	}
+
+	return nil
 }
 
 func validateNickname(nickname string) error {

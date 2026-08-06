@@ -31,3 +31,12 @@ type Changes struct {
 	PhotoURL    *string
 	Description *string
 }
+
+// BlockedUser — публичные данные пользователя в личном списке блокировок.
+// Причину блокировки не храним: для MVP достаточно самой связи и времени.
+type BlockedUser struct {
+	ID        uuid.UUID
+	Nickname  string
+	PhotoURL  *string
+	BlockedAt time.Time
+}

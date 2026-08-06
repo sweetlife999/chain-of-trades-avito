@@ -1,7 +1,7 @@
 -include .env
 export
 
-.PHONY: run up down reset migrate-up migrate-down migrate-status sqlc smoke swagger test-exchange-integration
+.PHONY: run up down reset migrate-up migrate-down migrate-status sqlc smoke swagger test-exchange-integration test-user-blocks-integration
 
 run:
 	go run ./cmd/api
@@ -43,6 +43,12 @@ swagger:
 smoke:
 	docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U $(POSTGRES_USER) -d $(POSTGRES_DB) < db/smoke.sql
 
-# Живой сценарий: три пользователя и три объявления -> поиск -> сохранение -> HTTP API.
+# Живые сценарии: поиск обмена и конкурентное подтверждение/отказ с резервированием.
 test-exchange-integration:
-	go test -tags=integration ./internal/exchange/handler -run TestThreeUserExchangeIntegration -count=1
+	go test -tags=integration ./internal/exchange/handler \
+		-run 'Test(ThreeUserExchange|ExchangeDecisions)Integration' -count=1
+
+# Живой сценарий блокировок: API, отмена proposed-обмена и фильтрация DFS.
+test-user-blocks-integration:
+	go test -tags=integration ./internal/user/handler \
+		-run TestUserBlocksIntegration -count=1

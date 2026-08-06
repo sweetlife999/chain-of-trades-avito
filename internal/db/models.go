@@ -157,15 +157,16 @@ type Chain struct {
 }
 
 type ChainParticipant struct {
-	ID             pgtype.UUID
-	ChainID        pgtype.UUID
-	UserID         pgtype.UUID
-	GivesItemID    pgtype.UUID
-	ReceivesItemID pgtype.UUID
-	Position       int32
-	Status         ParticipantStatus
-	DecidedAt      pgtype.Timestamptz
-	CreatedAt      pgtype.Timestamptz
+	ID                    pgtype.UUID
+	ChainID               pgtype.UUID
+	UserID                pgtype.UUID
+	GivesItemID           pgtype.UUID
+	ReceivesItemID        pgtype.UUID
+	Position              int32
+	Status                ParticipantStatus
+	DecidedAt             pgtype.Timestamptz
+	CreatedAt             pgtype.Timestamptz
+	CompletionConfirmedAt pgtype.Timestamptz
 }
 
 type Item struct {
@@ -196,4 +197,10 @@ type User struct {
 	Rating         pgtype.Numeric
 	CreatedAt      pgtype.Timestamptz
 	UpdatedAt      pgtype.Timestamptz
+}
+
+type UserBlock struct {
+	BlockerID pgtype.UUID
+	BlockedID pgtype.UUID
+	CreatedAt pgtype.Timestamptz
 }

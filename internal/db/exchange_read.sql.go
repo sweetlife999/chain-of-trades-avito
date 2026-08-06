@@ -22,6 +22,7 @@ SELECT
     participant.position,
     participant.status   AS participant_status,
     participant.decided_at,
+    participant.completion_confirmed_at,
     exchange_user.nickname,
     exchange_user.photo_url AS user_photo_url,
     gives_item.id          AS gives_item_id,
@@ -63,6 +64,7 @@ type GetExchangeByIDRow struct {
 	Position                int32
 	ParticipantStatus       ParticipantStatus
 	DecidedAt               pgtype.Timestamptz
+	CompletionConfirmedAt   pgtype.Timestamptz
 	Nickname                string
 	UserPhotoUrl            pgtype.Text
 	GivesItemID             pgtype.UUID
@@ -98,6 +100,7 @@ func (q *Queries) GetExchangeByID(ctx context.Context, exchangeID pgtype.UUID) (
 			&i.Position,
 			&i.ParticipantStatus,
 			&i.DecidedAt,
+			&i.CompletionConfirmedAt,
 			&i.Nickname,
 			&i.UserPhotoUrl,
 			&i.GivesItemID,
@@ -134,6 +137,7 @@ SELECT
     participant.position,
     participant.status   AS participant_status,
     participant.decided_at,
+    participant.completion_confirmed_at,
     exchange_user.nickname,
     exchange_user.photo_url AS user_photo_url,
     gives_item.id          AS gives_item_id,
@@ -180,6 +184,7 @@ type ListExchangesByUserRow struct {
 	Position                int32
 	ParticipantStatus       ParticipantStatus
 	DecidedAt               pgtype.Timestamptz
+	CompletionConfirmedAt   pgtype.Timestamptz
 	Nickname                string
 	UserPhotoUrl            pgtype.Text
 	GivesItemID             pgtype.UUID
@@ -217,6 +222,7 @@ func (q *Queries) ListExchangesByUser(ctx context.Context, userID pgtype.UUID) (
 			&i.Position,
 			&i.ParticipantStatus,
 			&i.DecidedAt,
+			&i.CompletionConfirmedAt,
 			&i.Nickname,
 			&i.UserPhotoUrl,
 			&i.GivesItemID,

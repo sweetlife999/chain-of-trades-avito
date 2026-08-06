@@ -82,6 +82,46 @@ func TestFindNeighborsError(t *testing.T) {
 	}
 }
 
+func TestHasUserBlockConflict(t *testing.T) {
+	t.Parallel()
+
+	candidateID := uuid.New()
+	pathIDs := []uuid.UUID{uuid.New(), uuid.New()}
+	queries := &fakeNeighborQueries{blockConflict: true}
+	repository := newRepository(queries, nil)
+
+	conflict, err := repository.HasUserBlockConflict(context.Background(), candidateID, pathIDs)
+	if err != nil {
+		t.Fatalf("HasUserBlockConflict() error = %v", err)
+	}
+	if !conflict {
+		t.Fatal("HasUserBlockConflict() = false, want true")
+	}
+	if queries.blockConflictParams.CandidateUserID != pgUUID(candidateID) {
+		t.Fatalf("candidate ID = %v, want %v", queries.blockConflictParams.CandidateUserID, pgUUID(candidateID))
+	}
+	if len(queries.blockConflictParams.PathUserIds) != len(pathIDs) {
+		t.Fatalf("path length = %d, want %d", len(queries.blockConflictParams.PathUserIds), len(pathIDs))
+	}
+	for index, id := range pathIDs {
+		if queries.blockConflictParams.PathUserIds[index] != pgUUID(id) {
+			t.Fatalf("path[%d] = %v, want %v", index, queries.blockConflictParams.PathUserIds[index], pgUUID(id))
+		}
+	}
+}
+
+func TestHasUserBlockConflictError(t *testing.T) {
+	t.Parallel()
+
+	databaseError := errors.New("database unavailable")
+	repository := newRepository(&fakeNeighborQueries{blockConflictErr: databaseError}, nil)
+
+	_, err := repository.HasUserBlockConflict(context.Background(), uuid.New(), []uuid.UUID{uuid.New()})
+	if !errors.Is(err, databaseError) {
+		t.Fatalf("HasUserBlockConflict() error = %v, want wrapped %v", err, databaseError)
+	}
+}
+
 func TestSaveExchange(t *testing.T) {
 	t.Parallel()
 
@@ -206,9 +246,12 @@ func TestSaveExchangeTransactionError(t *testing.T) {
 }
 
 type fakeNeighborQueries struct {
-	rows           []db.FindExchangeNeighborsRow
-	err            error
-	receivedItemID pgtype.UUID
+	rows                []db.FindExchangeNeighborsRow
+	err                 error
+	receivedItemID      pgtype.UUID
+	blockConflict       bool
+	blockConflictErr    error
+	blockConflictParams db.HasUserBlockConflictParams
 }
 
 type fakeExchangeWriteQueries struct {
@@ -216,6 +259,42 @@ type fakeExchangeWriteQueries struct {
 	createErr      error
 	participantErr error
 	participants   []db.CreateExchangeParticipantParams
+
+	chainStatus                  db.ChainStatus
+	lockExchangeErr              error
+	participantStatus            db.ParticipantStatus
+	lockParticipantErr           error
+	decisionItemsLocked          bool
+	lockDecisionItemsErr         error
+	accepted                     bool
+	acceptErr                    error
+	declined                     bool
+	declineErr                   error
+	pending                      int64
+	pendingErr                   error
+	items                        []db.LockExchangeItemsRow
+	lockItemsErr                 error
+	reserved                     int64
+	reserveErr                   error
+	confirmed                    bool
+	confirmErr                   error
+	cancelled                    bool
+	cancelErr                    error
+	competingCancelled           int64
+	cancelCompetingErr           error
+	cancelCompetingCalled        bool
+	completionParticipant        db.LockExchangeCompletionParticipantRow
+	lockCompletionParticipantErr error
+	completionConfirmed          bool
+	confirmCompletionErr         error
+	incomplete                   int64
+	incompleteErr                error
+	traded                       int64
+	tradedErr                    error
+	completed                    bool
+	completeErr                  error
+	dealsCompletedUpdated        int64
+	dealsCompletedErr            error
 }
 
 func (f *fakeExchangeWriteQueries) CreateExchange(context.Context) (pgtype.UUID, error) {
@@ -228,6 +307,124 @@ func (f *fakeExchangeWriteQueries) CreateExchangeParticipant(
 ) error {
 	f.participants = append(f.participants, params)
 	return f.participantErr
+}
+
+func (f *fakeExchangeWriteQueries) LockExchange(
+	context.Context,
+	pgtype.UUID,
+) (db.ChainStatus, error) {
+	return f.chainStatus, f.lockExchangeErr
+}
+
+func (f *fakeExchangeWriteQueries) LockExchangeDecisionItems(
+	context.Context,
+	pgtype.UUID,
+) error {
+	f.decisionItemsLocked = true
+	return f.lockDecisionItemsErr
+}
+
+func (f *fakeExchangeWriteQueries) LockExchangeParticipant(
+	context.Context,
+	db.LockExchangeParticipantParams,
+) (db.ParticipantStatus, error) {
+	return f.participantStatus, f.lockParticipantErr
+}
+
+func (f *fakeExchangeWriteQueries) AcceptExchangeParticipant(
+	context.Context,
+	db.AcceptExchangeParticipantParams,
+) error {
+	f.accepted = true
+	return f.acceptErr
+}
+
+func (f *fakeExchangeWriteQueries) DeclineExchangeParticipant(
+	context.Context,
+	db.DeclineExchangeParticipantParams,
+) error {
+	f.declined = true
+	return f.declineErr
+}
+
+func (f *fakeExchangeWriteQueries) CountPendingExchangeParticipants(
+	context.Context,
+	pgtype.UUID,
+) (int64, error) {
+	return f.pending, f.pendingErr
+}
+
+func (f *fakeExchangeWriteQueries) LockExchangeItems(
+	context.Context,
+	pgtype.UUID,
+) ([]db.LockExchangeItemsRow, error) {
+	return f.items, f.lockItemsErr
+}
+
+func (f *fakeExchangeWriteQueries) ReserveExchangeItems(
+	context.Context,
+	pgtype.UUID,
+) (int64, error) {
+	return f.reserved, f.reserveErr
+}
+
+func (f *fakeExchangeWriteQueries) ConfirmExchange(context.Context, pgtype.UUID) error {
+	f.confirmed = true
+	return f.confirmErr
+}
+
+func (f *fakeExchangeWriteQueries) CancelCompetingProposedExchanges(
+	context.Context,
+	pgtype.UUID,
+) (int64, error) {
+	f.cancelCompetingCalled = true
+	return f.competingCancelled, f.cancelCompetingErr
+}
+
+func (f *fakeExchangeWriteQueries) CancelExchange(context.Context, pgtype.UUID) error {
+	f.cancelled = true
+	return f.cancelErr
+}
+
+func (f *fakeExchangeWriteQueries) LockExchangeCompletionParticipant(
+	context.Context,
+	db.LockExchangeCompletionParticipantParams,
+) (db.LockExchangeCompletionParticipantRow, error) {
+	return f.completionParticipant, f.lockCompletionParticipantErr
+}
+
+func (f *fakeExchangeWriteQueries) ConfirmExchangeParticipantCompletion(
+	context.Context,
+	db.ConfirmExchangeParticipantCompletionParams,
+) error {
+	f.completionConfirmed = true
+	return f.confirmCompletionErr
+}
+
+func (f *fakeExchangeWriteQueries) CountIncompleteExchangeParticipants(
+	context.Context,
+	pgtype.UUID,
+) (int64, error) {
+	return f.incomplete, f.incompleteErr
+}
+
+func (f *fakeExchangeWriteQueries) MarkExchangeItemsTraded(
+	context.Context,
+	pgtype.UUID,
+) (int64, error) {
+	return f.traded, f.tradedErr
+}
+
+func (f *fakeExchangeWriteQueries) CompleteExchange(context.Context, pgtype.UUID) error {
+	f.completed = true
+	return f.completeErr
+}
+
+func (f *fakeExchangeWriteQueries) IncrementExchangeParticipantsDealsCompleted(
+	context.Context,
+	pgtype.UUID,
+) (int64, error) {
+	return f.dealsCompletedUpdated, f.dealsCompletedErr
 }
 
 type fakeTransactionManager struct {
@@ -258,4 +455,12 @@ func (f *fakeNeighborQueries) FindExchangeNeighbors(
 ) ([]db.FindExchangeNeighborsRow, error) {
 	f.receivedItemID = itemID
 	return f.rows, f.err
+}
+
+func (f *fakeNeighborQueries) HasUserBlockConflict(
+	_ context.Context,
+	params db.HasUserBlockConflictParams,
+) (bool, error) {
+	f.blockConflictParams = params
+	return f.blockConflict, f.blockConflictErr
 }
