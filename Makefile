@@ -1,7 +1,8 @@
 -include .env
 export
 
-.PHONY: run up down reset migrate-up migrate-down migrate-status sqlc smoke swagger test-exchange-integration test-exchange-messages-integration test-user-blocks-integration
+
+.PHONY: run up down reset migrate-up migrate-down migrate-status sqlc smoke swagger test-exchange-integration test-user-blocks-integration test-exchange-recovery-integration test-exchange-messages-integration test-user-blocks-integration
 
 run:
 	go run ./cmd/api
@@ -57,3 +58,8 @@ test-exchange-messages-integration:
 test-user-blocks-integration:
 	go test -tags=integration ./internal/user/handler \
 		-run TestUserBlocksIntegration -count=1
+
+# Живой сценарий восстановления: отказ, освобождение reserved-вещей и новый DFS.
+test-exchange-recovery-integration:
+	go test -tags=integration ./internal/exchange/handler \
+		-run TestExchangeRecoveryIntegration -count=1

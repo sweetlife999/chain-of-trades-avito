@@ -1,75 +1,152 @@
-# React + TypeScript + Vite
+# 🪐 Цепочки обменов — Avito
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Фронтенд приложения для создания и отслеживания цепочек обмена вещами.
 
-Currently, two official plugins are available:
+## 🚀 Запуск проекта
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+### 1. Клонируйте репозиторий
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+git clone <repository-url>
+cd frontend
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### 2. Установите зависимости
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+npm install
 ```
+
+### 3. Создайте файл переменных окружения
+
+```bash
+cp .env.example .env
+```
+
+Пример содержимого `.env`:
+
+```env
+VITE_BASE_URL=/api
+```
+
+При необходимости измените базовый путь или адрес backend API.
+
+### 4. Запустите сервер разработки
+
+```bash
+npm run dev
+```
+
+После запуска приложение будет доступно по адресу:
+
+```text
+http://localhost:5173
+```
+
+---
+
+## 📦 Команды
+
+| Команда | Описание |
+|---|---|
+| `npm run dev` | Запускает сервер разработки с горячей перезагрузкой |
+| `npm run build` | Проверяет TypeScript и собирает production-версию |
+| `npm run preview` | Локально запускает собранную production-версию |
+| `npm run lint` | Запускает ESLint |
+
+---
+
+## 🏗️ Production-сборка
+
+Для сборки проекта выполните:
+
+```bash
+npm run build
+```
+
+Во время сборки:
+
+1. TypeScript проверяет типы;
+2. Vite собирает приложение;
+3. готовые файлы сохраняются в папке `dist/`.
+
+Перед отправкой изменений убедитесь, что команды выполняются без ошибок:
+
+```bash
+npm run lint
+npm run build
+```
+
+---
+
+## 📁 Структура проекта
+
+```text
+frontend/
+├── public/                  # Статические файлы
+├── src/
+│   ├── Api/                 # API-запросы, схемы и типы ответов
+│   ├── App/                 # Корневой компонент и маршрутизация
+│   ├── Assets/              # Изображения, SVG и иконки
+│   ├── Components/
+│   │   ├── Pages/           # Компоненты страниц
+│   │   ├── UI/              # Базовые UI-компоненты
+│   │   └── Widgets/         # Составные блоки интерфейса
+│   ├── Hooks/               # Пользовательские React-хуки
+│   ├── Store/               # Redux Toolkit: store и slices
+│   └── Styles/              # Глобальные стили
+├── .env.example             # Пример переменных окружения
+├── .env                     # Локальные переменные, не добавляются в Git
+├── package.json
+├── tsconfig.json
+└── vite.config.ts
+```
+
+---
+
+## 🔌 Работа с API
+
+Для запросов к backend используются Axios и TanStack React Query.
+
+Авторизация работает через JWT в HttpOnly cookie. Для защищённых запросов Axios должен отправлять cookie:
+
+```ts
+withCredentials: true
+```
+
+Основные группы API:
+
+### Авторизация и пользователи
+
+- регистрация;
+- вход и выход;
+- получение текущего пользователя;
+- просмотр и редактирование профиля.
+
+### Объявления
+
+- создание объявления;
+- получение собственных вещей;
+- просмотр конкретного объявления;
+- редактирование и удаление объявления.
+
+Статусы объявлений:
+
+- `available` — доступно для обмена;
+- `reserved` — зарезервировано;
+- `traded` — обмен завершён;
+- `withdrawn` — снято с публикации.
+
+### Цепочки обменов
+
+- получение доступных обменов;
+- получение собственных цепочек;
+- просмотр конкретной цепочки;
+- отслеживание этапов и решений участников.
+
+Статусы обменов:
+
+- `proposed` — обмен найден и ожидает подтверждения;
+- `confirmed` — участники подтвердили обмен;
+- `completed` — обмен завершён;
+- `cancelled` — обмен отменён.

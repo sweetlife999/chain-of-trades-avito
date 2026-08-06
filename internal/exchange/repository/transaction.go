@@ -18,7 +18,7 @@ type exchangeWriteQueries interface {
 	LockExchangeParticipant(
 		context.Context,
 		db.LockExchangeParticipantParams,
-	) (db.ParticipantStatus, error)
+	) (db.LockExchangeParticipantRow, error)
 	AcceptExchangeParticipant(context.Context, db.AcceptExchangeParticipantParams) error
 	DeclineExchangeParticipant(context.Context, db.DeclineExchangeParticipantParams) error
 	CountPendingExchangeParticipants(context.Context, pgtype.UUID) (int64, error)
@@ -28,6 +28,8 @@ type exchangeWriteQueries interface {
 	CancelCompetingProposedExchanges(context.Context, pgtype.UUID) (int64, error)
 	CancelExchange(context.Context, pgtype.UUID) error
 	CreateChainSystemMessage(context.Context, db.CreateChainSystemMessageParams) error
+	ReleaseExchangeItems(context.Context, pgtype.UUID) (int64, error)
+	IncrementUserDealsBroken(context.Context, pgtype.UUID) (int64, error)
 	LockExchangeCompletionParticipant(
 		context.Context,
 		db.LockExchangeCompletionParticipantParams,
