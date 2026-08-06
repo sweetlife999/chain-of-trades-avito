@@ -27,6 +27,7 @@ type exchangeWriteQueries interface {
 	ConfirmExchange(context.Context, pgtype.UUID) error
 	CancelCompetingProposedExchanges(context.Context, pgtype.UUID) (int64, error)
 	CancelExchange(context.Context, pgtype.UUID) error
+	CreateChainSystemMessage(context.Context, db.CreateChainSystemMessageParams) error
 	LockExchangeCompletionParticipant(
 		context.Context,
 		db.LockExchangeCompletionParticipantParams,

@@ -12,9 +12,22 @@ import (
 )
 
 const createChainMessage = `-- name: CreateChainMessage :one
-INSERT INTO chain_messages (chain_id, author_id, body)
-VALUES ($1, $2, $3)
-RETURNING id, created_at
+WITH inserted AS (
+    INSERT INTO chain_messages (chain_id, author_id, body)
+    VALUES ($1, $2, $3)
+    RETURNING id, kind, body, created_at, author_id
+)
+SELECT
+    inserted.id,
+    inserted.kind,
+    inserted.body,
+    inserted.created_at,
+    inserted.author_id,
+    author.nickname  AS author_nickname,
+    author.photo_url AS author_photo_url
+FROM inserted
+LEFT JOIN users AS author
+    ON author.id = inserted.author_id
 `
 
 type CreateChainMessageParams struct {
@@ -24,14 +37,30 @@ type CreateChainMessageParams struct {
 }
 
 type CreateChainMessageRow struct {
-	ID        pgtype.UUID
-	CreatedAt pgtype.Timestamptz
+	ID             pgtype.UUID
+	Kind           ChainMessageKind
+	Body           pgtype.Text
+	CreatedAt      pgtype.Timestamptz
+	AuthorID       pgtype.UUID
+	AuthorNickname pgtype.Text
+	AuthorPhotoUrl pgtype.Text
 }
 
+// Отправитель получает назад ровно ту же форму сообщения, что придёт следующим
+// чтением треда, поэтому RETURNING идёт через CTE с автором. LEFT JOIN здесь не ради
+// NULL-автора (у текста он обязателен), а чтобы тип строки совпал с ListChainMessages.
 func (q *Queries) CreateChainMessage(ctx context.Context, arg CreateChainMessageParams) (CreateChainMessageRow, error) {
 	row := q.db.QueryRow(ctx, createChainMessage, arg.ExchangeID, arg.AuthorID, arg.Body)
 	var i CreateChainMessageRow
-	err := row.Scan(&i.ID, &i.CreatedAt)
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.Body,
+		&i.CreatedAt,
+		&i.AuthorID,
+		&i.AuthorNickname,
+		&i.AuthorPhotoUrl,
+	)
 	return i, err
 }
 

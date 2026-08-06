@@ -295,6 +295,35 @@ type fakeExchangeWriteQueries struct {
 	completeErr                  error
 	dealsCompletedUpdated        int64
 	dealsCompletedErr            error
+	systemMessages               []db.CreateChainSystemMessageParams
+	systemMessageErr             error
+}
+
+func (f *fakeExchangeWriteQueries) CreateChainSystemMessage(
+	_ context.Context,
+	params db.CreateChainSystemMessageParams,
+) error {
+	f.systemMessages = append(f.systemMessages, params)
+	return f.systemMessageErr
+}
+
+// assertRecordedEvents проверяет и состав, и порядок событий: тред обмена читается как
+// лента, поэтому «подтвердил» обязано стоять раньше «обмен подтверждён».
+func assertRecordedEvents(
+	t *testing.T,
+	queries *fakeExchangeWriteQueries,
+	want ...db.ChainMessageKind,
+) {
+	t.Helper()
+
+	recorded := make([]db.ChainMessageKind, len(queries.systemMessages))
+	for index, message := range queries.systemMessages {
+		recorded[index] = message.Kind
+	}
+
+	if !reflect.DeepEqual(recorded, want) {
+		t.Fatalf("recorded events = %v, want %v", recorded, want)
+	}
 }
 
 func (f *fakeExchangeWriteQueries) CreateExchange(context.Context) (pgtype.UUID, error) {

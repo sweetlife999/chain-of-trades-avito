@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	db "github.com/sweetlife999/chain-of-trades-avito/internal/db"
 )
@@ -99,6 +100,17 @@ func confirmParticipation(
 		return fmt.Errorf("accept exchange participant: %w", err)
 	}
 
+	err = recordExchangeEvent(
+		ctx,
+		queries,
+		exchangeID,
+		pgUUID(userID),
+		db.ChainMessageKindParticipantAccepted,
+	)
+	if err != nil {
+		return err
+	}
+
 	pending, err := queries.CountPendingExchangeParticipants(ctx, pgUUID(exchangeID))
 	if err != nil {
 		return fmt.Errorf("count pending exchange participants: %w", err)
@@ -132,6 +144,17 @@ func confirmParticipation(
 		return fmt.Errorf("confirm exchange: %w", err)
 	}
 
+	err = recordExchangeEvent(
+		ctx,
+		queries,
+		exchangeID,
+		pgtype.UUID{},
+		db.ChainMessageKindExchangeConfirmed,
+	)
+	if err != nil {
+		return err
+	}
+
 	if _, err := queries.CancelCompetingProposedExchanges(ctx, pgUUID(exchangeID)); err != nil {
 		return fmt.Errorf("cancel competing proposed exchanges: %w", err)
 	}
@@ -151,6 +174,19 @@ func declineParticipation(
 	})
 	if err != nil {
 		return fmt.Errorf("decline exchange participant: %w", err)
+	}
+
+	// Отдельное событие «обмен отменён» не пишем: отказ участника стоит прямо перед ним
+	// и говорит и о причине, и о последствии.
+	err = recordExchangeEvent(
+		ctx,
+		queries,
+		exchangeID,
+		pgUUID(userID),
+		db.ChainMessageKindParticipantDeclined,
+	)
+	if err != nil {
+		return err
 	}
 
 	if err := queries.CancelExchange(ctx, pgUUID(exchangeID)); err != nil {

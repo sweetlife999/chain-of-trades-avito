@@ -48,6 +48,48 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
+// MessageResponse — строка треда обмена. У сообщения участника есть author и body,
+// у события сделки body пуст, а author пуст, если событие принадлежит всему обмену.
+type MessageResponse struct {
+	ID        string                   `json:"id"`
+	Kind      string                   `json:"kind"`
+	Body      *string                  `json:"body"`
+	Author    *ParticipantUserResponse `json:"author"`
+	CreatedAt time.Time                `json:"created_at"`
+}
+
+type CreateMessageRequest struct {
+	Body string `json:"body" example:"Могу привезти в субботу к метро, удобно?"`
+}
+
+func MessageFromModel(message exchangemodel.Message) MessageResponse {
+	response := MessageResponse{
+		ID:        message.ID.String(),
+		Kind:      message.Kind,
+		Body:      message.Body,
+		CreatedAt: message.CreatedAt,
+	}
+
+	if message.Author != nil {
+		response.Author = &ParticipantUserResponse{
+			ID:       message.Author.ID.String(),
+			Nickname: message.Author.Nickname,
+			PhotoURL: message.Author.PhotoURL,
+		}
+	}
+
+	return response
+}
+
+func MessagesFromModels(messages []exchangemodel.Message) []MessageResponse {
+	responses := make([]MessageResponse, len(messages))
+	for index, message := range messages {
+		responses[index] = MessageFromModel(message)
+	}
+
+	return responses
+}
+
 func FromModel(exchange exchangemodel.Details) ExchangeResponse {
 	participants := make([]ParticipantResponse, len(exchange.Participants))
 	for index, participant := range exchange.Participants {

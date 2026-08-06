@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 
@@ -11,10 +13,15 @@ import (
 	exchangerepository "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/repository"
 )
 
-const maxParticipants = 5
+const (
+	maxParticipants = 5
+	// Тред нужен, чтобы договориться о передаче вещей, а не для длинных писем.
+	maxMessageLength = 2000
+)
 
 var (
 	ErrInvalidCycle = errors.New("invalid exchange cycle")
+	ErrValidation   = errors.New("invalid exchange input")
 	ErrForbidden    = exchangerepository.ErrNotParticipant
 	ErrConflict     = exchangerepository.ErrConflict
 	ErrNotFound     = exchangerepository.ErrNotFound
@@ -29,6 +36,9 @@ type Repository interface {
 	ConfirmParticipation(context.Context, uuid.UUID, uuid.UUID) error
 	DeclineParticipation(context.Context, uuid.UUID, uuid.UUID) error
 	CompleteParticipation(context.Context, uuid.UUID, uuid.UUID) error
+	ExchangeAccess(context.Context, uuid.UUID, uuid.UUID) (string, bool, error)
+	CreateMessage(context.Context, uuid.UUID, uuid.UUID, string) (exchangemodel.Message, error)
+	ListMessages(context.Context, uuid.UUID) ([]exchangemodel.Message, error)
 }
 
 type Service struct {
@@ -246,6 +256,65 @@ func (s *Service) CompleteParticipation(
 	}
 
 	return nil
+}
+
+// PostMessage добавляет сообщение участника в тред обмена.
+func (s *Service) PostMessage(
+	ctx context.Context,
+	exchangeID uuid.UUID,
+	userID uuid.UUID,
+	body string,
+) (exchangemodel.Message, error) {
+	body = strings.TrimSpace(body)
+	if length := utf8.RuneCountInString(body); length == 0 || length > maxMessageLength {
+		return exchangemodel.Message{}, fmt.Errorf(
+			"%w: message body must be between 1 and %d characters",
+			ErrValidation,
+			maxMessageLength,
+		)
+	}
+
+	status, isParticipant, err := s.repository.ExchangeAccess(ctx, exchangeID, userID)
+	if err != nil {
+		return exchangemodel.Message{}, fmt.Errorf("check exchange access: %w", err)
+	}
+	if !isParticipant {
+		return exchangemodel.Message{}, ErrForbidden
+	}
+	// Тред закрытого обмена остаётся историей сделки и дописывать её уже нельзя.
+	if status != "proposed" && status != "confirmed" {
+		return exchangemodel.Message{}, ErrConflict
+	}
+
+	message, err := s.repository.CreateMessage(ctx, exchangeID, userID, body)
+	if err != nil {
+		return exchangemodel.Message{}, fmt.Errorf("post exchange message: %w", err)
+	}
+
+	return message, nil
+}
+
+// ListMessages отдаёт тред целиком: он короткий, а пагинация ради десятка строк
+// заставила бы frontend склеивать страницы при каждом опросе.
+func (s *Service) ListMessages(
+	ctx context.Context,
+	exchangeID uuid.UUID,
+	userID uuid.UUID,
+) ([]exchangemodel.Message, error) {
+	_, isParticipant, err := s.repository.ExchangeAccess(ctx, exchangeID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("check exchange access: %w", err)
+	}
+	if !isParticipant {
+		return nil, ErrForbidden
+	}
+
+	messages, err := s.repository.ListMessages(ctx, exchangeID)
+	if err != nil {
+		return nil, fmt.Errorf("list exchange messages: %w", err)
+	}
+
+	return messages, nil
 }
 
 func validateCycle(cycle []exchangemodel.Node) error {
