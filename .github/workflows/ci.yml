@@ -12,9 +12,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Отдельно: линтеру не нужна БД, поэтому он стартует сразу и падает раньше тестов.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      # Версия пиннится: новый релиз линтера иначе внезапно фейлит зелёные PR.
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.12.2
+
   backend:
     runs-on: ubuntu-latest
-    # БД живёт внутри джобы и умирает вместе с ней, поэтому секреты не нужны.
+    # БД живёт внутри CI и умирает вместе с ней, поэтому секреты не нужны.
     env:
       DATABASE_URL: postgres://app:app@localhost:5432/chain_of_trades?sslmode=disable
       JWT_SECRET: ci-secret-not-for-production-1234567890
@@ -40,13 +54,7 @@ jobs:
 
       - run: go run ./cmd/migrate up
 
-      # gofmt -l только печатает список файлов, кода возврата не даёт.
-      - name: gofmt
-        run: |
-          files=$(gofmt -l .)
-          [ -z "$files" ] || { echo "не отформатировано:"; echo "$files"; exit 1; }
-
-      - run: go vet ./...
+      # gofmt и go vet сюда не дублируются: их закрывает lint.
 
       # DATABASE_URL задан, поэтому тесты против живой БД не скипаются.
       - run: go test ./... -race

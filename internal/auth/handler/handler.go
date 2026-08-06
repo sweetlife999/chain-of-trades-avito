@@ -115,6 +115,7 @@ func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) setAccessCookie(w http.ResponseWriter, value string, expiresAt time.Time) {
+	// #nosec G124 -- Secure берётся из COOKIE_SECURE, чтобы локальная разработка шла по http; статически gosec это не проверить.
 	http.SetCookie(w, &http.Cookie{
 		Name:     authmiddleware.CookieName,
 		Value:    value,
@@ -128,6 +129,7 @@ func (h *Handler) setAccessCookie(w http.ResponseWriter, value string, expiresAt
 }
 
 func (h *Handler) clearAccessCookie(w http.ResponseWriter) {
+	// #nosec G124 -- то же, что и в setAccessCookie: значение Secure задаётся конфигом.
 	http.SetCookie(w, &http.Cookie{
 		Name:     authmiddleware.CookieName,
 		Value:    "",
