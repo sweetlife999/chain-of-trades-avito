@@ -12,11 +12,14 @@ import { Popup } from "../../UI/Popup/Popup";
 
 import { registerUser } from "../../../Api/auth/auth";
 import { registerSchema, type TRegister } from "../../../Api/auth/auth.types";
+import { useAuthDispatch } from "../../../Hooks/useAuthDispatch";
+import { setUserState } from "../../../Store/authSlice";
 
 
 
 const RegisterComponent = () => {
   const navigate = useNavigate();
+  const dispatch = useAuthDispatch();
 
   const {
     register,
@@ -37,7 +40,8 @@ const RegisterComponent = () => {
   const registerMutation = useMutation({
     mutationFn: (data: TRegister) => registerUser(data),
 
-    onSuccess: () => {
+    onSuccess: (data) => {
+      dispatch(setUserState(data));
       navigate("/profile");
     },
 
