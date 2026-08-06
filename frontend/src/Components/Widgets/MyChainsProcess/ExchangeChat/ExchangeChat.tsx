@@ -21,6 +21,7 @@ import type { TExchangeMessage } from "../../../../Api/exchanges/exchanges.types
 type TProps = {
   exchangeId: string;
   currentUserId: string;
+  readOnly?: boolean;
 };
 
 const formatTime = (value: string) =>
@@ -38,6 +39,7 @@ const isSystemMessage = (message: TExchangeMessage) => {
 const ExchangeChatComponent = ({
   exchangeId,
   currentUserId,
+  readOnly = false,
 }: TProps) => {
   const [body, setBody] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
@@ -48,7 +50,7 @@ const ExchangeChatComponent = ({
     queryKey,
     queryFn: () => getExchangeMessages(exchangeId),
     enabled: Boolean(exchangeId),
-    refetchInterval: 3000,
+    refetchInterval: readOnly ? false : 3000,
     refetchIntervalInBackground: false,
     retry: false,
   });
@@ -64,7 +66,7 @@ const ExchangeChatComponent = ({
 
         return [...messages, message];
       });
-      void queryClient.invalidateQueries({
+       queryClient.invalidateQueries({
         queryKey: ["exchanges"],
         exact: true,
       });
@@ -84,7 +86,7 @@ const ExchangeChatComponent = ({
   const submitMessage = () => {
     const value = body.trim();
 
-    if (!value || sendMutation.isPending) {
+    if (readOnly || !value || sendMutation.isPending) {
       return;
     }
 
@@ -103,9 +105,15 @@ const ExchangeChatComponent = ({
       <header className={styles.chat__header}>
         <div>
           <h2>Чат цепочки</h2>
-          <p>Обсудите детали обмена с участниками.</p>
+          <p>
+            {readOnly
+              ? "История обсуждения сохранена."
+              : "Обсудите детали обмена с участниками."}
+          </p>
         </div>
-        <span>Обновляется автоматически</span>
+        <span>
+          {readOnly ? "Только чтение" : "Обновляется автоматически"}
+        </span>
       </header>
 
       <div className={styles.chat__messages}>
@@ -122,9 +130,7 @@ const ExchangeChatComponent = ({
         {!messagesQuery.isPending &&
           !messagesQuery.isError &&
           messages.length === 0 && (
-            <p className={styles.chat__state}>
-              Сообщений пока нет. Начните обсуждение.
-            </p>
+            <p className={styles.chat__state}>Сообщений пока нет.</p>
           )}
 
         {messages.map((message) => {
@@ -171,36 +177,42 @@ const ExchangeChatComponent = ({
         <div ref={endRef} />
       </div>
 
-      <form
-        className={styles.chat__form}
-        onSubmit={(event) => {
-          event.preventDefault();
-          submitMessage();
-        }}
-      >
-        <textarea
-          maxLength={2000}
-          onChange={(event) => setBody(event.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Напишите сообщение..."
-          rows={2}
-          value={body}
-        />
-        <div className={styles.chat__formFooter}>
-          <span>{body.length} / 2000</span>
-          <button
-            disabled={!body.trim() || sendMutation.isPending}
-            type="submit"
-          >
-            {sendMutation.isPending ? "Отправляем..." : "Отправить"}
-          </button>
+      {readOnly ? (
+        <div className={styles.chat__readOnly}>
+          Обмен закрыт. Новые сообщения отправлять нельзя.
         </div>
-        {sendMutation.isError && (
-          <p className={styles.chat__error}>
-            Не удалось отправить сообщение.
-          </p>
-        )}
-      </form>
+      ) : (
+        <form
+          className={styles.chat__form}
+          onSubmit={(event) => {
+            event.preventDefault();
+            submitMessage();
+          }}
+        >
+          <textarea
+            maxLength={2000}
+            onChange={(event) => setBody(event.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Напишите сообщение..."
+            rows={2}
+            value={body}
+          />
+          <div className={styles.chat__formFooter}>
+            <span>{body.length} / 2000</span>
+            <button
+              disabled={!body.trim() || sendMutation.isPending}
+              type="submit"
+            >
+              {sendMutation.isPending ? "Отправляем..." : "Отправить"}
+            </button>
+          </div>
+          {sendMutation.isError && (
+            <p className={styles.chat__error}>
+              Не удалось отправить сообщение.
+            </p>
+          )}
+        </form>
+      )}
     </section>
   );
 };

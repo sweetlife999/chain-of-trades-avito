@@ -31,18 +31,53 @@ const statusLabels: Record<TExchangeStatus, string> = {
 const isParticipationConfirmed = (status: string) =>
   ["confirmed", "accepted"].includes(status.toLowerCase());
 
-const participantStatus = (status: string) => {
-  const value = status.toLowerCase();
+const isParticipationDeclined = (status: string) =>
+  ["declined", "rejected"].includes(status.toLowerCase());
 
-  if (isParticipationConfirmed(value)) {
-    return "Подтвердил";
+const isCurrentStageConfirmed = (
+  participant: TExchangeParticipant,
+  exchangeStatus: TExchangeStatus,
+) => {
+  if (exchangeStatus === "completed") {
+    return true;
   }
 
-  if (["declined", "rejected"].includes(value)) {
+  if (exchangeStatus === "proposed") {
+    return isParticipationConfirmed(participant.status);
+  }
+
+  if (exchangeStatus === "confirmed") {
+    return Boolean(participant.completion_confirmed_at);
+  }
+
+  return false;
+};
+
+const getParticipantStatus = (
+  participant: TExchangeParticipant,
+  exchangeStatus: TExchangeStatus,
+) => {
+  if (exchangeStatus === "completed") {
+    return "Завершил";
+  }
+
+  if (isParticipationDeclined(participant.status)) {
     return "Отказался";
   }
 
-  return "Ожидает";
+  if (exchangeStatus === "confirmed") {
+    return participant.completion_confirmed_at
+      ? "Получил"
+      : "Ожидает получения";
+  }
+
+  if (exchangeStatus === "proposed") {
+    return isParticipationConfirmed(participant.status)
+      ? "Подтвердил"
+      : "Ожидает";
+  }
+
+  return "Обмен отменён";
 };
 
 const formatDate = (value: string) =>
@@ -53,21 +88,33 @@ const formatDate = (value: string) =>
     minute: "2-digit",
   }).format(new Date(value));
 
+type TParticipantListProps = {
+  participants: TExchangeParticipant[];
+  exchangeStatus: TExchangeStatus;
+};
+
 const ParticipantList = ({
   participants,
-}: {
-  participants: TExchangeParticipant[];
-}) => (
+  exchangeStatus,
+}: TParticipantListProps) => (
   <div className={styles.details__participants}>
-    {participants.map((participant) => (
-      <div key={participant.user.id}>
-        <span className={styles.details__avatar}>
-          {participant.user.nickname.charAt(0).toUpperCase()}
-        </span>
-        <strong>{participant.user.nickname}</strong>
-        <span>{participantStatus(participant.status)}</span>
-      </div>
-    ))}
+    {participants.map((participant) => {
+      const confirmed = isCurrentStageConfirmed(participant, exchangeStatus);
+
+      return (
+        <div key={participant.user.id}>
+          <span
+            className={`${styles.details__avatar} ${
+              confirmed ? styles.details__avatar_confirmed : ""
+            }`}
+          >
+            {participant.user.nickname.charAt(0).toUpperCase()}
+          </span>
+          <strong>{participant.user.nickname}</strong>
+          <span>{getParticipantStatus(participant, exchangeStatus)}</span>
+        </div>
+      );
+    })}
   </div>
 );
 
@@ -129,9 +176,8 @@ const ExchangeDetailsComponent = () => {
     confirmMutation.isError ||
     declineMutation.isError ||
     completeMutation.isError;
-  const showChat =
-    isParticipant &&
-    (exchange.status === "proposed" || exchange.status === "confirmed");
+  const chatReadOnly =
+    exchange.status === "completed" || exchange.status === "cancelled";
   const title = referenceParticipant
     ? `${referenceParticipant.gives_item.title} → ${referenceParticipant.receives_item.title}`
     : "Цепочка обмена";
@@ -175,7 +221,10 @@ const ExchangeDetailsComponent = () => {
                 <strong>{current.receives_item.title}</strong>
               </div>
             )}
-            <ParticipantList participants={exchange.participants} />
+            <ParticipantList
+              exchangeStatus={exchange.status}
+              participants={exchange.participants}
+            />
           </section>
 
           <aside className={styles.details__actions}>
@@ -186,7 +235,10 @@ const ExchangeDetailsComponent = () => {
                   Подтвердите участие. До подтверждения ваша вещь остаётся у вас.
                 </div>
                 <h3>Подтверждения участников</h3>
-                <ParticipantList participants={exchange.participants} />
+                <ParticipantList
+                  exchangeStatus={exchange.status}
+                  participants={exchange.participants}
+                />
                 <div className={styles.details__buttons}>
                   <button
                     className={styles.details__primaryButton}
@@ -221,7 +273,10 @@ const ExchangeDetailsComponent = () => {
               <>
                 <h2>Хотите принять участие в этой цепочке?</h2>
                 <h3>Подтверждения участников</h3>
-                <ParticipantList participants={exchange.participants} />
+                <ParticipantList
+                  exchangeStatus={exchange.status}
+                  participants={exchange.participants}
+                />
                 <Link className={styles.details__join} to="/myItems">
                   Предложить вещь
                 </Link>
@@ -268,6 +323,15 @@ const ExchangeDetailsComponent = () => {
                     : "Подтвердите получение только после проверки вещи."}
                 </p>
               </div>
+
+              <div className={styles.details__participantProgress}>
+                <h3>Получение участников</h3>
+                <ParticipantList
+                  exchangeStatus={exchange.status}
+                  participants={exchange.participants}
+                />
+              </div>
+
               <div className={styles.details__buttons}>
                 <button
                   className={styles.details__primaryButton}
@@ -302,15 +366,15 @@ const ExchangeDetailsComponent = () => {
         </>
       )}
 
-      {showChat && user && (
-        <ExchangeChat exchangeId={exchange.id} currentUserId={user.id} />
-      )}
-
       {exchange.status === "completed" && (
         <section className={styles.details__result}>
           <span className={styles.details__resultIcon}>✓</span>
           <h2>Обмен завершён</h2>
           <p>Все участники получили свои вещи.</p>
+          <ParticipantList
+            exchangeStatus={exchange.status}
+            participants={exchange.participants}
+          />
           <Link to="/exchanges">Вернуться к цепочкам</Link>
         </section>
       )}
@@ -329,6 +393,14 @@ const ExchangeDetailsComponent = () => {
             <Link to="/myItems">Вернуть вещь в каталог</Link>
           </div>
         </section>
+      )}
+
+      {isParticipant && user && (
+        <ExchangeChat
+          currentUserId={user.id}
+          exchangeId={exchange.id}
+          readOnly={chatReadOnly}
+        />
       )}
     </section>
   );

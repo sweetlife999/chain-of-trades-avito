@@ -78,7 +78,7 @@
     place-items: center;
     color: #fff;
     font-size: 12px;
-    background: $waiting-background;
+    background: #f59e0b;
     border-radius: 50%;
 
     img {
@@ -150,6 +150,15 @@
     margin: 0;
     color: #991b1b;
     font-size: 12px;
+  }
+
+  &__readOnly {
+    padding: 16px 24px;
+    color: #666;
+    font-size: 12px;
+    text-align: center;
+    background: #fffaf0;
+    border-top: 1px solid #eee;
   }
 }
 
