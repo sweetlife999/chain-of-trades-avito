@@ -14,15 +14,16 @@ const PostsListComponent = () => {
     queryFn: getExchanges,
   });
 
-  const exchanges = (exchangesQuery.data ?? []).filter(
-    (exchange) =>
-      exchange.status === "proposed" &&
-      !exchange.participants.some((participant) => participant.user.id === user?.id),
-  );
+  // const exchanges = (exchangesQuery.data ?? []).filter(
+  //   (exchange) =>
+  //     exchange.status === "proposed" &&
+  //     !exchange.participants.some((participant) => participant.user.id === user?.id),
+  // );
 
+  const exchanges = exchangesQuery.data
   return (
     <FetchStatus status={exchangesQuery.status}>
-      {exchanges.length ? (
+      {exchanges ? (
         <ul className={styles.posts}>
           {exchanges.map((exchange) => (
             <li key={exchange.id}>
