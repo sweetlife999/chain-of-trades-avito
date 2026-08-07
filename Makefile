@@ -68,7 +68,8 @@ test-user-blocks-integration:
 	go test -tags=integration ./internal/user/handler \
 		-run TestUserBlocksIntegration -count=1
 
-# Живой сценарий восстановления: отказ, освобождение reserved-вещей и новый DFS.
+# Живые сценарии восстановления: отказ, освобождение reserved-вещей и новый DFS,
+# плюс возврат цепочки, которую вытеснило чужое подтверждение.
 test-exchange-recovery-integration:
 	go test -tags=integration ./internal/exchange/handler \
-		-run TestExchangeRecoveryIntegration -count=1
+		-run RecoveryIntegration -count=1

@@ -143,19 +143,24 @@ func (q *Queries) IncrementUserDealsBroken(ctx context.Context, userID pgtype.UU
 }
 
 const lockExchange = `-- name: LockExchange :one
-SELECT status
+SELECT status, signature
 FROM chains
 WHERE id = $1
 FOR UPDATE
 `
 
+type LockExchangeRow struct {
+	Status    ChainStatus
+	Signature string
+}
+
 // Строка обмена блокируется первой. Поэтому два одновременных решения по одному
 // обмену выполняются последовательно и не могут потерять обновления друг друга.
-func (q *Queries) LockExchange(ctx context.Context, exchangeID pgtype.UUID) (ChainStatus, error) {
+func (q *Queries) LockExchange(ctx context.Context, exchangeID pgtype.UUID) (LockExchangeRow, error) {
 	row := q.db.QueryRow(ctx, lockExchange, exchangeID)
-	var status ChainStatus
-	err := row.Scan(&status)
-	return status, err
+	var i LockExchangeRow
+	err := row.Scan(&i.Status, &i.Signature)
+	return i, err
 }
 
 const lockExchangeDecisionItems = `-- name: LockExchangeDecisionItems :exec

@@ -26,13 +26,14 @@ func (r *Repository) CompleteParticipation(
 			return fmt.Errorf("lock exchange completion items: %w", err)
 		}
 
-		exchangeStatus, err := queries.LockExchange(ctx, pgUUID(exchangeID))
+		exchange, err := queries.LockExchange(ctx, pgUUID(exchangeID))
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotFound
 		}
 		if err != nil {
 			return fmt.Errorf("lock exchange for completion: %w", err)
 		}
+		exchangeStatus := exchange.Status
 
 		participant, err := queries.LockExchangeCompletionParticipant(
 			ctx,

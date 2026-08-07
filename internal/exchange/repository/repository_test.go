@@ -285,6 +285,7 @@ type fakeExchangeWriteQueries struct {
 	participants   []db.CreateExchangeParticipantParams
 
 	chainStatus                  db.ChainStatus
+	chainSignature               string
 	lockExchangeErr              error
 	participantStatus            db.ParticipantStatus
 	participantCompletedAt       pgtype.Timestamptz
@@ -373,8 +374,11 @@ func (f *fakeExchangeWriteQueries) CreateExchangeParticipant(
 func (f *fakeExchangeWriteQueries) LockExchange(
 	context.Context,
 	pgtype.UUID,
-) (db.ChainStatus, error) {
-	return f.chainStatus, f.lockExchangeErr
+) (db.LockExchangeRow, error) {
+	return db.LockExchangeRow{
+		Status:    f.chainStatus,
+		Signature: f.chainSignature,
+	}, f.lockExchangeErr
 }
 
 func (f *fakeExchangeWriteQueries) LockExchangeDecisionItems(

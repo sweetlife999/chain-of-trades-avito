@@ -26,28 +26,36 @@ func (r *Repository) ConfirmParticipation(
 	return r.decideParticipation(ctx, exchangeID, userID, db.ParticipantStatusAccepted)
 }
 
+// DeclineParticipation отменяет обмен и возвращает объявления, освободившиеся для нового
+// поиска, вместе с подписью отменённого обмена: она уникальна только среди открытых
+// обменов, поэтому без неё перепоиск тут же переподставил бы только что сорванный состав.
 func (r *Repository) DeclineParticipation(
 	ctx context.Context,
 	exchangeID uuid.UUID,
 	userID uuid.UUID,
-) ([]exchangemodel.Node, error) {
-	var recoveryNodes []exchangemodel.Node
+) ([]exchangemodel.Node, string, error) {
+	var (
+		recoveryNodes []exchangemodel.Node
+		signature     string
+	)
 
 	err := r.transactions.WithinTransaction(ctx, func(queries exchangeWriteQueries) error {
 		if err := queries.LockExchangeDecisionItems(ctx, pgUUID(exchangeID)); err != nil {
 			return fmt.Errorf("lock exchange decline items: %w", err)
 		}
 
-		exchangeStatus, err := queries.LockExchange(ctx, pgUUID(exchangeID))
+		exchange, err := queries.LockExchange(ctx, pgUUID(exchangeID))
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotFound
 		}
 		if err != nil {
 			return fmt.Errorf("lock exchange for decline: %w", err)
 		}
+		exchangeStatus := exchange.Status
 		if exchangeStatus != db.ChainStatusProposed && exchangeStatus != db.ChainStatusConfirmed {
 			return ErrConflict
 		}
+		signature = exchange.Signature
 
 		participant, err := queries.LockExchangeParticipant(ctx, db.LockExchangeParticipantParams{
 			ExchangeID: pgUUID(exchangeID),
@@ -117,10 +125,10 @@ func (r *Repository) DeclineParticipation(
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("decline exchange participation: %w", err)
+		return nil, "", fmt.Errorf("decline exchange participation: %w", err)
 	}
 
-	return recoveryNodes, nil
+	return recoveryNodes, signature, nil
 }
 
 func (r *Repository) decideParticipation(
@@ -134,14 +142,14 @@ func (r *Repository) decideParticipation(
 			return fmt.Errorf("lock exchange decision items: %w", err)
 		}
 
-		status, err := queries.LockExchange(ctx, pgUUID(exchangeID))
+		exchange, err := queries.LockExchange(ctx, pgUUID(exchangeID))
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotFound
 		}
 		if err != nil {
 			return fmt.Errorf("lock exchange: %w", err)
 		}
-		if status != db.ChainStatusProposed {
+		if exchange.Status != db.ChainStatusProposed {
 			return ErrConflict
 		}
 
