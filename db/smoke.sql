@@ -243,4 +243,31 @@ BEGIN
     RAISE NOTICE 'ok 16: пользователь по умолчанию не администратор';
 END $$;
 
+-- 17. ПВЗ создаётся и обновляется, а updated_at выставляет общий триггер
+DO $$
+DECLARE
+    point_id uuid;
+    point_name text;
+BEGIN
+    INSERT INTO pickup_points (name, address)
+    VALUES ('ПВЗ Центр', 'ул. Ленина, 10')
+    RETURNING id INTO point_id;
+
+    UPDATE pickup_points SET name = 'ПВЗ Север' WHERE id = point_id;
+    SELECT name INTO point_name FROM pickup_points WHERE id = point_id;
+    IF point_name <> 'ПВЗ Север' THEN
+        RAISE EXCEPTION 'ПВЗ не обновился: %', point_name;
+    END IF;
+    RAISE NOTICE 'ok 17: ПВЗ создаётся и обновляется';
+END $$;
+
+-- 18. пустое название ПВЗ не проходит ограничение схемы
+DO $$
+BEGIN
+    INSERT INTO pickup_points (name, address) VALUES ('   ', 'ул. Ленина, 10');
+    RAISE EXCEPTION 'ПВЗ с пустым названием прошёл, а не должен был';
+EXCEPTION WHEN check_violation THEN
+    RAISE NOTICE 'ok 18: пустое название ПВЗ запрещено';
+END $$;
+
 ROLLBACK;

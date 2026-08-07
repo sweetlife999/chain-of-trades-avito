@@ -70,6 +70,15 @@ definitions:
     required:
     - body
     type: object
+  dto.CreatePickupPointRequest:
+    properties:
+      address:
+        example: Казань, улица Ленина, 10
+        type: string
+      name:
+        example: ПВЗ на Ленина
+        type: string
+    type: object
   dto.CreateUserRequest:
     properties:
       description:
@@ -210,6 +219,24 @@ definitions:
       photo_url:
         type: string
     type: object
+  dto.PickupPointError:
+    properties:
+      error:
+        type: string
+    type: object
+  dto.PickupPointResponse:
+    properties:
+      address:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
   dto.UpdateItemRequest:
     properties:
       category:
@@ -234,6 +261,15 @@ definitions:
         items:
           type: string
         type: array
+    type: object
+  dto.UpdatePickupPointRequest:
+    properties:
+      address:
+        example: Казань, улица Ленина, 12
+        type: string
+      name:
+        example: ПВЗ на Ленина
+        type: string
     type: object
   dto.UpdateUserRequest:
     properties:
@@ -304,6 +340,206 @@ info:
   title: Цепочка обмена — API
   version: 0.1.0
 paths:
+  /admin/pickup-points:
+    get:
+      description: Доступно только администратору. Возвращает ПВЗ от новых к старым.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список ПВЗ
+          schema:
+            items:
+              $ref: '#/definitions/dto.PickupPointResponse'
+            type: array
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/dto.PickupPointError'
+        "403":
+          description: Недостаточно прав
+          schema:
+            $ref: '#/definitions/dto.PickupPointError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.PickupPointError'
+      security:
+      - CookieAuth: []
+      summary: Получить список ПВЗ
+      tags:
+      - admin pickup-points
+    post:
+      consumes:
+      - application/json
+      description: Доступно только администратору.
+      parameters:
+      - description: Данные ПВЗ
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreatePickupPointRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: ПВЗ создан
+          schema:
+            $ref: '#/definitions/dto.PickupPointResponse'
+        "400":
+          description: Некорректные данные
+          schema:
+            $ref: '#/definitions/dto.PickupPointError'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/dto.PickupPointError'
+        "403":
+          description: Недостаточно прав
+          schema:
+            $ref: '#/definitions/dto.PickupPointError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.PickupPointError'
+      security:
+      - CookieAuth: []
+      summary: Создать ПВЗ
+      tags:
+      - admin pickup-points
+  /admin/pickup-points/{id}:
+    delete:
+      description: Доступно только администратору. ПВЗ, который используется объявлениями,
+        удалить нельзя.
+      parameters:
+      - description: UUID ПВЗ
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: ПВЗ удалён
+        "400":
+          description: Некорректный UUID
+          schema:
+            $ref: '#/definitions/dto.PickupPointError'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/dto.PickupPointError'
+        "403":
+          description: Недостаточно прав
+          schema:
+            $ref: '#/definitions/dto.PickupPointError'
+        "404":
+          description: ПВЗ не найден
+          schema:
+            $ref: '#/definitions/dto.PickupPointError'
+        "409":
+          description: ПВЗ используется объявлениями
+          schema:
+            $ref: '#/definitions/dto.PickupPointError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.PickupPointError'
+      security:
+      - CookieAuth: []
+      summary: Удалить ПВЗ
+      tags:
+      - admin pickup-points
+    get:
+      description: Доступно только администратору.
+      parameters:
+      - description: UUID ПВЗ
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ПВЗ
+          schema:
+            $ref: '#/definitions/dto.PickupPointResponse'
+        "400":
+          description: Некорректный UUID
+          schema:
+            $ref: '#/definitions/dto.PickupPointError'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/dto.PickupPointError'
+        "403":
+          description: Недостаточно прав
+          schema:
+            $ref: '#/definitions/dto.PickupPointError'
+        "404":
+          description: ПВЗ не найден
+          schema:
+            $ref: '#/definitions/dto.PickupPointError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.PickupPointError'
+      security:
+      - CookieAuth: []
+      summary: Получить ПВЗ по ID
+      tags:
+      - admin pickup-points
+    patch:
+      consumes:
+      - application/json
+      description: Доступно только администратору. Достаточно передать одно поле.
+      parameters:
+      - description: UUID ПВЗ
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Изменяемые поля
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdatePickupPointRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ПВЗ обновлён
+          schema:
+            $ref: '#/definitions/dto.PickupPointResponse'
+        "400":
+          description: Некорректные данные или UUID
+          schema:
+            $ref: '#/definitions/dto.PickupPointError'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/dto.PickupPointError'
+        "403":
+          description: Недостаточно прав
+          schema:
+            $ref: '#/definitions/dto.PickupPointError'
+        "404":
+          description: ПВЗ не найден
+          schema:
+            $ref: '#/definitions/dto.PickupPointError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.PickupPointError'
+      security:
+      - CookieAuth: []
+      summary: Изменить ПВЗ
+      tags:
+      - admin pickup-points
   /auth/login:
     post:
       consumes:
