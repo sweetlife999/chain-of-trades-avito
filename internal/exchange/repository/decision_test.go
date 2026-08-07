@@ -143,8 +143,10 @@ func TestDeclineParticipationCancelsExchange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DeclineParticipation() error = %v", err)
 	}
-	if len(nodes) != 0 {
-		t.Fatalf("recovery nodes = %+v, want none for proposed exchange", nodes)
+	// Отказ от предложения ничего не освобождает, но перепоиск от его объявлений всё
+	// равно нужен: другого канала обнаружения обмена у участников нет.
+	if len(nodes) != 1 || nodes[0].ItemID != itemID || nodes[0].OwnerID != ownerID {
+		t.Fatalf("recovery nodes = %+v, want item %s owned by %s", nodes, itemID, ownerID)
 	}
 	if signature != queries.chainSignature {
 		t.Fatalf("cancelled signature = %q, want %q", signature, queries.chainSignature)

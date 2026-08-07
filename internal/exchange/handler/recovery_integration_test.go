@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	exchangemodel "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/model"
@@ -53,28 +54,17 @@ func TestExchangeRecoveryIntegration(t *testing.T) {
 	}
 	assertChainStatus(t, ctx, pool, originalID, "cancelled")
 
-	var proposedAfterDecline int
-	if err := pool.QueryRow(ctx, `
-		SELECT count(DISTINCT chain.id)
-		FROM chains AS chain
-		JOIN chain_participants AS participant ON participant.chain_id = chain.id
-		WHERE chain.status = 'proposed'
-		  AND participant.gives_item_id = ANY($1::uuid[])`, items).Scan(&proposedAfterDecline); err != nil {
-		t.Fatalf("count proposals after proposed decline: %v", err)
+	// Отказ от предложения тоже запускает перепоиск: ребро 2 -> 0 вырезано, поэтому DFS
+	// собирает состав с другой третьей вещью, а не переподставляет отказанный.
+	restored := proposedExchangesWithItems(t, ctx, pool, items[0], items[1], items[3])
+	if len(restored) != 1 {
+		t.Fatalf("proposals after proposed decline = %d, want exactly one with a new third item", len(restored))
 	}
-	if proposedAfterDecline != 0 {
-		t.Fatalf("proposals after proposed decline = %d, want 0", proposedAfterDecline)
+	if refused := proposedExchangesWithItems(t, ctx, pool, items[0], items[1], items[2]); len(refused) != 0 {
+		t.Fatalf("re-proposed the refused composition %d times, want 0", len(refused))
 	}
 
-	confirmedParticipants := []exchangemodel.Participant{
-		{UserID: users[0], GivesItemID: items[0], ReceivesItemID: items[1], Position: 0},
-		{UserID: users[1], GivesItemID: items[1], ReceivesItemID: items[3], Position: 1},
-		{UserID: users[3], GivesItemID: items[3], ReceivesItemID: items[0], Position: 2},
-	}
-	confirmedID, err := repository.SaveExchange(ctx, exchangemodel.Exchange{Participants: confirmedParticipants})
-	if err != nil {
-		t.Fatalf("create exchange that will break: %v", err)
-	}
+	confirmedID := restored[0]
 	for _, userID := range []uuid.UUID{users[0], users[1], users[3]} {
 		if err := service.ConfirmParticipation(ctx, confirmedID, userID); err != nil {
 			t.Fatalf("confirm exchange for user %s: %v", userID, err)
@@ -86,8 +76,8 @@ func TestExchangeRecoveryIntegration(t *testing.T) {
 	}
 	assertChainStatus(t, ctx, pool, confirmedID, "cancelled")
 
-	if found := proposedExchangesWithItems(t, ctx, pool, items[0], items[1], items[4]); found != 1 {
-		t.Fatalf("recovered exchanges with a new exact composition = %d, want 1", found)
+	if found := proposedExchangesWithItems(t, ctx, pool, items[0], items[1], items[4]); len(found) != 1 {
+		t.Fatalf("recovered exchanges with a new exact composition = %d, want 1", len(found))
 	}
 
 	for _, itemID := range []uuid.UUID{items[0], items[1], items[3]} {
@@ -175,12 +165,12 @@ func TestExchangeSupersededRecoveryIntegration(t *testing.T) {
 	}
 	assertChainStatus(t, ctx, pool, winnerID, "cancelled")
 
-	if found := proposedExchangesWithItems(t, ctx, pool, items[2], items[3], items[4]); found != 1 {
-		t.Fatalf("restored superseded exchanges = %d, want 1", found)
+	if found := proposedExchangesWithItems(t, ctx, pool, items[2], items[3], items[4]); len(found) != 1 {
+		t.Fatalf("restored superseded exchanges = %d, want 1", len(found))
 	}
 	// Сорванный состав перепоиск переподставлять не должен: от него только что ушли.
-	if found := proposedExchangesWithItems(t, ctx, pool, items[0], items[1], items[2]); found != 0 {
-		t.Fatalf("re-proposed the broken exchange %d times, want 0", found)
+	if found := proposedExchangesWithItems(t, ctx, pool, items[0], items[1], items[2]); len(found) != 0 {
+		t.Fatalf("re-proposed the broken exchange %d times, want 0", len(found))
 	}
 }
 
@@ -254,19 +244,18 @@ func seedExchangeGraph(
 	return users, items
 }
 
-// proposedExchangesWithItems считает открытые предложения, состав которых совпадает с
+// proposedExchangesWithItems возвращает открытые предложения, состав которых совпадает с
 // перечисленными объявлениями ровно, без учёта порядка обхода.
 func proposedExchangesWithItems(
 	t *testing.T,
 	ctx context.Context,
 	pool *pgxpool.Pool,
 	items ...uuid.UUID,
-) int {
+) []uuid.UUID {
 	t.Helper()
 
-	var count int
-	err := pool.QueryRow(ctx, `
-		SELECT count(*)
+	rows, err := pool.Query(ctx, `
+		SELECT chain.id
 		FROM chains AS chain
 		WHERE chain.status = 'proposed'
 		  AND (
@@ -275,12 +264,17 @@ func proposedExchangesWithItems(
 			WHERE participant.chain_id = chain.id
 		  ) = (SELECT array_agg(item ORDER BY item) FROM unnest($1::uuid[]) AS item)`,
 		items,
-	).Scan(&count)
+	)
 	if err != nil {
-		t.Fatalf("count proposed exchanges with items %v: %v", items, err)
+		t.Fatalf("query proposed exchanges with items %v: %v", items, err)
 	}
 
-	return count
+	found, err := pgx.CollectRows(rows, pgx.RowTo[uuid.UUID])
+	if err != nil {
+		t.Fatalf("read proposed exchanges with items %v: %v", items, err)
+	}
+
+	return found
 }
 
 func assertChainStatus(

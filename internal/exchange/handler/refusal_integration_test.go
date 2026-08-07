@@ -70,25 +70,15 @@ func TestExchangeRefusalIntegration(t *testing.T) {
 		t.Fatalf("recorded refusals for the item the user turned down = %d, want 1", refusedItems)
 	}
 
-	// Вариацию с той же вещью 1 подбор предлагать не должен: выучен сам отказ, а не
-	// состав, в котором он прозвучал.
-	result, err := service.FindAndSave(ctx, exchangemodel.Node{ItemID: items[0], OwnerID: users[0]})
-	if err != nil {
-		t.Fatalf("search after refusal: %v", err)
-	}
-	if result.Found {
-		t.Fatalf("search after refusal proposed exchange %s, want nothing", result.ExchangeID)
+	// Перепоиск после отказа не предлагает вариацию с той же вещью 1: выучен сам отказ,
+	// а не состав, в котором он прозвучал.
+	if found := proposedExchangesWithItems(t, ctx, pool, items[0], items[1], items[3]); len(found) != 0 {
+		t.Fatalf("proposed the refused item in another composition %d times, want 0", len(found))
 	}
 
-	// А вот ребро 1 -> 2 живо: ни владелец 1, ни владелец 2 ни от чего не отказывались.
-	result, err = service.FindAndSave(ctx, exchangemodel.Node{ItemID: items[1], OwnerID: users[1]})
-	if err != nil {
-		t.Fatalf("search from an item nobody refused: %v", err)
-	}
-	if !result.Found {
-		t.Fatal("search from an item nobody refused found nothing, want a cycle without the refused edge")
-	}
-	if found := proposedExchangesWithItems(t, ctx, pool, items[1], items[2], items[4]); found != 1 {
-		t.Fatalf("exchanges with the surviving edge = %d, want 1", found)
+	// А ребро 1 -> 2 живо: ни владелец 1, ни владелец 2 ни от чего не отказывались,
+	// поэтому цикл без отказавшегося собирается тем же перепоиском.
+	if found := proposedExchangesWithItems(t, ctx, pool, items[1], items[2], items[4]); len(found) != 1 {
+		t.Fatalf("exchanges with the surviving edge = %d, want 1", len(found))
 	}
 }
