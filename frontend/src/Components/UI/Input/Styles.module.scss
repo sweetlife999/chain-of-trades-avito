@@ -1,0 +1,106 @@
+.input {
+  width: 100%;
+
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  &__labelText {
+    color: #292929;
+    font-size: 14px;
+    font-weight: 600;
+
+    &_required {
+      &::after {
+        content: " *";
+
+        color: red;
+      }
+    }
+  }
+
+  &__field {
+    width: 100%;
+    height: 48px;
+
+    padding: 0 16px;
+
+    border: 1px solid $green-input;
+    border-radius: $border-radius;
+    outline: none;
+
+    background-color: $background-input;
+    color: #171717;
+
+    font-family: inherit;
+    font-size: 15px;
+
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.2s ease,
+      background-color 0.2s ease;
+
+    &::placeholder {
+      color: #a1a1a1;
+    }
+
+    &:hover {
+      border-color: $green-button;
+    }
+
+    &:focus {
+      border-color: $green-button;
+      background-color: #fff;
+      box-shadow: 0 0 0 4px rgba($green-button, 0.12);
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    &_textarea {
+      height: auto;
+      min-height: 112px;
+
+      padding: 14px 16px;
+
+      line-height: 1.5;
+
+      resize: vertical;
+    }
+
+    &_error {
+      border-color: red;
+
+      &:hover,
+      &:focus {
+        border-color: red;
+      }
+
+      &:focus {
+        box-shadow: 0 0 0 4px rgba(red, 0.1);
+      }
+    }
+  }
+
+  &__footer {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  &__error {
+    color: red;
+    font-size: 13px;
+  }
+
+  &__counter {
+    margin-left: auto;
+
+    color: #777;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+}

@@ -1,0 +1,378 @@
+.createChain {
+  width: 100%;
+  max-width: 1200px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 42px;
+
+  margin: 0 auto;
+  padding: 28px 24px 48px;
+
+  &__header {
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+  }
+
+  &__title {
+    color: #171717;
+    font-size: 30px;
+    font-weight: 500;
+  }
+
+  &__subtitle {
+    color: #292929;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  &__section {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+
+  &__sectionTitle {
+    color: #171717;
+    font-size: 20px;
+    font-weight: 500;
+  }
+
+  &__form {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+
+    padding: 30px 36px 34px;
+
+    border: 1px solid #9c9c9c;
+    border-radius: $border-radius;
+
+    background-color: #fff;
+  }
+
+  &__content {
+    display: grid;
+    grid-template-columns: minmax(260px, 0.75fr) minmax(420px, 1.35fr);
+    gap: 54px;
+  }
+
+  &__photosColumn,
+  &__fieldsColumn {
+    min-width: 0;
+
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  &__photoPreview {
+    width: 100%;
+    aspect-ratio: 1 / 0.72;
+
+    overflow: hidden;
+
+    border: 1px solid #d4d7dc;
+    border-radius: 14px;
+
+    background-color: #f8f8fa;
+  }
+
+  &__photoImage {
+    width: 100%;
+    height: 100%;
+
+    display: block;
+
+    object-fit: cover;
+  }
+
+  &__photoPlaceholder {
+    width: 100%;
+    height: 100%;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+
+    padding: 24px;
+
+    color: #252525;
+    text-align: center;
+
+    strong {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    small {
+      color: #6f6f6f;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+  }
+
+  &__photoPlus {
+    width: 54px;
+    height: 54px;
+
+    display: grid;
+    place-items: center;
+
+    margin-bottom: 6px;
+
+    border-radius: 50%;
+
+    background-color: #e9f5ff;
+    color: #0095f6;
+
+    font-size: 28px;
+    font-weight: 300;
+  }
+
+  &__photoFields {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  &__photoField {
+    position: relative;
+
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+  }
+
+  &__removePhoto {
+    width: 42px;
+    height: 48px;
+
+    flex-shrink: 0;
+
+    border: 1px solid #e4bcbc;
+    border-radius: $border-radius;
+
+    background-color: #fff7f7;
+    color: #a03131;
+
+    font-size: 24px;
+
+    transition:
+      background-color 0.2s ease,
+      border-color 0.2s ease;
+
+    &:hover {
+      border-color: #d58d8d;
+      background-color: #ffeded;
+    }
+  }
+
+  &__addPhoto {
+    align-self: flex-start;
+  }
+
+  &__field {
+    width: 100%;
+
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  &__label {
+    color: #292929;
+    font-size: 14px;
+    font-weight: 600;
+
+    b {
+      color: red;
+      font-weight: inherit;
+    }
+  }
+
+  &__select {
+    width: 100%;
+    height: 48px;
+
+    padding: 0 16px;
+
+    border: 1px solid $green-input;
+    border-radius: $border-radius;
+    outline: none;
+
+    background-color: $background-input;
+    color: #171717;
+
+    font-family: inherit;
+    font-size: 15px;
+
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.2s ease,
+      background-color 0.2s ease;
+
+    &:hover {
+      border-color: $green-button;
+    }
+
+    &:focus {
+      border-color: $green-button;
+      background-color: #fff;
+      box-shadow: 0 0 0 4px rgba($green-button, 0.12);
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    &_error {
+      border-color: red;
+    }
+  }
+
+  &__fieldError {
+    color: red;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  &__wants {
+    min-width: 0;
+
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  &__categories {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  &__category {
+    position: relative;
+
+    cursor: pointer;
+
+    input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+
+      overflow: hidden;
+      opacity: 0;
+
+      &:checked + span {
+        border-color: $green-button;
+        background-color: rgba($green-button, 0.1);
+        color: #087642;
+      }
+
+      &:focus-visible + span {
+        box-shadow: 0 0 0 4px rgba($green-button, 0.12);
+      }
+    }
+
+    span {
+      min-height: 42px;
+
+      display: flex;
+      align-items: center;
+
+      padding: 9px 12px;
+
+      border: 1px solid #d7dadd;
+      border-radius: $border-radius;
+
+      background-color: #fafafa;
+      color: #444;
+
+      font-size: 13px;
+      line-height: 1.3;
+
+      transition:
+        border-color 0.2s ease,
+        background-color 0.2s ease,
+        color 0.2s ease,
+        box-shadow 0.2s ease;
+    }
+  }
+
+  &__serverError {
+    padding: 12px 14px;
+
+    border: 1px solid #efc0c0;
+    border-radius: $border-radius;
+
+    background-color: #fff4f4;
+    color: #9b2f2f;
+
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+
+    padding-top: 2px;
+  }
+
+  &__action {
+    width: 210px;
+  }
+}
+
+@media (max-width: 900px) {
+  .createChain {
+    &__content {
+      grid-template-columns: 1fr;
+      gap: 34px;
+    }
+
+    &__photoPreview {
+      max-width: 480px;
+    }
+  }
+}
+
+@media (max-width: 600px) {
+  .createChain {
+    gap: 30px;
+
+    padding: 20px 14px 36px;
+
+    &__header {
+      gap: 14px;
+    }
+
+    &__title {
+      font-size: 26px;
+    }
+
+    &__form {
+      padding: 20px 16px 22px;
+    }
+
+    &__categories {
+      grid-template-columns: 1fr;
+    }
+
+    &__actions {
+      flex-direction: column-reverse;
+      align-items: stretch;
+    }
+
+    &__action {
+      width: 100%;
+    }
+  }
+}
