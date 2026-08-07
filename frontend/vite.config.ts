@@ -13,7 +13,7 @@ export default defineConfig({
   css: {
     preprocessorOptions: {
       scss: {
-        additionalData: `@use "@/styles/variables" as *; @use "@/styles/mixins" as *;`,
+        additionalData: `@use "@/Styles/variables" as *; @use "@/Styles/mixins" as *;`,
       },
     },
   },
