@@ -20,6 +20,14 @@ type messageQueries interface {
 	MarkChainMessagesRead(context.Context, db.MarkChainMessagesReadParams) error
 }
 
+// Статусы обмена, которые проверяет сервис. Через string(db.ChainStatus*), чтобы
+// переименование значения в enum ловил компилятор, а не тест на живой БД. Типы из
+// internal/db наружу при этом не протекают.
+const (
+	StatusProposed  = string(db.ChainStatusProposed)
+	StatusConfirmed = string(db.ChainStatusConfirmed)
+)
+
 type messageRecord struct {
 	ID             pgtype.UUID
 	Kind           db.ChainMessageKind
@@ -86,14 +94,18 @@ func (r *Repository) ListMessages(
 	return messages, nil
 }
 
+// MarkMessagesRead двигает отметку участника до lastMessageID. Сообщение из чужого треда
+// или уже пройденное запрос игнорирует, поэтому проверять их отдельно не нужно.
 func (r *Repository) MarkMessagesRead(
 	ctx context.Context,
 	exchangeID uuid.UUID,
 	userID uuid.UUID,
+	lastMessageID uuid.UUID,
 ) error {
 	err := r.messages.MarkChainMessagesRead(ctx, db.MarkChainMessagesReadParams{
-		ExchangeID: pgUUID(exchangeID),
-		UserID:     pgUUID(userID),
+		ExchangeID:    pgUUID(exchangeID),
+		UserID:        pgUUID(userID),
+		LastMessageID: pgUUID(lastMessageID),
 	})
 	if err != nil {
 		return fmt.Errorf("mark chain messages read: %w", err)

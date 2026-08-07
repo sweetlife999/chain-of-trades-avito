@@ -42,7 +42,7 @@ type Repository interface {
 	ExchangeAccess(context.Context, uuid.UUID, uuid.UUID) (string, bool, error)
 	CreateMessage(context.Context, uuid.UUID, uuid.UUID, string) (exchangemodel.Message, error)
 	ListMessages(context.Context, uuid.UUID) ([]exchangemodel.Message, error)
-	MarkMessagesRead(context.Context, uuid.UUID, uuid.UUID) error
+	MarkMessagesRead(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) error
 }
 
 type Service struct {
@@ -363,6 +363,14 @@ func (s *Service) PostMessage(
 			maxMessageLength,
 		)
 	}
+	// Postgres не принимает NUL в text, поэтому без этой проверки такое тело доходит
+	// до базы и возвращается пользователю как 500 вместо 400.
+	if strings.ContainsRune(body, 0) {
+		return exchangemodel.Message{}, fmt.Errorf(
+			"%w: message body must not contain NUL characters",
+			ErrValidation,
+		)
+	}
 
 	status, isParticipant, err := s.repository.ExchangeAccess(ctx, exchangeID, userID)
 	if err != nil {
@@ -372,7 +380,7 @@ func (s *Service) PostMessage(
 		return exchangemodel.Message{}, ErrForbidden
 	}
 	// Тред закрытого обмена остаётся историей сделки и дописывать её уже нельзя.
-	if status != "proposed" && status != "confirmed" {
+	if status != exchangerepository.StatusProposed && status != exchangerepository.StatusConfirmed {
 		return exchangemodel.Message{}, ErrConflict
 	}
 
@@ -385,7 +393,9 @@ func (s *Service) PostMessage(
 }
 
 // ListMessages отдаёт тред целиком: он короткий, а пагинация ради десятка строк
-// заставила бы frontend склеивать страницы при каждом опросе.
+// заставила бы frontend склеивать страницы при каждом опросе. Побочных эффектов нет:
+// отметку о прочтении ставит отдельный MarkThreadRead, иначе фоновый опрос гасил бы
+// счётчик непрочитанного вслепую.
 func (s *Service) ListMessages(
 	ctx context.Context,
 	exchangeID uuid.UUID,
@@ -404,15 +414,35 @@ func (s *Service) ListMessages(
 		return nil, fmt.Errorf("list exchange messages: %w", err)
 	}
 
-	// Отдельного «пометить прочитанным» нет: frontend читает тред только когда тот открыт
-	// у пользователя на экране, поэтому чтение и есть отметка о прочтении.
-	// ponytail: если появится фоновый опрос треда, счётчик обнулится вслепую — тогда
-	// отметку нужно выносить в отдельный POST /exchanges/{id}/messages/read.
-	if err := s.repository.MarkMessagesRead(ctx, exchangeID, userID); err != nil {
-		return nil, fmt.Errorf("mark exchange messages read: %w", err)
+	return messages, nil
+}
+
+// MarkThreadRead двигает отметку участника до сообщения, которое клиент показал последним.
+// Статус обмена не проверяется: закрытый тред читать можно, значит и дочитывать тоже.
+//
+// TODO: created_at ставится на INSERT, а видимой строка становится на COMMIT, поэтому
+// событие из длинной транзакции (согласие -> подтверждение обмена) может появиться в ленте
+// с меткой «в прошлом» относительно уже прочитанного и не попасть в счётчик. Лечится только
+// монотонной последовательностью, выданной на коммите; для текущих объёмов треда избыточно.
+func (s *Service) MarkThreadRead(
+	ctx context.Context,
+	exchangeID uuid.UUID,
+	userID uuid.UUID,
+	lastMessageID uuid.UUID,
+) error {
+	_, isParticipant, err := s.repository.ExchangeAccess(ctx, exchangeID, userID)
+	if err != nil {
+		return fmt.Errorf("check exchange access: %w", err)
+	}
+	if !isParticipant {
+		return ErrForbidden
 	}
 
-	return messages, nil
+	if err := s.repository.MarkMessagesRead(ctx, exchangeID, userID, lastMessageID); err != nil {
+		return fmt.Errorf("mark exchange messages read: %w", err)
+	}
+
+	return nil
 }
 
 func validateCycle(cycle []exchangemodel.Node) error {

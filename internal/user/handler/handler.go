@@ -117,6 +117,7 @@ func (h *Handler) getByID(w http.ResponseWriter, r *http.Request) {
 // @Failure     404     {object} userdto.ErrorResponse     "Пользователь не найден"
 // @Failure     409     {object} userdto.ErrorResponse     "Nickname уже занят"
 // @Failure     500     {object} userdto.ErrorResponse     "Внутренняя ошибка"
+// @Security    CookieAuth
 // @Router      /users/{id} [patch]
 func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 	id, ok := parseID(w, r)
@@ -160,6 +161,7 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 // @Success     200 {array}  userdto.BlockedUserResponse "Список блокировок; если он пуст, возвращается []"
 // @Failure     401 {object} userdto.ErrorResponse       "Пользователь не авторизован"
 // @Failure     500 {object} userdto.ErrorResponse       "Внутренняя ошибка"
+// @Security    CookieAuth
 // @Router      /users/me/blocks [get]
 func (h *Handler) listBlocked(w http.ResponseWriter, r *http.Request) {
 	currentUserID, ok := authenticatedUserID(w, r)
@@ -185,6 +187,7 @@ func (h *Handler) listBlocked(w http.ResponseWriter, r *http.Request) {
 // @Failure     401 {object} userdto.ErrorResponse "Пользователь не авторизован"
 // @Failure     404 {object} userdto.ErrorResponse "Блокируемый пользователь не найден"
 // @Failure     500 {object} userdto.ErrorResponse "Внутренняя ошибка"
+// @Security    CookieAuth
 // @Router      /users/me/blocks/{user_id} [post]
 func (h *Handler) block(w http.ResponseWriter, r *http.Request) {
 	h.handleBlockChange(w, r, h.service.Block)
@@ -198,6 +201,7 @@ func (h *Handler) block(w http.ResponseWriter, r *http.Request) {
 // @Failure     400 {object} userdto.ErrorResponse "ID не является UUID или пользователь указывает себя"
 // @Failure     401 {object} userdto.ErrorResponse "Пользователь не авторизован"
 // @Failure     500 {object} userdto.ErrorResponse "Внутренняя ошибка"
+// @Security    CookieAuth
 // @Router      /users/me/blocks/{user_id} [delete]
 func (h *Handler) unblock(w http.ResponseWriter, r *http.Request) {
 	h.handleBlockChange(w, r, h.service.Unblock)

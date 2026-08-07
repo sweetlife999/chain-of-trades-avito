@@ -16,6 +16,8 @@ import (
 	exchangeservice "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/service"
 )
 
+const maxRequestBodyBytes = 1 << 20
+
 type Service interface {
 	ListForUser(context.Context, uuid.UUID) ([]exchangemodel.Details, error)
 	GetForUser(context.Context, uuid.UUID, uuid.UUID) (exchangemodel.Details, error)
@@ -24,6 +26,7 @@ type Service interface {
 	CompleteParticipation(context.Context, uuid.UUID, uuid.UUID) error
 	PostMessage(context.Context, uuid.UUID, uuid.UUID, string) (exchangemodel.Message, error)
 	ListMessages(context.Context, uuid.UUID, uuid.UUID) ([]exchangemodel.Message, error)
+	MarkThreadRead(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) error
 }
 
 type Handler struct {
@@ -42,6 +45,7 @@ func (h *Handler) RegisterRoutes(router chi.Router, requireAuth func(http.Handle
 	router.With(requireAuth).Post("/exchanges/{id}/complete", h.complete)
 	router.With(requireAuth).Post("/exchanges/{id}/messages", h.postMessage)
 	router.With(requireAuth).Get("/exchanges/{id}/messages", h.listMessages)
+	router.With(requireAuth).Post("/exchanges/{id}/messages/read", h.markRead)
 }
 
 // @Summary     Получить свои обмены
@@ -51,6 +55,7 @@ func (h *Handler) RegisterRoutes(router chi.Router, requireAuth func(http.Handle
 // @Success     200 {array}  exchangedto.ExchangeResponse "Список обменов; если обменов нет, возвращается []"
 // @Failure     401 {object} exchangedto.ErrorResponse    "Пользователь не авторизован"
 // @Failure     500 {object} exchangedto.ErrorResponse    "Внутренняя ошибка"
+// @Security    CookieAuth
 // @Router      /exchanges [get]
 func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	userID, ok := currentUserID(w, r)
@@ -78,6 +83,7 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 // @Failure     403 {object} exchangedto.ErrorResponse    "Пользователь не участвует в обмене"
 // @Failure     404 {object} exchangedto.ErrorResponse    "Обмен не найден"
 // @Failure     500 {object} exchangedto.ErrorResponse    "Внутренняя ошибка"
+// @Security    CookieAuth
 // @Router      /exchanges/{id} [get]
 func (h *Handler) getByID(w http.ResponseWriter, r *http.Request) {
 	exchangeID, userID, ok := exchangeRequest(w, r)
@@ -105,6 +111,7 @@ func (h *Handler) getByID(w http.ResponseWriter, r *http.Request) {
 // @Failure     404 {object} exchangedto.ErrorResponse "Обмен не найден"
 // @Failure     409 {object} exchangedto.ErrorResponse "Решение уже принято, обмен закрыт или объявление недоступно"
 // @Failure     500 {object} exchangedto.ErrorResponse "Внутренняя ошибка"
+// @Security    CookieAuth
 // @Router      /exchanges/{id}/confirm [post]
 func (h *Handler) confirm(w http.ResponseWriter, r *http.Request) {
 	h.handleDecision(w, r, h.service.ConfirmParticipation)
@@ -121,6 +128,7 @@ func (h *Handler) confirm(w http.ResponseWriter, r *http.Request) {
 // @Failure     404 {object} exchangedto.ErrorResponse "Обмен не найден"
 // @Failure     409 {object} exchangedto.ErrorResponse "Обмен уже закрыт, объявление недоступно или получение уже подтверждено"
 // @Failure     500 {object} exchangedto.ErrorResponse "Внутренняя ошибка"
+// @Security    CookieAuth
 // @Router      /exchanges/{id}/decline [post]
 func (h *Handler) decline(w http.ResponseWriter, r *http.Request) {
 	h.handleDecision(w, r, h.service.DeclineParticipation)
@@ -137,6 +145,7 @@ func (h *Handler) decline(w http.ResponseWriter, r *http.Request) {
 // @Failure     404 {object} exchangedto.ErrorResponse "Обмен не найден"
 // @Failure     409 {object} exchangedto.ErrorResponse "Обмен ещё не подтверждён или уже отменён"
 // @Failure     500 {object} exchangedto.ErrorResponse "Внутренняя ошибка"
+// @Security    CookieAuth
 // @Router      /exchanges/{id}/complete [post]
 func (h *Handler) complete(w http.ResponseWriter, r *http.Request) {
 	h.handleDecision(w, r, h.service.CompleteParticipation)
@@ -156,12 +165,15 @@ func (h *Handler) complete(w http.ResponseWriter, r *http.Request) {
 // @Failure     404 {object} exchangedto.ErrorResponse   "Обмен не найден"
 // @Failure     409 {object} exchangedto.ErrorResponse   "Обмен закрыт: тред доступен только на чтение"
 // @Failure     500 {object} exchangedto.ErrorResponse   "Внутренняя ошибка"
+// @Security    CookieAuth
 // @Router      /exchanges/{id}/messages [post]
 func (h *Handler) postMessage(w http.ResponseWriter, r *http.Request) {
 	exchangeID, userID, ok := exchangeRequest(w, r)
 	if !ok {
 		return
 	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodyBytes)
 
 	var request exchangedto.CreateMessageRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -189,6 +201,7 @@ func (h *Handler) postMessage(w http.ResponseWriter, r *http.Request) {
 // @Failure     403 {object} exchangedto.ErrorResponse   "Пользователь не участвует в обмене"
 // @Failure     404 {object} exchangedto.ErrorResponse   "Обмен не найден"
 // @Failure     500 {object} exchangedto.ErrorResponse   "Внутренняя ошибка"
+// @Security    CookieAuth
 // @Router      /exchanges/{id}/messages [get]
 func (h *Handler) listMessages(w http.ResponseWriter, r *http.Request) {
 	exchangeID, userID, ok := exchangeRequest(w, r)
@@ -203,6 +216,52 @@ func (h *Handler) listMessages(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, exchangedto.MessagesFromModels(messages))
+}
+
+// @Summary     Отметить тред прочитанным
+// @Description Двигает отметку участника до указанного сообщения, обнуляя unread_count в
+// @Description GET /exchanges. Клиент присылает id последнего сообщения, которое реально показал,
+// @Description поэтому сообщение, пришедшее позже, прочитанным не считается.
+// @Description Вызов идемпотентен и назад отметку не двигает: повтор, вторая вкладка и id из
+// @Description чужого треда ничего не меняют.
+// @Tags        exchanges
+// @Accept      json
+// @Param       id   path string                        true "UUID обмена"
+// @Param       read body exchangedto.MarkReadRequest true "ID последнего показанного сообщения"
+// @Success     204 "Отметка обновлена"
+// @Failure     400 {object} exchangedto.ErrorResponse "ID не является UUID или тело не JSON"
+// @Failure     401 {object} exchangedto.ErrorResponse "Пользователь не авторизован"
+// @Failure     403 {object} exchangedto.ErrorResponse "Пользователь не участвует в обмене"
+// @Failure     404 {object} exchangedto.ErrorResponse "Обмен не найден"
+// @Failure     500 {object} exchangedto.ErrorResponse "Внутренняя ошибка"
+// @Security    CookieAuth
+// @Router      /exchanges/{id}/messages/read [post]
+func (h *Handler) markRead(w http.ResponseWriter, r *http.Request) {
+	exchangeID, userID, ok := exchangeRequest(w, r)
+	if !ok {
+		return
+	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodyBytes)
+
+	var request exchangedto.MarkReadRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	lastMessageID, err := uuid.Parse(request.LastMessageID)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid last message id")
+		return
+	}
+
+	if err := h.service.MarkThreadRead(r.Context(), exchangeID, userID, lastMessageID); err != nil {
+		handleServiceError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) handleDecision(

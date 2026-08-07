@@ -57,6 +57,7 @@ func (h *Handler) RegisterRoutes(router chi.Router, requireAuth func(http.Handle
 // @Failure     400     {object} itemdto.ItemError    "Некорректное тело запроса, нет фото или желаний, неизвестная категория"
 // @Failure     401     {object} itemdto.ItemError    "Нет или истекла cookie access_token"
 // @Failure     500     {object} itemdto.ItemError    "Внутренняя ошибка"
+// @Security    CookieAuth
 // @Router      /items [post]
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	ownerID, ok := currentUser(w, r)
@@ -95,6 +96,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 // @Success     200 {array}  itemdto.ItemResponse "Список объявлений; если их нет, возвращается []"
 // @Failure     401 {object} itemdto.ItemError    "Нет или истекла cookie access_token"
 // @Failure     500 {object} itemdto.ItemError    "Внутренняя ошибка"
+// @Security    CookieAuth
 // @Router      /items [get]
 func (h *Handler) listMine(w http.ResponseWriter, r *http.Request) {
 	ownerID, ok := currentUser(w, r)
@@ -152,6 +154,7 @@ func (h *Handler) getByID(w http.ResponseWriter, r *http.Request) {
 // @Failure     404     {object} itemdto.ItemError    "Объявление не найдено"
 // @Failure     409     {object} itemdto.ItemError    "Нельзя изменить условия объявления в незавершённом обмене"
 // @Failure     500     {object} itemdto.ItemError    "Внутренняя ошибка"
+// @Security    CookieAuth
 // @Router      /items/{id} [patch]
 func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 	id, ok := parseID(w, r)
@@ -198,6 +201,7 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 // @Failure     404 {object} itemdto.ItemError "Объявление не найдено"
 // @Failure     409 {object} itemdto.ItemError "Вещь участвует в незавершённом обмене"
 // @Failure     500 {object} itemdto.ItemError "Внутренняя ошибка"
+// @Security    CookieAuth
 // @Router      /items/{id} [delete]
 func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
 	id, ok := parseID(w, r)

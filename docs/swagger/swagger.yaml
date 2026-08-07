@@ -64,7 +64,11 @@ definitions:
     properties:
       body:
         example: Могу привезти в субботу к метро, удобно?
+        maxLength: 2000
+        minLength: 1
         type: string
+    required:
+    - body
     type: object
   dto.CreateUserRequest:
     properties:
@@ -135,17 +139,36 @@ definitions:
       password:
         type: string
     type: object
+  dto.MarkReadRequest:
+    properties:
+      last_message_id:
+        example: 3f7c1b62-6f0f-4a2b-8f0e-2f2b9a1c7d10
+        type: string
+    type: object
   dto.MessageResponse:
     properties:
       author:
-        $ref: '#/definitions/dto.ParticipantUserResponse'
+        allOf:
+        - $ref: '#/definitions/dto.ParticipantUserResponse'
+        description: Пуст у событий, которые принадлежат всему обмену, а не участнику.
+        x-nullable: true
       body:
+        description: Заполнен только у kind = text.
         type: string
+        x-nullable: true
       created_at:
         type: string
       id:
         type: string
       kind:
+        enum:
+        - text
+        - participant_accepted
+        - participant_declined
+        - participant_completed
+        - exchange_confirmed
+        - exchange_completed
+        - exchange_superseded
         type: string
     type: object
   dto.ParticipantItemResponse:
@@ -274,9 +297,10 @@ info:
     HTTP API сервиса многостороннего обмена вещами: профили пользователей, вход по JWT
     и объявления о вещах, которые владелец готов обменять.
 
-    Защищённые маршруты читают HttpOnly cookie `access_token`. Кнопки «Authorize» здесь нет
-    и не нужно: выполните `POST /auth/login` прямо из этой страницы — браузер сохранит cookie
-    и будет отправлять её со всеми следующими запросами сам.
+    Защищённые маршруты читают HttpOnly cookie `access_token` — они помечены замком.
+    Кнопки «Authorize» здесь нет и не нужно: выполните `POST /auth/login` прямо из этой
+    страницы — браузер сохранит cookie и будет отправлять её со всеми следующими
+    запросами сам. JavaScript до неё не дотянется, поэтому вписать её руками нельзя.
   title: Цепочка обмена — API
   version: 0.1.0
 paths:
@@ -345,6 +369,8 @@ paths:
           description: Внутренняя ошибка
           schema:
             $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
       summary: Текущий пользователь
       tags:
       - auth
@@ -389,6 +415,8 @@ paths:
           description: Внутренняя ошибка
           schema:
             $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
       summary: Получить свои обмены
       tags:
       - exchanges
@@ -429,6 +457,8 @@ paths:
           description: Внутренняя ошибка
           schema:
             $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
       summary: Получить обмен по ID
       tags:
       - exchanges
@@ -470,6 +500,8 @@ paths:
           description: Внутренняя ошибка
           schema:
             $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
       summary: Подтвердить получение вещи
       tags:
       - exchanges
@@ -510,6 +542,8 @@ paths:
           description: Внутренняя ошибка
           schema:
             $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
       summary: Подтвердить участие в обмене
       tags:
       - exchanges
@@ -551,6 +585,8 @@ paths:
           description: Внутренняя ошибка
           schema:
             $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
       summary: Отказаться от участия в обмене
       tags:
       - exchanges
@@ -593,6 +629,8 @@ paths:
           description: Внутренняя ошибка
           schema:
             $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
       summary: Прочитать тред обмена
       tags:
       - exchanges
@@ -644,7 +682,59 @@ paths:
           description: Внутренняя ошибка
           schema:
             $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
       summary: Написать в тред обмена
+      tags:
+      - exchanges
+  /exchanges/{id}/messages/read:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Двигает отметку участника до указанного сообщения, обнуляя unread_count в
+        GET /exchanges. Клиент присылает id последнего сообщения, которое реально показал,
+        поэтому сообщение, пришедшее позже, прочитанным не считается.
+        Вызов идемпотентен и назад отметку не двигает: повтор, вторая вкладка и id из
+        чужого треда ничего не меняют.
+      parameters:
+      - description: UUID обмена
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: ID последнего показанного сообщения
+        in: body
+        name: read
+        required: true
+        schema:
+          $ref: '#/definitions/dto.MarkReadRequest'
+      responses:
+        "204":
+          description: Отметка обновлена
+        "400":
+          description: ID не является UUID или тело не JSON
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "403":
+          description: Пользователь не участвует в обмене
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "404":
+          description: Обмен не найден
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Отметить тред прочитанным
       tags:
       - exchanges
   /health:
@@ -684,6 +774,8 @@ paths:
           description: Внутренняя ошибка
           schema:
             $ref: '#/definitions/dto.ItemError'
+      security:
+      - CookieAuth: []
       summary: Получить свои объявления
       tags:
       - items
@@ -721,6 +813,8 @@ paths:
           description: Внутренняя ошибка
           schema:
             $ref: '#/definitions/dto.ItemError'
+      security:
+      - CookieAuth: []
       summary: Создать объявление
       tags:
       - items
@@ -765,6 +859,8 @@ paths:
           description: Внутренняя ошибка
           schema:
             $ref: '#/definitions/dto.ItemError'
+      security:
+      - CookieAuth: []
       summary: Удалить своё объявление
       tags:
       - items
@@ -852,6 +948,8 @@ paths:
           description: Внутренняя ошибка
           schema:
             $ref: '#/definitions/dto.ItemError'
+      security:
+      - CookieAuth: []
       summary: Изменить своё объявление
       tags:
       - items
@@ -974,6 +1072,8 @@ paths:
           description: Внутренняя ошибка
           schema:
             $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
       summary: Обновить свой профиль
       tags:
       - users
@@ -998,6 +1098,8 @@ paths:
           description: Внутренняя ошибка
           schema:
             $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
       summary: Получить список заблокированных пользователей
       tags:
       - users
@@ -1026,6 +1128,8 @@ paths:
           description: Внутренняя ошибка
           schema:
             $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
       summary: Разблокировать пользователя
       tags:
       - users
@@ -1057,7 +1161,15 @@ paths:
           description: Внутренняя ошибка
           schema:
             $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
       summary: Заблокировать пользователя
       tags:
       - users
+securityDefinitions:
+  CookieAuth:
+    description: HttpOnly cookie, которую ставит POST /auth/login.
+    in: cookie
+    name: access_token
+    type: apiKey
 swagger: "2.0"

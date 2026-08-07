@@ -150,9 +150,46 @@ func TestExchangeMessagesIntegration(t *testing.T) {
 		t.Fatalf("thread = %+v, want one message from the first participant", messages)
 	}
 
-	// Чтение треда и есть отметка о прочтении.
+	// Чтение треда отметку не двигает: иначе фоновый опрос гасил бы счётчик вслепую.
+	if unread := unreadCount(t, service, bob, exchangeID); unread != 1 {
+		t.Fatalf("unread count after a plain read = %d, want 1", unread)
+	}
+
+	if err := service.MarkThreadRead(ctx, exchangeID, bob, messages[0].ID); err != nil {
+		t.Fatalf("mark thread read: %v", err)
+	}
 	if unread := unreadCount(t, service, bob, exchangeID); unread != 0 {
-		t.Fatalf("unread count after reading = %d, want 0", unread)
+		t.Fatalf("unread count after marking read = %d, want 0", unread)
+	}
+
+	// Сообщение, пришедшее после того как клиент показал тред, остаётся непрочитанным:
+	// границу задаёт last_message_id, а не время запроса.
+	response = performRequestWithBody(
+		service,
+		http.MethodPost,
+		messagesPath,
+		strings.NewReader(`{"body":"и ещё вопрос"}`),
+		authenticateAs(alice),
+	)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("post second message status = %d, want %d", response.Code, http.StatusCreated)
+	}
+	if err := service.MarkThreadRead(ctx, exchangeID, bob, messages[0].ID); err != nil {
+		t.Fatalf("mark thread read with a stale message: %v", err)
+	}
+	if unread := unreadCount(t, service, bob, exchangeID); unread != 1 {
+		t.Fatalf("unread count after a stale read mark = %d, want 1", unread)
+	}
+
+	fresh, err := service.ListMessages(ctx, exchangeID, bob)
+	if err != nil {
+		t.Fatalf("read thread again: %v", err)
+	}
+	if err := service.MarkThreadRead(ctx, exchangeID, bob, fresh[len(fresh)-1].ID); err != nil {
+		t.Fatalf("mark thread read: %v", err)
+	}
+	if unread := unreadCount(t, service, bob, exchangeID); unread != 0 {
+		t.Fatalf("unread count after catching up = %d, want 0", unread)
 	}
 
 	for _, userID := range []uuid.UUID{alice, bob} {
@@ -163,6 +200,7 @@ func TestExchangeMessagesIntegration(t *testing.T) {
 
 	// События сделки лежат в той же ленте и в порядке, в котором произошли.
 	assertThreadKinds(t, service, exchangeID, alice,
+		"text",
 		"text",
 		"participant_accepted",
 		"participant_accepted",

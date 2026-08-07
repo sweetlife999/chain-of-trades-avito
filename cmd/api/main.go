@@ -37,10 +37,16 @@ const authTokenTTL = 12 * time.Hour
 // @description HTTP API сервиса многостороннего обмена вещами: профили пользователей, вход по JWT
 // @description и объявления о вещах, которые владелец готов обменять.
 // @description
-// @description Защищённые маршруты читают HttpOnly cookie `access_token`. Кнопки «Authorize» здесь нет
-// @description и не нужно: выполните `POST /auth/login` прямо из этой страницы — браузер сохранит cookie
-// @description и будет отправлять её со всеми следующими запросами сам.
+// @description Защищённые маршруты читают HttpOnly cookie `access_token` — они помечены замком.
+// @description Кнопки «Authorize» здесь нет и не нужно: выполните `POST /auth/login` прямо из этой
+// @description страницы — браузер сохранит cookie и будет отправлять её со всеми следующими
+// @description запросами сам. JavaScript до неё не дотянется, поэтому вписать её руками нельзя.
 // @BasePath    /
+//
+// @securityDefinitions.apikey CookieAuth
+// @in                         cookie
+// @name                       access_token
+// @description                HttpOnly cookie, которую ставит POST /auth/login.
 func main() {
 	cfg, err := config.Load()
 	if err != nil {

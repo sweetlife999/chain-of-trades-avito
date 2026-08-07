@@ -51,16 +51,26 @@ type ErrorResponse struct {
 
 // MessageResponse — строка треда обмена. У сообщения участника есть author и body,
 // у события сделки body пуст, а author пуст, если событие принадлежит всему обмену.
+// Список kind перечислен в спеке: frontend собирает по нему фразу события, и молчаливое
+// расхождение с enum chain_message_kind уже приводило к пропущенному виду события.
 type MessageResponse struct {
-	ID        string                   `json:"id"`
-	Kind      string                   `json:"kind"`
-	Body      *string                  `json:"body"`
-	Author    *ParticipantUserResponse `json:"author"`
+	ID   string `json:"id"`
+	Kind string `json:"kind" enums:"text,participant_accepted,participant_declined,participant_completed,exchange_confirmed,exchange_completed,exchange_superseded"`
+	// Заполнен только у kind = text.
+	Body *string `json:"body" extensions:"x-nullable"`
+	// Пуст у событий, которые принадлежат всему обмену, а не участнику.
+	Author    *ParticipantUserResponse `json:"author" extensions:"x-nullable"`
 	CreatedAt time.Time                `json:"created_at"`
 }
 
 type CreateMessageRequest struct {
-	Body string `json:"body" example:"Могу привезти в субботу к метро, удобно?"`
+	Body string `json:"body" binding:"required" minLength:"1" maxLength:"2000" example:"Могу привезти в субботу к метро, удобно?"`
+}
+
+// MarkReadRequest — id последнего сообщения, которое клиент показал пользователю.
+// Именно оно, а не время запроса, задаёт границу прочитанного.
+type MarkReadRequest struct {
+	LastMessageID string `json:"last_message_id" example:"3f7c1b62-6f0f-4a2b-8f0e-2f2b9a1c7d10"`
 }
 
 func MessageFromModel(message exchangemodel.Message) MessageResponse {

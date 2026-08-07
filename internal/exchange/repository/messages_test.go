@@ -155,15 +155,17 @@ func TestMarkMessagesReadTargetsTheReader(t *testing.T) {
 
 	exchangeID := uuid.New()
 	userID := uuid.New()
+	lastMessageID := uuid.New()
 	queries := &fakeMessageQueries{}
 
 	if err := newRepositoryWithMessages(queries).
-		MarkMessagesRead(context.Background(), exchangeID, userID); err != nil {
+		MarkMessagesRead(context.Background(), exchangeID, userID, lastMessageID); err != nil {
 		t.Fatalf("MarkMessagesRead() error = %v", err)
 	}
 
 	if queries.readParams.ExchangeID != pgUUID(exchangeID) ||
-		queries.readParams.UserID != pgUUID(userID) {
+		queries.readParams.UserID != pgUUID(userID) ||
+		queries.readParams.LastMessageID != pgUUID(lastMessageID) {
 		t.Fatalf("MarkChainMessagesRead() params = %+v", queries.readParams)
 	}
 }
