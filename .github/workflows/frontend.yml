@@ -36,3 +36,7 @@ jobs:
       # lint:ci, а не lint: без --cache (в чистой машине он бесполезен)
       # и с --max-warnings=0, то есть no-console тоже красит прогон.
       - run: npm run lint:ci
+
+      # tsc -b && vite build. Тем же собирается образ веба, поэтому TypeScript
+      # должен падать здесь, а не внутри docker build.
+      - run: npm run build
