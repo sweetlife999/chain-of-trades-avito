@@ -89,6 +89,15 @@
     }
   }
 
+  &_danger {
+    color: #fff;
+    background-color: #dc2626;
+
+    &:hover:not(:disabled) {
+      background-color: #b91c1c;
+    }
+  }
+
   &_transparent {
     color: #4b5563;
     background-color: transparent;

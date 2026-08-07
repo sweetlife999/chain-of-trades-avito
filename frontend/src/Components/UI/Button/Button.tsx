@@ -3,7 +3,7 @@ import styles from "./Styles.module.scss";
 
 type TButton = {
   children?: React.ReactNode;
-  color?: "green" | "light" | "dark" | "transparent" | "invisible";
+  color?: "green" | "light" | "dark" | "danger" | "transparent" | "invisible";
   onClick?: MouseEventHandler<HTMLButtonElement>;
   size?: "s" | "m" | 'l';
   centered?: boolean;

@@ -7,6 +7,8 @@ type TProps = {
   title: string;
   description: string;
   confirmLabel: string;
+  confirmColor?: "green" | "danger";
+  pendingLabel?: string;
   isPending?: boolean;
   error?: string;
   onClose: () => void;
@@ -17,6 +19,8 @@ const ConfirmationPopupComponent = ({
   title,
   description,
   confirmLabel,
+  confirmColor = "danger",
+  pendingLabel = "Отменяем...",
   isPending = false,
   error,
   onClose,
@@ -63,14 +67,14 @@ const ConfirmationPopupComponent = ({
           >
             Назад
           </Button>
-          <button
-            className={styles.confirmation__danger}
+          <Button
+            color={confirmColor}
             disabled={isPending}
             type="button"
             onClick={onConfirm}
           >
-            {isPending ? "Отменяем..." : confirmLabel}
-          </button>
+            {isPending ? pendingLabel : confirmLabel}
+          </Button>
         </div>
       </section>
     </div>

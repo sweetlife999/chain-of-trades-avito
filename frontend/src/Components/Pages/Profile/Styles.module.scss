@@ -38,11 +38,7 @@
 
     border-radius: 50%;
 
-    background: linear-gradient(
-      135deg,
-      #e5d1ff,
-      #a878ff
-    );
+    background: linear-gradient(135deg, #e5d1ff, #a878ff);
   }
 
   &__avatarImage {
@@ -65,8 +61,6 @@
   }
 
   &__nickname {
-    margin: 0;
-
     color: #171717;
     font-size: 24px;
     font-weight: 700;
@@ -121,7 +115,7 @@
     display: flex;
     align-items: center;
     gap: 7px;
-    
+
     color: #171717;
     font-size: 20px;
     font-weight: 700;

@@ -1,7 +1,9 @@
 import api from "../client";
 import {
+  BlockedUsersSchema,
   UpdateUserSchema,
   UserSchema,
+  type TBlockedUsers,
   type TRegister,
   type TUpdateUser,
   type TUser,
@@ -57,4 +59,19 @@ export const updateUser = async (
   const { data } = await api.patch(`/users/${id}`, payload);
 
   return UserSchema.parse(data);
+};
+
+
+export const getBlockedUsers = async (): Promise<TBlockedUsers> => {
+  const { data } = await api.get("/users/me/blocks");
+
+  return BlockedUsersSchema.parse(data);
+};
+
+export const blockUser = async (userId: string): Promise<void> => {
+  await api.post(`/users/me/blocks/${userId}`);
+};
+
+export const unblockUser = async (userId: string): Promise<void> => {
+  await api.delete(`/users/me/blocks/${userId}`);
 };

@@ -15,6 +15,18 @@ export const UserSchema = z.object({
 
 export type TUser = z.infer<typeof UserSchema>;
 
+export const BlockedUserSchema = z.object({
+  blocked_at: z.string(),
+  id: z.string(),
+  nickname: z.string(),
+  photo_url: z.string(),
+});
+
+export const BlockedUsersSchema = z.array(BlockedUserSchema);
+
+export type TBlockedUser = z.infer<typeof BlockedUserSchema>;
+export type TBlockedUsers = z.infer<typeof BlockedUsersSchema>;
+
 const getByteLength = (value: string) => {
   return new TextEncoder().encode(value).length;
 };
