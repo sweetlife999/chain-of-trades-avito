@@ -5,6 +5,7 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
+import { Link } from "react-router-dom";
 import {
   useMutation,
   useQuery,
@@ -165,11 +166,36 @@ const ExchangeChatComponent = ({
         {messages.map((message) => {
           const system = isSystemMessage(message);
           const own = message.author?.id === currentUserId;
+          const authorProfilePath = message.author
+            ? message.author.id === currentUserId
+              ? "/profile"
+              : `/profile/${message.author.id}`
+            : "";
 
           if (system) {
+            const systemText = getSystemMessageText(message);
+            const authorPrefix = message.author
+              ? `${message.author.nickname} `
+              : "";
+            const systemAction = authorPrefix && systemText.startsWith(authorPrefix)
+              ? systemText.slice(authorPrefix.length)
+              : systemText;
+
             return (
               <div className={styles.chat__system} key={message.id}>
-                <span>{getSystemMessageText(message)}</span>
+                {message.author ? (
+                  <>
+                    <Link
+                      className={styles.chat__systemAuthor}
+                      to={authorProfilePath}
+                    >
+                      {message.author.nickname}
+                    </Link>
+                    <span>{systemAction}</span>
+                  </>
+                ) : (
+                  <span>{systemText}</span>
+                )}
                 <time>{formatTime(message.created_at)}</time>
               </div>
             );
@@ -182,20 +208,33 @@ const ExchangeChatComponent = ({
               }`}
               key={message.id}
             >
-              {!own && (
-                <span className={styles.chat__avatar}>
-                  {message.author?.photo_url ? (
-                    <img
-                      alt={message.author.nickname}
-                      src={message.author.photo_url}
-                    />
-                  ) : (
-                    message.author?.nickname.charAt(0).toUpperCase()
-                  )}
-                </span>
+              {!own && message.author && (
+                <Link
+                  aria-label={`Профиль ${message.author.nickname}`}
+                  className={styles.chat__avatarLink}
+                  to={authorProfilePath}
+                >
+                  <span className={styles.chat__avatar}>
+                    {message.author.photo_url ? (
+                      <img
+                        alt={message.author.nickname}
+                        src={message.author.photo_url}
+                      />
+                    ) : (
+                      message.author.nickname.charAt(0).toUpperCase()
+                    )}
+                  </span>
+                </Link>
               )}
               <div>
-                {!own && <strong>{message.author?.nickname}</strong>}
+                {!own && message.author && (
+                  <Link
+                    className={styles.chat__authorLink}
+                    to={authorProfilePath}
+                  >
+                    <strong>{message.author.nickname}</strong>
+                  </Link>
+                )}
                 <p>{message.body ?? ""}</p>
                 <time>{formatTime(message.created_at)}</time>
               </div>

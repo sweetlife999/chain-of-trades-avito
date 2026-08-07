@@ -69,6 +69,21 @@
     }
   }
 
+  &__avatarLink {
+    display: block;
+    flex: 0 0 32px;
+    border-radius: 50%;
+  }
+
+  &__authorLink {
+    width: fit-content;
+    color: #171717;
+
+    &:hover {
+      color: $green-button;
+    }
+  }
+
   &__avatar {
     display: grid;
     width: 32px;
@@ -85,6 +100,15 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
+    }
+  }
+
+  &__systemAuthor {
+    color: #444;
+    font-weight: 600;
+
+    &:hover {
+      color: $green-button;
     }
   }
 

@@ -37,17 +37,29 @@
 
   &__participants {
     display: flex;
+  }
 
-    span {
-      display: grid;
-      width: 36px;
-      height: 36px;
-      margin-right: -8px;
-      place-items: center;
-      color: #fff;
-      background: $green-button;
-      border: 2px solid #fff;
-      border-radius: 50%;
+  &__participant {
+    display: grid;
+    width: 36px;
+    height: 36px;
+    margin-right: -8px;
+    overflow: hidden;
+    place-items: center;
+    color: #fff;
+    background: $green-button;
+    border: 2px solid #fff;
+    border-radius: 50%;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    &:hover {
+      z-index: 1;
+      border-color: $green-button;
     }
   }
 

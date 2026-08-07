@@ -9,6 +9,7 @@ import { Main } from "../Components/Pages/Main/Main";
 import { Login } from "../Components/Pages/Login/Login";
 import { Register } from "../Components/Pages/Register/Register";
 import { Profile } from "../Components/Pages/Profile/Profile";
+import { ProfileEdit } from "../Components/Pages/ProfileEdit/ProfileEdit";
 import { AuthInitializer } from "../Components/Widgets/AuthInitializer/AuthInitializer";
 import { MyItems } from "../Components/Widgets/MyItems/MyItems";
 import { ItemDetails } from "../Components/Widgets/ItemDetails/ItemDetails";
@@ -28,6 +29,8 @@ function App() {
                 <Route path="login" element={<Login />} />
                 <Route path="register" element={<Register />} />
                 <Route path="profile" element={<Profile />} />
+                <Route path="profile/:id" element={<Profile />} />
+                <Route path="profile/edit" element={<ProfileEdit />} />
                 <Route path="myItems" element={<MyItems />} />
                 <Route path="items/:id" element={<ItemDetails />} />
                 <Route path="exchanges" element={<MyChains />} />

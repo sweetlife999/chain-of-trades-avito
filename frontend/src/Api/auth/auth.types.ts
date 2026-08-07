@@ -6,12 +6,12 @@ export const UserSchema = z.object({
   deals_completed: z.number(),
   description: z.string(),
   id: z.string(),
+  is_admin: z.boolean().optional(),
   nickname: z.string(),
   photo_url: z.string(),
   rating: z.number().nullable().transform((value) => value ?? 0),
   updated_at: z.string(),
 });
-
 
 export type TUser = z.infer<typeof UserSchema>;
 
@@ -46,4 +46,11 @@ export const registerSchema = z.object({
     .or(z.literal("")),
 });
 
+export const UpdateUserSchema = z.object({
+  nickname: z.string().trim().min(3).max(32).optional(),
+  description: z.string().trim().optional(),
+  photo_url: z.string().trim().optional(),
+});
+
 export type TRegister = z.infer<typeof registerSchema>;
+export type TUpdateUser = z.infer<typeof UpdateUserSchema>;

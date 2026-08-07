@@ -1,5 +1,5 @@
-import { memo } from "react";
-import { Link } from "react-router-dom";
+import { memo, type KeyboardEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
 import styles from "./Styles.module.scss";
 import type {
@@ -26,27 +26,60 @@ const getTitle = (exchange: TExchange) => {
     : "Обмен без участников";
 };
 
-const PostComponent = ({ exchange }: TProps) => (
-  <Link className={styles.post} to={`/exchanges/${exchange.id}`}>
-    <div className={styles.post__top}>
-      <span className={`${styles.post__status} ${styles[`post__status_${exchange.status}`]}`}>
-        {statusLabels[exchange.status]}
-      </span>
-      <span>{exchange.participants.length} участников</span>
-    </div>
+const PostComponent = ({ exchange }: TProps) => {
+  const navigate = useNavigate();
+  const exchangePath = `/exchanges/${exchange.id}`;
 
-    <h2>{getTitle(exchange)}</h2>
+  const openExchange = () => navigate(exchangePath);
+  const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openExchange();
+    }
+  };
 
-    <div className={styles.post__participants}>
-      {exchange.participants.slice(0, 4).map(({ user }) => (
-        <span key={user.id} title={user.nickname}>
-          {user.nickname.charAt(0).toUpperCase()}
+  return (
+    <article
+      className={styles.post}
+      role="link"
+      tabIndex={0}
+      onClick={openExchange}
+      onKeyDown={handleKeyDown}
+    >
+      <div className={styles.post__top}>
+        <span
+          className={`${styles.post__status} ${styles[`post__status_${exchange.status}`]}`}
+        >
+          {statusLabels[exchange.status]}
         </span>
-      ))}
-    </div>
+        <span>{exchange.participants.length} участников</span>
+      </div>
 
-    <span className={styles.post__open}>Открыть обмен</span>
-  </Link>
-);
+      <h2>{getTitle(exchange)}</h2>
+
+      <div className={styles.post__participants}>
+        {exchange.participants.slice(0, 4).map(({ user }) => (
+          <Link
+            aria-label={`Профиль ${user.nickname}`}
+            className={styles.post__participant}
+            key={user.id}
+            title={user.nickname}
+            to={`/profile/${user.id}`}
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => event.stopPropagation()}
+          >
+            {user.photo_url ? (
+              <img alt={user.nickname} src={user.photo_url} />
+            ) : (
+              user.nickname.charAt(0).toUpperCase()
+            )}
+          </Link>
+        ))}
+      </div>
+
+      <span className={styles.post__open}>Открыть обмен</span>
+    </article>
+  );
+};
 
 export const Post = memo(PostComponent);
