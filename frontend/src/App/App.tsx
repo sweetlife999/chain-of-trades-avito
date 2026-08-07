@@ -30,7 +30,7 @@ function App() {
                 <Route path="profile" element={<Profile />} />
                 <Route path="myItems" element={<MyItems />} />
                 <Route path="items/:id" element={<ItemDetails />} />
-                <Route path="myChains" element={<MyChains />} />
+                <Route path="exchanges" element={<MyChains />} />
                 <Route path="exchanges/create" element={<CreateChain />} />
                 <Route path="exchanges/:id" element={<ExchangeDetails />} />
               </Route>

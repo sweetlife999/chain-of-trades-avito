@@ -11,6 +11,7 @@ import { login } from "../../../Api/auth/auth";
 import { useAuthDispatch } from "../../../Hooks/useAuthDispatch";
 import { setUserState } from "../../../Store/authSlice";
 import { Input } from "../../UI/Input/Input";
+import type { TUser } from "../../../Api/auth/auth.types";
 
 const LoginComponent = () => {
   const navigate = useNavigate();
@@ -29,7 +30,7 @@ const LoginComponent = () => {
 const loginMutation = useMutation({
   mutationFn: (data: FormState) => login(data),
 
-  onSuccess: (data) => {
+  onSuccess: (data: TUser) => {
     dispatch(setUserState(data));
     navigate("/profile");
   },
