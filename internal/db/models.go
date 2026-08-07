@@ -239,6 +239,12 @@ type Item struct {
 	PhotoUrls   []string
 }
 
+type ItemRefusal struct {
+	UserID    pgtype.UUID
+	ItemID    pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
 type ItemWant struct {
 	ItemID     pgtype.UUID
 	CategoryID int16

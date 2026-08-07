@@ -2,7 +2,7 @@
 export
 
 
-.PHONY: lint run up db down reset migrate-up migrate-down migrate-status sqlc smoke swagger test-exchange-integration test-user-blocks-integration test-exchange-recovery-integration test-exchange-messages-integration test-user-blocks-integration
+.PHONY: lint run up db down reset migrate-up migrate-down migrate-status sqlc smoke swagger test-exchange-integration test-user-blocks-integration test-exchange-recovery-integration test-exchange-refusal-integration test-exchange-messages-integration
 
 # Линтер. Требует golangci-lint v2 той же версии, что пиннится в CI:
 # go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
@@ -68,7 +68,13 @@ test-user-blocks-integration:
 	go test -tags=integration ./internal/user/handler \
 		-run TestUserBlocksIntegration -count=1
 
-# Живой сценарий восстановления: отказ, освобождение reserved-вещей и новый DFS.
+# Живые сценарии восстановления: отказ, освобождение reserved-вещей и новый DFS,
+# плюс возврат цепочки, которую вытеснило чужое подтверждение.
 test-exchange-recovery-integration:
 	go test -tags=integration ./internal/exchange/handler \
-		-run TestExchangeRecoveryIntegration -count=1
+		-run RecoveryIntegration -count=1
+
+# Живой сценарий отказа: вырезанное ребро графа и уцелевшие рёбра отказанного цикла.
+test-exchange-refusal-integration:
+	go test -tags=integration ./internal/exchange/handler \
+		-run TestExchangeRefusalIntegration -count=1

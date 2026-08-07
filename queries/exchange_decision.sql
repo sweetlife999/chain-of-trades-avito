@@ -18,7 +18,7 @@ ORDER BY exchange_item.item_id;
 -- Строка обмена блокируется первой. Поэтому два одновременных решения по одному
 -- обмену выполняются последовательно и не могут потерять обновления друг друга.
 -- name: LockExchange :one
-SELECT status
+SELECT status, signature
 FROM chains
 WHERE id = sqlc.arg(exchange_id)
 FOR UPDATE;
@@ -36,6 +36,17 @@ SET status = 'accepted',
     decided_at = now()
 WHERE chain_id = sqlc.arg(exchange_id)
   AND user_id = sqlc.arg(user_id);
+
+-- Отказ от предложения — «не хочу эту вещь», поэтому запоминается вырезанным ребром:
+-- вещь берётся из самой цепочки, отдельного чтения в Go не нужно. Повторный отказ от
+-- той же вещи в другом обмене — нормальный случай, а не ошибка.
+-- name: RecordItemRefusal :exec
+INSERT INTO item_refusals (user_id, item_id)
+SELECT participant.user_id, participant.receives_item_id
+FROM chain_participants AS participant
+WHERE participant.chain_id = sqlc.arg(exchange_id)
+  AND participant.user_id = sqlc.arg(user_id)
+ON CONFLICT DO NOTHING;
 
 -- name: DeclineExchangeParticipant :exec
 UPDATE chain_participants

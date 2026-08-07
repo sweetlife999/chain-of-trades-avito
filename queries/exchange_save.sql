@@ -1,7 +1,10 @@
+-- Подпись уникальна только среди открытых обменов, поэтому арбитром выступает
+-- частичный индекс. Без повторения его предиката Postgres не выводит индекс как
+-- арбитра и падает на ON CONFLICT.
 -- name: CreateExchange :one
 INSERT INTO chains (signature)
 VALUES (sqlc.arg(signature))
-ON CONFLICT (signature) DO NOTHING
+ON CONFLICT (signature) WHERE status IN ('proposed', 'confirmed') DO NOTHING
 RETURNING id;
 
 -- name: CreateExchangeParticipant :exec

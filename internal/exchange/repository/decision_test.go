@@ -136,12 +136,24 @@ func TestDeclineParticipationCancelsExchange(t *testing.T) {
 	transactions := &fakeTransactionManager{queries: queries}
 	repository := newRepository(&fakeNeighborQueries{}, transactions)
 
-	nodes, err := repository.DeclineParticipation(context.Background(), uuid.New(), uuid.New())
+	exchangeID := uuid.New()
+	userID := uuid.New()
+
+	nodes, signature, err := repository.DeclineParticipation(context.Background(), exchangeID, userID)
 	if err != nil {
 		t.Fatalf("DeclineParticipation() error = %v", err)
 	}
-	if len(nodes) != 0 {
-		t.Fatalf("recovery nodes = %+v, want none for proposed exchange", nodes)
+	// Отказ от предложения ничего не освобождает, но перепоиск от его объявлений всё
+	// равно нужен: другого канала обнаружения обмена у участников нет.
+	if len(nodes) != 1 || nodes[0].ItemID != itemID || nodes[0].OwnerID != ownerID {
+		t.Fatalf("recovery nodes = %+v, want item %s owned by %s", nodes, itemID, ownerID)
+	}
+	if signature != queries.chainSignature {
+		t.Fatalf("cancelled signature = %q, want %q", signature, queries.chainSignature)
+	}
+	wantRefusal := db.RecordItemRefusalParams{ExchangeID: pgUUID(exchangeID), UserID: pgUUID(userID)}
+	if len(queries.refusals) != 1 || queries.refusals[0] != wantRefusal {
+		t.Fatalf("recorded refusals = %+v, want exactly %+v", queries.refusals, wantRefusal)
 	}
 	if !queries.declined || !queries.cancelled {
 		t.Fatalf(
@@ -174,12 +186,19 @@ func TestDeclineConfirmedExchangeReleasesItems(t *testing.T) {
 	transactions := &fakeTransactionManager{queries: queries}
 	repository := newRepository(&fakeNeighborQueries{}, transactions)
 
-	nodes, err := repository.DeclineParticipation(context.Background(), uuid.New(), uuid.New())
+	nodes, signature, err := repository.DeclineParticipation(context.Background(), uuid.New(), uuid.New())
 	if err != nil {
 		t.Fatalf("DeclineParticipation() error = %v", err)
 	}
 	if len(nodes) != 1 || nodes[0].ItemID != itemID || nodes[0].OwnerID != ownerID {
 		t.Fatalf("recovery nodes = %+v, want item %s owned by %s", nodes, itemID, ownerID)
+	}
+	if signature != queries.chainSignature {
+		t.Fatalf("cancelled signature = %q, want %q", signature, queries.chainSignature)
+	}
+	// Сорванная сделка — не «не хочу эту вещь», ребро графа остаётся на месте.
+	if len(queries.refusals) != 0 {
+		t.Fatalf("recorded refusals = %+v, want none for a broken confirmed exchange", queries.refusals)
 	}
 	if !queries.declined || !queries.cancelled || !queries.releaseCalled || !queries.dealsBrokenCalled {
 		t.Fatalf(
@@ -205,7 +224,7 @@ func TestDeclineConfirmedExchangeAfterCompletionConfirmationConflicts(t *testing
 	transactions := &fakeTransactionManager{queries: queries}
 	repository := newRepository(&fakeNeighborQueries{}, transactions)
 
-	_, err := repository.DeclineParticipation(context.Background(), uuid.New(), uuid.New())
+	_, _, err := repository.DeclineParticipation(context.Background(), uuid.New(), uuid.New())
 	if !errors.Is(err, ErrConflict) {
 		t.Fatalf("DeclineParticipation() error = %v, want %v", err, ErrConflict)
 	}
@@ -284,6 +303,7 @@ func TestDecisionErrors(t *testing.T) {
 func pendingDecisionQueries() *fakeExchangeWriteQueries {
 	return &fakeExchangeWriteQueries{
 		chainStatus:       db.ChainStatusProposed,
+		chainSignature:    "item-a>item-b|item-b>item-a",
 		participantStatus: db.ParticipantStatusPending,
 	}
 }

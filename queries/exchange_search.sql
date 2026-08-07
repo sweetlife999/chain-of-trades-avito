@@ -1,5 +1,6 @@
 -- Рёбра графа не храним: для объявления A соседями считаются доступные объявления B,
--- категория которых входит в список желаемых категорий A.
+-- категория которых входит в список желаемых категорий A и от которых владелец A не
+-- отказывался.
 -- Стабильный порядок нужен, чтобы DFS при одинаковых данных находил одинаковый обмен.
 -- name: FindExchangeNeighbors :many
 SELECT
@@ -15,6 +16,12 @@ WHERE current_item.id = sqlc.arg(item_id)
   AND candidate.status = 'available'
   AND candidate.id <> current_item.id
   AND candidate.owner_id <> current_item.owner_id
+  AND NOT EXISTS (
+      SELECT 1
+      FROM item_refusals AS refusal
+      WHERE refusal.user_id = current_item.owner_id
+        AND refusal.item_id = candidate.id
+  )
 ORDER BY candidate.created_at, candidate.id;
 
 -- Кандидат несовместим с текущим путём, если он заблокировал хотя бы одного

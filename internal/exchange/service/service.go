@@ -37,7 +37,7 @@ type Repository interface {
 	ListByUser(context.Context, uuid.UUID) ([]exchangemodel.Details, error)
 	GetByID(context.Context, uuid.UUID, uuid.UUID) (exchangemodel.Details, error)
 	ConfirmParticipation(context.Context, uuid.UUID, uuid.UUID) error
-	DeclineParticipation(context.Context, uuid.UUID, uuid.UUID) ([]exchangemodel.Node, error)
+	DeclineParticipation(context.Context, uuid.UUID, uuid.UUID) ([]exchangemodel.Node, string, error)
 	CompleteParticipation(context.Context, uuid.UUID, uuid.UUID) error
 	ExchangeAccess(context.Context, uuid.UUID, uuid.UUID) (string, bool, error)
 	CreateMessage(context.Context, uuid.UUID, uuid.UUID, string) (exchangemodel.Message, error)
@@ -274,7 +274,7 @@ func (s *Service) DeclineParticipation(
 	exchangeID uuid.UUID,
 	userID uuid.UUID,
 ) error {
-	recoveryNodes, err := s.repository.DeclineParticipation(ctx, exchangeID, userID)
+	recoveryNodes, cancelledSignature, err := s.repository.DeclineParticipation(ctx, exchangeID, userID)
 	if err != nil {
 		return fmt.Errorf("decline exchange participation: %w", err)
 	}
@@ -282,21 +282,25 @@ func (s *Service) DeclineParticipation(
 	// Отмена уже зафиксирована в БД. Ошибка дополнительного поиска не должна
 	// превращать успешный decline в HTTP 500: клиент иначе повторит запрос к уже
 	// закрытому обмену. Поэтому поиск выполняется best effort и только логируется.
-	s.recoverExchanges(ctx, recoveryNodes)
+	s.recoverExchanges(ctx, recoveryNodes, cancelledSignature)
 
 	return nil
 }
 
-func (s *Service) recoverExchanges(ctx context.Context, nodes []exchangemodel.Node) {
+func (s *Service) recoverExchanges(
+	ctx context.Context,
+	nodes []exchangemodel.Node,
+	cancelledSignature string,
+) {
 	if len(nodes) < 2 {
 		return
 	}
 
 	// Узлы освобождённых объявлений приходят из БД в порядке UUID, а не в порядке
-	// передачи, поэтому направленную подпись отменённого цикла из них не строим.
-	// Сохранённая UNIQUE-подпись отклонит точный повтор, после чего цикл попадёт
-	// в этот локальный набор и DFS продолжит искать альтернативу.
-	excludedCycles := make(map[string]struct{})
+	// передачи, поэтому подпись отменённого цикла берётся из БД, а не строится из них.
+	// Без неё DFS предложил бы только что сорванный состав обратно: среди закрытых
+	// обменов подпись не уникальна.
+	excludedCycles := map[string]struct{}{cancelledSignature: {}}
 
 	for _, start := range nodes {
 		for {

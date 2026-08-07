@@ -25,6 +25,12 @@ WHERE current_item.id = $1
   AND candidate.status = 'available'
   AND candidate.id <> current_item.id
   AND candidate.owner_id <> current_item.owner_id
+  AND NOT EXISTS (
+      SELECT 1
+      FROM item_refusals AS refusal
+      WHERE refusal.user_id = current_item.owner_id
+        AND refusal.item_id = candidate.id
+  )
 ORDER BY candidate.created_at, candidate.id
 `
 
@@ -34,7 +40,8 @@ type FindExchangeNeighborsRow struct {
 }
 
 // Рёбра графа не храним: для объявления A соседями считаются доступные объявления B,
-// категория которых входит в список желаемых категорий A.
+// категория которых входит в список желаемых категорий A и от которых владелец A не
+// отказывался.
 // Стабильный порядок нужен, чтобы DFS при одинаковых данных находил одинаковый обмен.
 func (q *Queries) FindExchangeNeighbors(ctx context.Context, itemID pgtype.UUID) ([]FindExchangeNeighborsRow, error) {
 	rows, err := q.db.Query(ctx, findExchangeNeighbors, itemID)

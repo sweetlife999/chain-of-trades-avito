@@ -14,10 +14,13 @@ import (
 const createExchange = `-- name: CreateExchange :one
 INSERT INTO chains (signature)
 VALUES ($1)
-ON CONFLICT (signature) DO NOTHING
+ON CONFLICT (signature) WHERE status IN ('proposed', 'confirmed') DO NOTHING
 RETURNING id
 `
 
+// Подпись уникальна только среди открытых обменов, поэтому арбитром выступает
+// частичный индекс. Без повторения его предиката Postgres не выводит индекс как
+// арбитра и падает на ON CONFLICT.
 func (q *Queries) CreateExchange(ctx context.Context, signature string) (pgtype.UUID, error) {
 	row := q.db.QueryRow(ctx, createExchange, signature)
 	var id pgtype.UUID

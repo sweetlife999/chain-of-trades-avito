@@ -675,18 +675,20 @@ func TestDeclineParticipationRecoversWithDifferentCycle(t *testing.T) {
 func TestDeclineParticipationDoesNotRecreateSameCycle(t *testing.T) {
 	t.Parallel()
 
+	// Подпись уникальна только среди открытых обменов, поэтому отменённый состав база
+	// больше не отклоняет. Не переподставить его — задача самого перепоиска.
 	nodes := makeNodes(3)
 	repository := &fakeRepository{
-		declineRecovery: nodes,
-		neighbors:       cycleGraph(nodes),
-		saveErr:         ErrDuplicateExchange,
+		declineRecovery:  nodes,
+		declineSignature: cycleKey(nodes),
+		neighbors:        cycleGraph(nodes),
 	}
 
 	if err := New(repository).DeclineParticipation(context.Background(), uuid.New(), nodes[0].OwnerID); err != nil {
 		t.Fatalf("DeclineParticipation() error = %v", err)
 	}
-	if repository.saveCalls != 1 {
-		t.Fatalf("SaveExchange() calls = %d, want one rejected duplicate", repository.saveCalls)
+	if repository.saveCalls != 0 {
+		t.Fatalf("SaveExchange() calls = %d, want the cancelled cycle left alone", repository.saveCalls)
 	}
 }
 
@@ -1023,6 +1025,7 @@ type fakeRepository struct {
 	declinedExchangeID  uuid.UUID
 	declinedUserID      uuid.UUID
 	declineRecovery     []exchangemodel.Node
+	declineSignature    string
 	declineErr          error
 	blockConflicts      map[uuid.UUID]bool
 	blockConflictErrors map[uuid.UUID]error
@@ -1173,10 +1176,10 @@ func (f *fakeRepository) DeclineParticipation(
 	_ context.Context,
 	exchangeID uuid.UUID,
 	userID uuid.UUID,
-) ([]exchangemodel.Node, error) {
+) ([]exchangemodel.Node, string, error) {
 	f.declinedExchangeID = exchangeID
 	f.declinedUserID = userID
-	return append([]exchangemodel.Node(nil), f.declineRecovery...), f.declineErr
+	return append([]exchangemodel.Node(nil), f.declineRecovery...), f.declineSignature, f.declineErr
 }
 
 func (f *fakeRepository) CompleteParticipation(

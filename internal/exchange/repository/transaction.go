@@ -14,13 +14,14 @@ type exchangeWriteQueries interface {
 	CreateExchange(context.Context, string) (pgtype.UUID, error)
 	CreateExchangeParticipant(context.Context, db.CreateExchangeParticipantParams) error
 	LockExchangeDecisionItems(context.Context, pgtype.UUID) error
-	LockExchange(context.Context, pgtype.UUID) (db.ChainStatus, error)
+	LockExchange(context.Context, pgtype.UUID) (db.LockExchangeRow, error)
 	LockExchangeParticipant(
 		context.Context,
 		db.LockExchangeParticipantParams,
 	) (db.LockExchangeParticipantRow, error)
 	AcceptExchangeParticipant(context.Context, db.AcceptExchangeParticipantParams) error
 	DeclineExchangeParticipant(context.Context, db.DeclineExchangeParticipantParams) error
+	RecordItemRefusal(context.Context, db.RecordItemRefusalParams) error
 	CountPendingExchangeParticipants(context.Context, pgtype.UUID) (int64, error)
 	LockExchangeItems(context.Context, pgtype.UUID) ([]db.LockExchangeItemsRow, error)
 	ReserveExchangeItems(context.Context, pgtype.UUID) (int64, error)
