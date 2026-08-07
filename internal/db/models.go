@@ -254,6 +254,7 @@ type User struct {
 	Rating         pgtype.Numeric
 	CreatedAt      pgtype.Timestamptz
 	UpdatedAt      pgtype.Timestamptz
+	IsAdmin        bool
 }
 
 type UserBlock struct {

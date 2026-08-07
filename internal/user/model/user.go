@@ -15,6 +15,7 @@ type User struct {
 	DealsCompleted int32
 	DealsBroken    int32
 	Rating         *float64
+	IsAdmin        bool
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 }

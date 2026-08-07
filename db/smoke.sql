@@ -231,4 +231,15 @@ EXCEPTION WHEN check_violation THEN
     RAISE NOTICE 'ok 15: у текстового сообщения обязателен текст';
 END $$;
 
+-- 16. обычная регистрация не должна случайно выдавать административные права
+DO $$
+DECLARE admin boolean;
+BEGIN
+    SELECT is_admin INTO admin FROM users WHERE nickname = 'alice';
+    IF admin THEN
+        RAISE EXCEPTION 'новый пользователь неожиданно получил права администратора';
+    END IF;
+    RAISE NOTICE 'ok 16: пользователь по умолчанию не администратор';
+END $$;
+
 ROLLBACK;
