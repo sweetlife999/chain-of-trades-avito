@@ -4,22 +4,41 @@ MVP сервиса многостороннего обмена: пользова
 получить взамен, сервис собирает участников в цепочку, где каждый отдаёт ненужное и
 получает нужное.
 
-В backend уже есть схема БД, CRU пользователей, вход по JWT, защита обновления профиля и
-CRUD объявлений с фотографиями и желаемыми категориями. Матчинг цепочек, механика сделки и
-frontend добавляются отдельными задачами.
+В backend есть схема БД, пользователи и вход по JWT, CRUD объявлений, автоматический подбор
+замкнутых обменов, решения участников, тред обмена и блокировки. Frontend закрывает основные
+экраны: вход, профиль, свои вещи и обмены.
 
 ## Запуск
 
 ```bash
 cp .env.example .env
-make up      # поднимает PostgreSQL и накатывает миграции
-make smoke   # проверяет схему на живой БД
-make run     # HTTP API на порту из HTTP_ADDR (по умолчанию :8080)
+make up      # собирает образы и поднимает БД, миграции, API и фронт
 ```
 
-Нужны Docker с плагином compose и Go 1.26+ из-за goose и sqlc
+Приложение целиком — <http://localhost>. Swagger — <http://localhost/swagger/>,
+см. `docs/swagger.md`.
 
-Маршруты можно потрогать через Swagger: <http://localhost:8080/swagger/> — см. `docs/swagger.md`
+Нужен только Docker с compose и buildx (`--mount=type=cache` в Dockerfile работает
+через BuildKit; на Ubuntu это пакет `docker-buildx`). Если порт 80 занят, впиши в `.env`
+свободный: `WEB_PORT=8081`.
+
+Погасить — `make down`. Снести вместе с данными БД и подняться с нуля — `make reset`.
+
+### Разработка
+
+Гонять фронт и API вживую удобнее без пересборки образов:
+
+```bash
+make db      # только PostgreSQL с миграциями
+make run     # API на порту из HTTP_ADDR (по умолчанию :8080)
+make smoke   # проверка схемы на живой БД
+
+cd frontend && npm ci && npm run dev   # Vite на :5173, /api уходит на :8080
+```
+
+Сервис `api` наружу не публикуется, поэтому `make up` и `make run` не спорят за `:8080`.
+
+Здесь дополнительно нужны Go 1.26+ (goose и sqlc) и Node 20.19+ (vite 8 и eslint 10).
 
 ## CI
 
@@ -41,12 +60,18 @@ make test-exchange-integration
 make sqlc swagger && git status --short   # дерево должно остаться чистым
 ```
 
-Фронтенд в CI пока не участвует.
+Фронтенд проверяет отдельный `.github/workflows/frontend.yml`: `npm ci`, `npm run lint:ci` и
+`npm run build` на Node 22. Сборка там та же, что внутри образа веба, поэтому ошибка
+TypeScript падает в CI, а не в `docker build`.
 
 ## Что где
 
 | Путь              | Что там                                                          |
 |-------------------|------------------------------------------------------------------|
+| `Dockerfile`      | Образ Go: бинари `api` и `migrate` из одной сборки               |
+| `docker-compose.yml` | Четыре сервиса: `postgres`, `migrate`, `api`, `web`           |
+| `frontend/Dockerfile` | Образ веба: сборка фронта и Caddy, который её отдаёт         |
+| `frontend/Caddyfile`  | Один origin: статика, `/api/*` на API, TLS при домене        |
 | `migrations/`     | SQL-миграции goose, вшиты в binary через `embed.FS`              |
 | `queries/`        | SQL-запросы, из которых sqlc генерирует Go-код                   |
 | `internal/db/`    | Сгенерированный sqlc код — РУКАМИ НЕ ПРАВИТЬ! Только `make sqlc` |
