@@ -22,6 +22,11 @@ export const CreateItemRequestSchema = z.object({
   wants: z.array(z.string().min(1)).min(1),
 });
 
+export const UpdateItemRequestSchema = CreateItemRequestSchema.partial().refine(
+  (request) => Object.keys(request).length > 0,
+  { message: "Передайте хотя бы одно поле для изменения" },
+);
+
 export const ItemSchema = z.object({
   id: z.string(),
   owner_id: z.string(),
@@ -41,5 +46,6 @@ export type TItemStatus = z.infer<typeof ItemStatusSchema>;
 export type TCategory = z.infer<typeof CategorySchema>;
 export type TCategories = z.infer<typeof CategoriesArraySchema>;
 export type TCreateItemRequest = z.infer<typeof CreateItemRequestSchema>;
+export type TUpdateItemRequest = z.infer<typeof UpdateItemRequestSchema>;
 export type TItem = z.infer<typeof ItemSchema>;
 export type TGetItems = z.infer<typeof ItemsArraySchema>;
