@@ -22,11 +22,12 @@ const (
 )
 
 var (
-	ErrInvalidCycle = errors.New("invalid exchange cycle")
-	ErrValidation   = errors.New("invalid exchange input")
-	ErrForbidden    = exchangerepository.ErrNotParticipant
-	ErrConflict     = exchangerepository.ErrConflict
-	ErrNotFound     = exchangerepository.ErrNotFound
+	ErrInvalidCycle      = errors.New("invalid exchange cycle")
+	ErrValidation        = errors.New("invalid exchange input")
+	ErrForbidden         = exchangerepository.ErrNotParticipant
+	ErrConflict          = exchangerepository.ErrConflict
+	ErrNotFound          = exchangerepository.ErrNotFound
+	ErrDuplicateExchange = exchangerepository.ErrDuplicateExchange
 )
 
 type Repository interface {
@@ -195,24 +196,33 @@ func (s *Service) FindAndSave(
 	ctx context.Context,
 	start exchangemodel.Node,
 ) (exchangemodel.SearchResult, error) {
-	cycle, err := s.FindCycle(ctx, start)
-	if err != nil {
-		return exchangemodel.SearchResult{}, fmt.Errorf("search exchange: %w", err)
-	}
+	excludedCycles := make(map[string]struct{})
 
-	if cycle == nil {
-		return exchangemodel.SearchResult{}, nil
-	}
+	for {
+		cycle, err := s.findCycle(ctx, start, excludedCycles)
+		if err != nil {
+			return exchangemodel.SearchResult{}, fmt.Errorf("search exchange: %w", err)
+		}
+		if cycle == nil {
+			return exchangemodel.SearchResult{}, nil
+		}
 
-	exchangeID, err := s.SaveCycle(ctx, cycle)
-	if err != nil {
-		return exchangemodel.SearchResult{}, fmt.Errorf("persist found exchange: %w", err)
-	}
+		exchangeID, err := s.SaveCycle(ctx, cycle)
+		if errors.Is(err, ErrDuplicateExchange) {
+			// Подпись уже могла существовать до запуска поиска или быть сохранена
+			// параллельным DFS. Исключаем этот цикл и ищем следующую альтернативу.
+			excludedCycles[cycleKey(cycle)] = struct{}{}
+			continue
+		}
+		if err != nil {
+			return exchangemodel.SearchResult{}, fmt.Errorf("persist found exchange: %w", err)
+		}
 
-	return exchangemodel.SearchResult{
-		ExchangeID: exchangeID,
-		Found:      true,
-	}, nil
+		return exchangemodel.SearchResult{
+			ExchangeID: exchangeID,
+			Found:      true,
+		}, nil
+	}
 }
 
 func (s *Service) ListForUser(ctx context.Context, userID uuid.UUID) ([]exchangemodel.Details, error) {
@@ -282,38 +292,48 @@ func (s *Service) recoverExchanges(ctx context.Context, nodes []exchangemodel.No
 		return
 	}
 
-	// Не создаём только что отменённую комбинацию снова в том же запуске DFS.
-	// Новые составы разрешены, а постоянное исключение людей делает user_blocks.
-	excludedCycles := map[string]struct{}{cycleKey(nodes): {}}
+	// Узлы освобождённых объявлений приходят из БД в порядке UUID, а не в порядке
+	// передачи, поэтому направленную подпись отменённого цикла из них не строим.
+	// Сохранённая UNIQUE-подпись отклонит точный повтор, после чего цикл попадёт
+	// в этот локальный набор и DFS продолжит искать альтернативу.
+	excludedCycles := make(map[string]struct{})
 
 	for _, start := range nodes {
-		cycle, err := s.findCycle(ctx, start, excludedCycles)
-		if err != nil {
-			s.logger.Printf("recover exchange search for item %s: %v", start.ItemID, err)
-			continue
-		}
-		if cycle == nil {
-			continue
-		}
+		for {
+			cycle, err := s.findCycle(ctx, start, excludedCycles)
+			if err != nil {
+				s.logger.Printf("recover exchange search for item %s: %v", start.ItemID, err)
+				break
+			}
+			if cycle == nil {
+				break
+			}
 
-		if _, err := s.SaveCycle(ctx, cycle); err != nil {
-			s.logger.Printf("save recovered exchange for item %s: %v", start.ItemID, err)
-			continue
-		}
+			signature := cycleKey(cycle)
+			if _, err := s.SaveCycle(ctx, cycle); errors.Is(err, ErrDuplicateExchange) {
+				excludedCycles[signature] = struct{}{}
+				continue
+			} else if err != nil {
+				s.logger.Printf("save recovered exchange for item %s: %v", start.ItemID, err)
+				break
+			}
 
-		// Один и тот же цикл можно обойти с каждого объявления. Сигнатура без
-		// учёта порядка не даёт сохранить его несколько раз за один recovery.
-		excludedCycles[cycleKey(cycle)] = struct{}{}
+			// Один и тот же цикл можно обойти с каждого объявления. Каноническая
+			// подпись не даёт сохранить его несколько раз за один recovery.
+			excludedCycles[signature] = struct{}{}
+			break
+		}
 	}
 }
 
 func cycleKey(cycle []exchangemodel.Node) string {
-	itemIDs := make([]string, len(cycle))
+	transfers := make([]string, len(cycle))
 	for index, node := range cycle {
-		itemIDs[index] = node.ItemID.String()
+		next := cycle[(index+1)%len(cycle)]
+		transfers[index] = node.ItemID.String() + ">" + next.ItemID.String()
 	}
-	sort.Strings(itemIDs)
-	return strings.Join(itemIDs, ",")
+	sort.Strings(transfers)
+	return strings.Join(transfers, "|")
 }
 
 func (s *Service) CompleteParticipation(

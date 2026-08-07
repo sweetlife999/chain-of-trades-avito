@@ -2,15 +2,19 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	db "github.com/sweetlife999/chain-of-trades-avito/internal/db"
 	exchangemodel "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/model"
 )
+
+var ErrDuplicateExchange = errors.New("exchange cycle already exists")
 
 type neighborQueries interface {
 	FindExchangeNeighbors(context.Context, pgtype.UUID) ([]db.FindExchangeNeighborsRow, error)
@@ -94,7 +98,10 @@ func (r *Repository) SaveExchange(
 	var exchangeID uuid.UUID
 
 	err := r.transactions.WithinTransaction(ctx, func(queries exchangeWriteQueries) error {
-		id, err := queries.CreateExchange(ctx)
+		id, err := queries.CreateExchange(ctx, exchange.Signature())
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrDuplicateExchange
+		}
 		if err != nil {
 			return fmt.Errorf("create exchange: %w", err)
 		}

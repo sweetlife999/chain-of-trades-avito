@@ -12,12 +12,14 @@ import (
 )
 
 const createExchange = `-- name: CreateExchange :one
-INSERT INTO chains DEFAULT VALUES
+INSERT INTO chains (signature)
+VALUES ($1)
+ON CONFLICT (signature) DO NOTHING
 RETURNING id
 `
 
-func (q *Queries) CreateExchange(ctx context.Context) (pgtype.UUID, error) {
-	row := q.db.QueryRow(ctx, createExchange)
+func (q *Queries) CreateExchange(ctx context.Context, signature string) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, createExchange, signature)
 	var id pgtype.UUID
 	err := row.Scan(&id)
 	return id, err

@@ -32,7 +32,8 @@ func TestUserBlocksIntegration(t *testing.T) {
 	}
 
 	users := []uuid.UUID{uuid.New(), uuid.New()}
-	items := []uuid.UUID{uuid.New(), uuid.New()}
+	items := []uuid.UUID{uuid.New(), uuid.New(), uuid.New(), uuid.New()}
+	itemOwners := []uuid.UUID{users[0], users[1], users[0], users[1]}
 	var exchanges []uuid.UUID
 	t.Cleanup(func() {
 		cleanupUserBlocksIntegration(context.Background(), pool, exchanges, items, users)
@@ -52,7 +53,7 @@ func TestUserBlocksIntegration(t *testing.T) {
 		}
 	}
 
-	categories := []string{"books", "phones"}
+	categories := []string{"books", "phones", "books", "phones"}
 	for index, itemID := range items {
 		_, err := pool.Exec(ctx, `
 			INSERT INTO items (id, owner_id, category_id, title, photo_urls, created_at)
@@ -65,7 +66,7 @@ func TestUserBlocksIntegration(t *testing.T) {
 				'2000-01-01 00:00:00+00'::timestamptz + ($5 * interval '1 second')
 			)`,
 			itemID,
-			users[index],
+			itemOwners[index],
 			categories[index],
 			"Blocks integration item",
 			index,
@@ -92,13 +93,17 @@ func TestUserBlocksIntegration(t *testing.T) {
 		{UserID: users[0], GivesItemID: items[0], ReceivesItemID: items[1], Position: 0},
 		{UserID: users[1], GivesItemID: items[1], ReceivesItemID: items[0], Position: 1},
 	}
+	confirmedParticipants := []exchangemodel.Participant{
+		{UserID: users[0], GivesItemID: items[2], ReceivesItemID: items[3], Position: 0},
+		{UserID: users[1], GivesItemID: items[3], ReceivesItemID: items[2], Position: 1},
+	}
 
 	proposedID, err := exchangeRepository.SaveExchange(ctx, exchangemodel.Exchange{Participants: participants})
 	if err != nil {
 		t.Fatalf("create proposed exchange: %v", err)
 	}
 	exchanges = append(exchanges, proposedID)
-	confirmedID, err := exchangeRepository.SaveExchange(ctx, exchangemodel.Exchange{Participants: participants})
+	confirmedID, err := exchangeRepository.SaveExchange(ctx, exchangemodel.Exchange{Participants: confirmedParticipants})
 	if err != nil {
 		t.Fatalf("create confirmed exchange: %v", err)
 	}

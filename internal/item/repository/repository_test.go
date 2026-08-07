@@ -175,7 +175,11 @@ func TestRepositoryAgainstDatabase(t *testing.T) {
 		t.Fatalf("Create() partner item error = %v", err)
 	}
 	var chainID uuid.UUID
-	if err := pool.QueryRow(ctx, `INSERT INTO chains DEFAULT VALUES RETURNING id`).Scan(&chainID); err != nil {
+	if err := pool.QueryRow(
+		ctx,
+		`INSERT INTO chains (signature) VALUES ($1) RETURNING id`,
+		"item-delete-test:"+uuid.NewString(),
+	).Scan(&chainID); err != nil {
 		t.Fatalf("create chain: %v", err)
 	}
 	// Живая цепочка держит и вещи, и пользователя (chain_participants.user_id RESTRICT),

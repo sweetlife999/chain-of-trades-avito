@@ -27,8 +27,8 @@ func TestExchangeRecoveryIntegration(t *testing.T) {
 		t.Fatalf("open database: %v", err)
 	}
 
-	users := []uuid.UUID{uuid.New(), uuid.New(), uuid.New(), uuid.New()}
-	items := []uuid.UUID{uuid.New(), uuid.New(), uuid.New(), uuid.New()}
+	users := []uuid.UUID{uuid.New(), uuid.New(), uuid.New(), uuid.New(), uuid.New()}
+	items := []uuid.UUID{uuid.New(), uuid.New(), uuid.New(), uuid.New(), uuid.New()}
 	t.Cleanup(func() {
 		cleanupIntegrationData(context.Background(), pool, users, items)
 		pool.Close()
@@ -46,8 +46,8 @@ func TestExchangeRecoveryIntegration(t *testing.T) {
 		}
 	}
 
-	categories := []string{"books", "hobby", "sports", "sports"}
-	wants := []string{"hobby", "sports", "books", "books"}
+	categories := []string{"books", "hobby", "sports", "sports", "sports"}
+	wants := []string{"hobby", "sports", "books", "books", "books"}
 	for index, itemID := range items {
 		if _, err := pool.Exec(ctx, `
 			INSERT INTO items (id, owner_id, category_id, title, photo_urls, created_at)
@@ -94,15 +94,47 @@ func TestExchangeRecoveryIntegration(t *testing.T) {
 	}
 	assertChainStatus(t, ctx, pool, originalID, "cancelled")
 
+	var proposedAfterDecline int
+	if err := pool.QueryRow(ctx, `
+		SELECT count(DISTINCT chain.id)
+		FROM chains AS chain
+		JOIN chain_participants AS participant ON participant.chain_id = chain.id
+		WHERE chain.status = 'proposed'
+		  AND participant.gives_item_id = ANY($1::uuid[])`, items).Scan(&proposedAfterDecline); err != nil {
+		t.Fatalf("count proposals after proposed decline: %v", err)
+	}
+	if proposedAfterDecline != 0 {
+		t.Fatalf("proposals after proposed decline = %d, want 0", proposedAfterDecline)
+	}
+
+	confirmedParticipants := []exchangemodel.Participant{
+		{UserID: users[0], GivesItemID: items[0], ReceivesItemID: items[1], Position: 0},
+		{UserID: users[1], GivesItemID: items[1], ReceivesItemID: items[3], Position: 1},
+		{UserID: users[3], GivesItemID: items[3], ReceivesItemID: items[0], Position: 2},
+	}
+	confirmedID, err := repository.SaveExchange(ctx, exchangemodel.Exchange{Participants: confirmedParticipants})
+	if err != nil {
+		t.Fatalf("create exchange that will break: %v", err)
+	}
+	for _, userID := range []uuid.UUID{users[0], users[1], users[3]} {
+		if err := service.ConfirmParticipation(ctx, confirmedID, userID); err != nil {
+			t.Fatalf("confirm exchange for user %s: %v", userID, err)
+		}
+	}
+
+	if err := service.DeclineParticipation(ctx, confirmedID, users[3]); err != nil {
+		t.Fatalf("decline confirmed exchange: %v", err)
+	}
+	assertChainStatus(t, ctx, pool, confirmedID, "cancelled")
+
 	var recoveredID uuid.UUID
 	if err := pool.QueryRow(ctx, `
 		SELECT chain.id
 		FROM chains AS chain
 		WHERE chain.status = 'proposed'
-		  AND chain.id <> $1
 		  AND NOT EXISTS (
 			SELECT 1
-			FROM unnest($2::uuid[]) AS expected(item_id)
+			FROM unnest($1::uuid[]) AS expected(item_id)
 			WHERE NOT EXISTS (
 				SELECT 1
 				FROM chain_participants AS participant
@@ -110,24 +142,12 @@ func TestExchangeRecoveryIntegration(t *testing.T) {
 				  AND participant.gives_item_id = expected.item_id
 			)
 		  )
-		  AND (SELECT count(*) FROM chain_participants WHERE chain_id = chain.id) = cardinality($2::uuid[])
+		  AND (SELECT count(*) FROM chain_participants WHERE chain_id = chain.id) = cardinality($1::uuid[])
 		LIMIT 1`,
-		originalID,
-		[]uuid.UUID{items[0], items[1], items[3]},
+		[]uuid.UUID{items[0], items[1], items[4]},
 	).Scan(&recoveredID); err != nil {
-		t.Fatalf("find recovered exchange with alternative item: %v", err)
+		t.Fatalf("find recovered exchange with a new exact composition: %v", err)
 	}
-
-	for _, userID := range []uuid.UUID{users[0], users[1], users[3]} {
-		if err := service.ConfirmParticipation(ctx, recoveredID, userID); err != nil {
-			t.Fatalf("confirm recovered exchange for user %s: %v", userID, err)
-		}
-	}
-
-	if err := service.DeclineParticipation(ctx, recoveredID, users[3]); err != nil {
-		t.Fatalf("decline confirmed exchange: %v", err)
-	}
-	assertChainStatus(t, ctx, pool, recoveredID, "cancelled")
 
 	for _, itemID := range []uuid.UUID{items[0], items[1], items[3]} {
 		var status string

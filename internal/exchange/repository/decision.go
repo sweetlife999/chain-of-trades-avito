@@ -82,10 +82,14 @@ func (r *Repository) DeclineParticipation(
 			if item.Status != expectedItemStatus {
 				return ErrConflict
 			}
-			recoveryNodes = append(recoveryNodes, exchangemodel.Node{
-				ItemID:  uuid.UUID(item.ID.Bytes),
-				OwnerID: uuid.UUID(item.OwnerID.Bytes),
-			})
+			// proposed-обмен не резервирует объявления, поэтому его отмена не
+			// меняет граф доступности и не требует повторного DFS.
+			if exchangeStatus == db.ChainStatusConfirmed {
+				recoveryNodes = append(recoveryNodes, exchangemodel.Node{
+					ItemID:  uuid.UUID(item.ID.Bytes),
+					OwnerID: uuid.UUID(item.OwnerID.Bytes),
+				})
+			}
 		}
 
 		if err := declineParticipation(ctx, queries, exchangeID, userID); err != nil {

@@ -201,6 +201,7 @@ type Chain struct {
 	CreatedAt pgtype.Timestamptz
 	UpdatedAt pgtype.Timestamptz
 	ClosedAt  pgtype.Timestamptz
+	Signature string
 }
 
 type ChainMessage struct {

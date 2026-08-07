@@ -72,6 +72,11 @@ func TestExchangeDecisionsIntegration(t *testing.T) {
 		{UserID: users[1], GivesItemID: items[1], ReceivesItemID: items[2], Position: 1},
 		{UserID: users[2], GivesItemID: items[2], ReceivesItemID: items[0], Position: 2},
 	}
+	competingParticipants := []exchangemodel.Participant{
+		{UserID: users[0], GivesItemID: items[0], ReceivesItemID: items[2], Position: 0},
+		{UserID: users[1], GivesItemID: items[1], ReceivesItemID: items[0], Position: 1},
+		{UserID: users[2], GivesItemID: items[2], ReceivesItemID: items[1], Position: 2},
+	}
 
 	repository := exchangerepository.New(pool)
 	service := exchangeservice.New(repository)
@@ -79,7 +84,10 @@ func TestExchangeDecisionsIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create first exchange: %v", err)
 	}
-	secondExchangeID, err := repository.SaveExchange(ctx, exchangemodel.Exchange{Participants: participants})
+	if _, err := repository.SaveExchange(ctx, exchangemodel.Exchange{Participants: participants}); !errors.Is(err, exchangerepository.ErrDuplicateExchange) {
+		t.Fatalf("create exact duplicate error = %v, want %v", err, exchangerepository.ErrDuplicateExchange)
+	}
+	secondExchangeID, err := repository.SaveExchange(ctx, exchangemodel.Exchange{Participants: competingParticipants})
 	if err != nil {
 		t.Fatalf("create competing exchange: %v", err)
 	}

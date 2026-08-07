@@ -453,6 +453,38 @@ func TestFindAndSaveSaveError(t *testing.T) {
 	}
 }
 
+func TestFindAndSaveSkipsDuplicateAndSavesAlternative(t *testing.T) {
+	t.Parallel()
+
+	start := testNode(1)
+	first := testNode(2)
+	alternative := testNode(3)
+	repository := &fakeRepository{
+		neighbors: map[uuid.UUID][]exchangemodel.Node{
+			start.ItemID:       {first, alternative},
+			first.ItemID:       {start},
+			alternative.ItemID: {start},
+		},
+		savedExchangeID: uuid.New(),
+		saveErrors:      []error{ErrDuplicateExchange, nil},
+	}
+
+	result, err := New(repository).FindAndSave(context.Background(), start)
+	if err != nil {
+		t.Fatalf("FindAndSave() error = %v", err)
+	}
+	if !result.Found {
+		t.Fatal("FindAndSave() Found = false, want alternative exchange")
+	}
+	if repository.saveCalls != 2 {
+		t.Fatalf("SaveExchange() calls = %d, want 2", repository.saveCalls)
+	}
+	if len(repository.savedExchange.Participants) != 2 ||
+		repository.savedExchange.Participants[1].GivesItemID != alternative.ItemID {
+		t.Fatalf("saved exchange = %+v, want cycle through alternative item", repository.savedExchange)
+	}
+}
+
 func TestListForUser(t *testing.T) {
 	t.Parallel()
 
@@ -608,6 +640,7 @@ func TestDeclineParticipationRecoversWithDifferentCycle(t *testing.T) {
 	alternative := testNode(4)
 	repository := &fakeRepository{
 		declineRecovery: original,
+		saveErrors:      []error{ErrDuplicateExchange, nil},
 		neighbors: map[uuid.UUID][]exchangemodel.Node{
 			original[0].ItemID: {original[1]},
 			original[1].ItemID: {original[2], alternative},
@@ -619,8 +652,8 @@ func TestDeclineParticipationRecoversWithDifferentCycle(t *testing.T) {
 	if err := New(repository).DeclineParticipation(context.Background(), uuid.New(), original[0].OwnerID); err != nil {
 		t.Fatalf("DeclineParticipation() error = %v", err)
 	}
-	if repository.saveCalls != 1 {
-		t.Fatalf("SaveExchange() calls = %d, want 1", repository.saveCalls)
+	if repository.saveCalls != 2 {
+		t.Fatalf("SaveExchange() calls = %d, want duplicate plus alternative", repository.saveCalls)
 	}
 
 	wantItems := map[uuid.UUID]bool{
@@ -646,13 +679,14 @@ func TestDeclineParticipationDoesNotRecreateSameCycle(t *testing.T) {
 	repository := &fakeRepository{
 		declineRecovery: nodes,
 		neighbors:       cycleGraph(nodes),
+		saveErr:         ErrDuplicateExchange,
 	}
 
 	if err := New(repository).DeclineParticipation(context.Background(), uuid.New(), nodes[0].OwnerID); err != nil {
 		t.Fatalf("DeclineParticipation() error = %v", err)
 	}
-	if repository.saveCalls != 0 {
-		t.Fatalf("SaveExchange() calls = %d, want 0", repository.saveCalls)
+	if repository.saveCalls != 1 {
+		t.Fatalf("SaveExchange() calls = %d, want one rejected duplicate", repository.saveCalls)
 	}
 }
 
@@ -934,6 +968,7 @@ type fakeRepository struct {
 	savedExchange       exchangemodel.Exchange
 	savedExchangeID     uuid.UUID
 	saveErr             error
+	saveErrors          []error
 	saveCalls           int
 	listedExchanges     []exchangemodel.Details
 	listedUserID        uuid.UUID
@@ -1045,6 +1080,9 @@ func (f *fakeRepository) SaveExchange(
 ) (uuid.UUID, error) {
 	f.saveCalls++
 	f.savedExchange = exchange
+	if len(f.saveErrors) >= f.saveCalls {
+		return f.savedExchangeID, f.saveErrors[f.saveCalls-1]
+	}
 	return f.savedExchangeID, f.saveErr
 }
 

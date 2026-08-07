@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	db "github.com/sweetlife999/chain-of-trades-avito/internal/db"
@@ -159,6 +160,12 @@ func TestSaveExchange(t *testing.T) {
 		t.Fatalf("SaveExchange() ID = %s, want %s", actualID, exchangeID)
 	}
 
+	wantSignature := firstItemID.String() + ">" + secondItemID.String() + "|" +
+		secondItemID.String() + ">" + firstItemID.String()
+	if queries.signature != wantSignature {
+		t.Fatalf("signature = %q, want %q", queries.signature, wantSignature)
+	}
+
 	wantParams := []db.CreateExchangeParticipantParams{
 		{
 			ChainID:        pgUUID(exchangeID),
@@ -200,6 +207,22 @@ func TestSaveExchangeCreateErrorRollsBack(t *testing.T) {
 
 	if transactions.committed {
 		t.Fatal("failed transaction was committed")
+	}
+}
+
+func TestSaveExchangeDuplicateRollsBack(t *testing.T) {
+	t.Parallel()
+
+	queries := &fakeExchangeWriteQueries{createErr: pgx.ErrNoRows}
+	transactions := &fakeTransactionManager{queries: queries}
+	repository := newRepository(&fakeNeighborQueries{}, transactions)
+
+	_, err := repository.SaveExchange(context.Background(), exchangemodel.Exchange{})
+	if !errors.Is(err, ErrDuplicateExchange) {
+		t.Fatalf("SaveExchange() error = %v, want %v", err, ErrDuplicateExchange)
+	}
+	if transactions.committed {
+		t.Fatal("duplicate exchange transaction was committed")
 	}
 }
 
@@ -257,6 +280,7 @@ type fakeNeighborQueries struct {
 type fakeExchangeWriteQueries struct {
 	exchangeID     pgtype.UUID
 	createErr      error
+	signature      string
 	participantErr error
 	participants   []db.CreateExchangeParticipantParams
 
@@ -333,7 +357,8 @@ func assertRecordedEvents(
 	}
 }
 
-func (f *fakeExchangeWriteQueries) CreateExchange(context.Context) (pgtype.UUID, error) {
+func (f *fakeExchangeWriteQueries) CreateExchange(_ context.Context, signature string) (pgtype.UUID, error) {
+	f.signature = signature
 	return f.exchangeID, f.createErr
 }
 
