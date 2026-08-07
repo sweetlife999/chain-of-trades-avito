@@ -243,30 +243,7 @@ BEGIN
     RAISE NOTICE 'ok 16: пользователь по умолчанию не администратор';
 END $$;
 
--- 17. подпись занята, пока обмен открыт
-DO $$
-BEGIN
-    INSERT INTO chains (signature) VALUES ('smoke:dddddddd-0000-0000-0000-000000000000');
-    RAISE EXCEPTION 'второе открытое предложение с той же подписью прошло';
-EXCEPTION WHEN unique_violation THEN
-    RAISE NOTICE 'ok 17: открытый обмен с той же подписью не создаётся';
-END $$;
-
--- 18. отменённый обмен подпись не держит: иначе вытесненная цепочка не собралась бы
--- заново после срыва той, что её вытеснила. Кейс идёт последним: он меняет статус
--- цепочки, на которой стоят проверки выше.
-DO $$
-BEGIN
-    UPDATE chains SET status = 'cancelled', closed_at = now()
-    WHERE id = 'dddddddd-0000-0000-0000-000000000000';
-
-    INSERT INTO chains (signature, status, closed_at)
-    VALUES ('smoke:dddddddd-0000-0000-0000-000000000000', 'cancelled', now());
-    INSERT INTO chains (signature)
-    VALUES ('smoke:dddddddd-0000-0000-0000-000000000000');
-
-    RAISE NOTICE 'ok 18: отменённая подпись не мешает ни истории отмен, ни новому предложению';
--- 19. ПВЗ создаётся и обновляется, а updated_at выставляет общий триггер
+-- 17. ПВЗ создаётся и обновляется, а updated_at выставляет общий триггер
 DO $$
 DECLARE
     point_id uuid;
@@ -284,13 +261,38 @@ BEGIN
     RAISE NOTICE 'ok 17: ПВЗ создаётся и обновляется';
 END $$;
 
--- 20. пустое название ПВЗ не проходит ограничение схемы
+-- 18. пустое название ПВЗ не проходит ограничение схемы
 DO $$
 BEGIN
     INSERT INTO pickup_points (name, address) VALUES ('   ', 'ул. Ленина, 10');
     RAISE EXCEPTION 'ПВЗ с пустым названием прошёл, а не должен был';
 EXCEPTION WHEN check_violation THEN
     RAISE NOTICE 'ok 18: пустое название ПВЗ запрещено';
+END $$;
+
+-- 19. подпись занята, пока обмен открыт
+DO $$
+BEGIN
+    INSERT INTO chains (signature) VALUES ('smoke:dddddddd-0000-0000-0000-000000000000');
+    RAISE EXCEPTION 'второе открытое предложение с той же подписью прошло';
+EXCEPTION WHEN unique_violation THEN
+    RAISE NOTICE 'ok 19: открытый обмен с той же подписью не создаётся';
+END $$;
+
+-- 20. отменённый обмен подпись не держит: иначе вытесненная цепочка не собралась бы
+-- заново после срыва той, что её вытеснила. Кейс идёт последним: он меняет статус
+-- цепочки, на которой стоят проверки выше.
+DO $$
+BEGIN
+    UPDATE chains SET status = 'cancelled', closed_at = now()
+    WHERE id = 'dddddddd-0000-0000-0000-000000000000';
+
+    INSERT INTO chains (signature, status, closed_at)
+    VALUES ('smoke:dddddddd-0000-0000-0000-000000000000', 'cancelled', now());
+    INSERT INTO chains (signature)
+    VALUES ('smoke:dddddddd-0000-0000-0000-000000000000');
+
+    RAISE NOTICE 'ok 20: отменённая подпись не мешает ни истории отмен, ни новому предложению';
 END $$;
 
 ROLLBACK;
