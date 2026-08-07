@@ -8,6 +8,316 @@
     },
     "basePath": "/",
     "paths": {
+        "/admin/pickup-points": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Доступно только администратору. Возвращает ПВЗ от новых к старым.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin pickup-points"
+                ],
+                "summary": "Получить список ПВЗ",
+                "responses": {
+                    "200": {
+                        "description": "Список ПВЗ",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.PickupPointResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointError"
+                        }
+                    },
+                    "403": {
+                        "description": "Недостаточно прав",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointError"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Доступно только администратору.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin pickup-points"
+                ],
+                "summary": "Создать ПВЗ",
+                "parameters": [
+                    {
+                        "description": "Данные ПВЗ",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreatePickupPointRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "ПВЗ создан",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные данные",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointError"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointError"
+                        }
+                    },
+                    "403": {
+                        "description": "Недостаточно прав",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointError"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/pickup-points/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Доступно только администратору.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin pickup-points"
+                ],
+                "summary": "Получить ПВЗ по ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID ПВЗ",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ПВЗ",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный UUID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointError"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointError"
+                        }
+                    },
+                    "403": {
+                        "description": "Недостаточно прав",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointError"
+                        }
+                    },
+                    "404": {
+                        "description": "ПВЗ не найден",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointError"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Доступно только администратору. ПВЗ, который используется объявлениями, удалить нельзя.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin pickup-points"
+                ],
+                "summary": "Удалить ПВЗ",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID ПВЗ",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "ПВЗ удалён"
+                    },
+                    "400": {
+                        "description": "Некорректный UUID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointError"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointError"
+                        }
+                    },
+                    "403": {
+                        "description": "Недостаточно прав",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointError"
+                        }
+                    },
+                    "404": {
+                        "description": "ПВЗ не найден",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointError"
+                        }
+                    },
+                    "409": {
+                        "description": "ПВЗ используется объявлениями",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointError"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Доступно только администратору. Достаточно передать одно поле.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin pickup-points"
+                ],
+                "summary": "Изменить ПВЗ",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID ПВЗ",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Изменяемые поля",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UpdatePickupPointRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ПВЗ обновлён",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные данные или UUID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointError"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointError"
+                        }
+                    },
+                    "403": {
+                        "description": "Недостаточно прав",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointError"
+                        }
+                    },
+                    "404": {
+                        "description": "ПВЗ не найден",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointError"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/login": {
             "post": {
                 "description": "Проверяет nickname и password, кладёт JWT на 12 часов в HttpOnly cookie `access_token`. Из Swagger UI cookie сохранится в браузере, дальше защищённые запросы уйдут с ней автоматически.",
@@ -1389,6 +1699,19 @@
                 }
             }
         },
+        "dto.CreatePickupPointRequest": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "example": "Казань, улица Ленина, 10"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "ПВЗ на Ленина"
+                }
+            }
+        },
         "dto.CreateUserRequest": {
             "type": "object",
             "properties": {
@@ -1601,6 +1924,34 @@
                 }
             }
         },
+        "dto.PickupPointError": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.PickupPointResponse": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.UpdateItemRequest": {
             "type": "object",
             "properties": {
@@ -1634,6 +1985,19 @@
                     "example": [
                         "consoles"
                     ]
+                }
+            }
+        },
+        "dto.UpdatePickupPointRequest": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "example": "Казань, улица Ленина, 12"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "ПВЗ на Ленина"
                 }
             }
         },

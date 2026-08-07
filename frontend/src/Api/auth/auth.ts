@@ -1,8 +1,10 @@
 import api from "../client";
 import {
+  AuthenticatedUserSchema,
   BlockedUsersSchema,
   UpdateUserSchema,
   UserSchema,
+  type TAuthenticatedUser,
   type TBlockedUsers,
   type TRegister,
   type TUpdateUser,
@@ -14,10 +16,10 @@ type TLogin = {
   password: string;
 };
 
-export const login = async (loginData: TLogin): Promise<TUser> => {
+export const login = async (loginData: TLogin): Promise<TAuthenticatedUser> => {
   const { data } = await api.post("/auth/login", loginData);
 
-  return UserSchema.parse(data);
+  return AuthenticatedUserSchema.parse(data);
 };
 
 export const logout = async (): Promise<void> => {
@@ -30,7 +32,9 @@ export const registerUser = async (data: TRegister): Promise<TUser> => {
   return UserSchema.parse(response.data);
 };
 
-export const registerAndLogin = async (data: TRegister): Promise<TUser> => {
+export const registerAndLogin = async (
+  data: TRegister,
+): Promise<TAuthenticatedUser> => {
   await registerUser(data);
 
   return login({
@@ -39,10 +43,10 @@ export const registerAndLogin = async (data: TRegister): Promise<TUser> => {
   });
 };
 
-export const getMe = async (): Promise<TUser> => {
+export const getMe = async (): Promise<TAuthenticatedUser> => {
   const { data } = await api.get("/auth/me");
 
-  return UserSchema.parse(data);
+  return AuthenticatedUserSchema.parse(data);
 };
 
 export const getUserById = async (id: string): Promise<TUser> => {
@@ -60,7 +64,6 @@ export const updateUser = async (
 
   return UserSchema.parse(data);
 };
-
 
 export const getBlockedUsers = async (): Promise<TBlockedUsers> => {
   const { data } = await api.get("/users/me/blocks");

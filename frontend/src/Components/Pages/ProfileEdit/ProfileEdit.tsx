@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 
 import styles from "./Styles.module.scss";
 import { updateUser } from "../../../Api/auth/auth";
-import type { TUser } from "../../../Api/auth/auth.types";
+import type { TAuthenticatedUser, TUser } from "../../../Api/auth/auth.types";
 import { useAuthDispatch, useAuthSelector } from "../../../Hooks/useAuthDispatch";
 import { setUserState } from "../../../Store/authSlice";
 import { Button } from "../../UI/Button/Button";
@@ -58,9 +58,13 @@ const ProfileEditComponent = () => {
       return updateUser(user.id, data);
     },
     onSuccess: (updatedUser: TUser) => {
-      const nextUser = {
+      if (!user) {
+        return;
+      }
+
+      const nextUser: TAuthenticatedUser = {
         ...updatedUser,
-        is_admin: user?.is_admin,
+        is_admin: user.is_admin,
       };
 
       dispatch(setUserState(nextUser));

@@ -15,6 +15,7 @@ import {
 import styles from "./Styles.module.scss";
 import {
   getExchangeMessages,
+  markExchangeMessagesRead,
   sendExchangeMessage,
 } from "../../../../Api/exchanges/exchanges";
 import type { TExchangeMessage } from "../../../../Api/exchanges/exchanges.types";
@@ -56,8 +57,8 @@ const getSystemMessageText = (message: TExchangeMessage) => {
       return "Все участники подтвердили обмен";
     case "exchange_completed":
       return "Обмен успешно завершён";
-    case "exchange_cancelled":
-      return "Обмен отменён";
+    case "exchange_superseded":
+      return "Обмен заменён новой цепочкой";
     default:
       return message.body ?? "Событие обмена";
   }
@@ -70,6 +71,7 @@ const ExchangeChatComponent = ({
 }: TProps) => {
   const [body, setBody] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
+  const lastMarkedMessageRef = useRef<string | null>(null);
   const queryClient = useQueryClient();
   const queryKey = ["exchanges", exchangeId, "messages"] as const;
 
@@ -105,6 +107,7 @@ const ExchangeChatComponent = ({
   });
 
   const messages = messagesQuery.data ?? [];
+  const lastMessageId = messages.at(-1)?.id;
 
   useEffect(() => {
     endRef.current?.scrollIntoView({
@@ -112,6 +115,27 @@ const ExchangeChatComponent = ({
       block: "end",
     });
   }, [messages.length]);
+
+  useEffect(() => {
+    if (!lastMessageId || lastMarkedMessageRef.current === lastMessageId) {
+      return;
+    }
+
+    lastMarkedMessageRef.current = lastMessageId;
+
+     markExchangeMessagesRead(exchangeId, lastMessageId)
+      .then(() =>
+        queryClient.invalidateQueries({
+          queryKey: ["exchanges"],
+          exact: true,
+        }),
+      )
+      .catch(() => {
+        if (lastMarkedMessageRef.current === lastMessageId) {
+          lastMarkedMessageRef.current = null;
+        }
+      });
+  }, [exchangeId, lastMessageId, queryClient]);
 
   const submitMessage = () => {
     const value = body.trim();

@@ -1,19 +1,25 @@
 import { z } from "zod";
 
-export const UserSchema = z.object({
+const BaseUserSchema = z.object({
   created_at: z.string(),
   deals_broken: z.number(),
   deals_completed: z.number(),
   description: z.string(),
   id: z.string(),
-  is_admin: z.boolean().optional(),
   nickname: z.string(),
   photo_url: z.string(),
   rating: z.number().nullable().transform((value) => value ?? 0),
   updated_at: z.string(),
 });
 
+export const UserSchema = BaseUserSchema;
+
+export const AuthenticatedUserSchema = BaseUserSchema.extend({
+  is_admin: z.boolean(),
+});
+
 export type TUser = z.infer<typeof UserSchema>;
+export type TAuthenticatedUser = z.infer<typeof AuthenticatedUserSchema>;
 
 export const BlockedUserSchema = z.object({
   blocked_at: z.string(),
