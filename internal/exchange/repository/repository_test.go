@@ -296,6 +296,7 @@ type fakeExchangeWriteQueries struct {
 	acceptErr                    error
 	declined                     bool
 	declineErr                   error
+	refusals                     []db.RecordItemRefusalParams
 	pending                      int64
 	pendingErr                   error
 	items                        []db.LockExchangeItemsRow
@@ -413,6 +414,14 @@ func (f *fakeExchangeWriteQueries) DeclineExchangeParticipant(
 ) error {
 	f.declined = true
 	return f.declineErr
+}
+
+func (f *fakeExchangeWriteQueries) RecordItemRefusal(
+	_ context.Context,
+	params db.RecordItemRefusalParams,
+) error {
+	f.refusals = append(f.refusals, params)
+	return nil
 }
 
 func (f *fakeExchangeWriteQueries) CountPendingExchangeParticipants(

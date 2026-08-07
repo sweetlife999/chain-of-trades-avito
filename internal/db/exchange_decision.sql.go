@@ -249,6 +249,28 @@ func (q *Queries) LockExchangeParticipant(ctx context.Context, arg LockExchangeP
 	return i, err
 }
 
+const recordItemRefusal = `-- name: RecordItemRefusal :exec
+INSERT INTO item_refusals (user_id, item_id)
+SELECT participant.user_id, participant.receives_item_id
+FROM chain_participants AS participant
+WHERE participant.chain_id = $1
+  AND participant.user_id = $2
+ON CONFLICT DO NOTHING
+`
+
+type RecordItemRefusalParams struct {
+	ExchangeID pgtype.UUID
+	UserID     pgtype.UUID
+}
+
+// Отказ от предложения — «не хочу эту вещь», поэтому запоминается вырезанным ребром:
+// вещь берётся из самой цепочки, отдельного чтения в Go не нужно. Повторный отказ от
+// той же вещи в другом обмене — нормальный случай, а не ошибка.
+func (q *Queries) RecordItemRefusal(ctx context.Context, arg RecordItemRefusalParams) error {
+	_, err := q.db.Exec(ctx, recordItemRefusal, arg.ExchangeID, arg.UserID)
+	return err
+}
+
 const releaseExchangeItems = `-- name: ReleaseExchangeItems :execrows
 UPDATE items
 SET status = 'available'

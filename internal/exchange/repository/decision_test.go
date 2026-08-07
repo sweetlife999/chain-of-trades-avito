@@ -136,7 +136,10 @@ func TestDeclineParticipationCancelsExchange(t *testing.T) {
 	transactions := &fakeTransactionManager{queries: queries}
 	repository := newRepository(&fakeNeighborQueries{}, transactions)
 
-	nodes, signature, err := repository.DeclineParticipation(context.Background(), uuid.New(), uuid.New())
+	exchangeID := uuid.New()
+	userID := uuid.New()
+
+	nodes, signature, err := repository.DeclineParticipation(context.Background(), exchangeID, userID)
 	if err != nil {
 		t.Fatalf("DeclineParticipation() error = %v", err)
 	}
@@ -145,6 +148,10 @@ func TestDeclineParticipationCancelsExchange(t *testing.T) {
 	}
 	if signature != queries.chainSignature {
 		t.Fatalf("cancelled signature = %q, want %q", signature, queries.chainSignature)
+	}
+	wantRefusal := db.RecordItemRefusalParams{ExchangeID: pgUUID(exchangeID), UserID: pgUUID(userID)}
+	if len(queries.refusals) != 1 || queries.refusals[0] != wantRefusal {
+		t.Fatalf("recorded refusals = %+v, want exactly %+v", queries.refusals, wantRefusal)
 	}
 	if !queries.declined || !queries.cancelled {
 		t.Fatalf(
@@ -186,6 +193,10 @@ func TestDeclineConfirmedExchangeReleasesItems(t *testing.T) {
 	}
 	if signature != queries.chainSignature {
 		t.Fatalf("cancelled signature = %q, want %q", signature, queries.chainSignature)
+	}
+	// Сорванная сделка — не «не хочу эту вещь», ребро графа остаётся на месте.
+	if len(queries.refusals) != 0 {
+		t.Fatalf("recorded refusals = %+v, want none for a broken confirmed exchange", queries.refusals)
 	}
 	if !queries.declined || !queries.cancelled || !queries.releaseCalled || !queries.dealsBrokenCalled {
 		t.Fatalf(

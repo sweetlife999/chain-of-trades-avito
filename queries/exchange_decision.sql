@@ -37,6 +37,17 @@ SET status = 'accepted',
 WHERE chain_id = sqlc.arg(exchange_id)
   AND user_id = sqlc.arg(user_id);
 
+-- Отказ от предложения — «не хочу эту вещь», поэтому запоминается вырезанным ребром:
+-- вещь берётся из самой цепочки, отдельного чтения в Go не нужно. Повторный отказ от
+-- той же вещи в другом обмене — нормальный случай, а не ошибка.
+-- name: RecordItemRefusal :exec
+INSERT INTO item_refusals (user_id, item_id)
+SELECT participant.user_id, participant.receives_item_id
+FROM chain_participants AS participant
+WHERE participant.chain_id = sqlc.arg(exchange_id)
+  AND participant.user_id = sqlc.arg(user_id)
+ON CONFLICT DO NOTHING;
+
 -- name: DeclineExchangeParticipant :exec
 UPDATE chain_participants
 SET status = 'declined',

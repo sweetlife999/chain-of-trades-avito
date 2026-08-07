@@ -104,6 +104,19 @@ func (r *Repository) DeclineParticipation(
 			return err
 		}
 
+		// Отказ от предложения — «не хочу эту вещь», и она вырезается из графа. Срыв уже
+		// подтверждённого обмена — «сделка не состоялась»: вещь тут не при чём, за него
+		// отвечает deals_broken ниже.
+		if exchangeStatus == db.ChainStatusProposed {
+			err := queries.RecordItemRefusal(ctx, db.RecordItemRefusalParams{
+				ExchangeID: pgUUID(exchangeID),
+				UserID:     pgUUID(userID),
+			})
+			if err != nil {
+				return fmt.Errorf("record item refusal: %w", err)
+			}
+		}
+
 		if exchangeStatus == db.ChainStatusConfirmed {
 			released, err := queries.ReleaseExchangeItems(ctx, pgUUID(exchangeID))
 			if err != nil {

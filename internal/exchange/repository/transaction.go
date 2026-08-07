@@ -21,6 +21,7 @@ type exchangeWriteQueries interface {
 	) (db.LockExchangeParticipantRow, error)
 	AcceptExchangeParticipant(context.Context, db.AcceptExchangeParticipantParams) error
 	DeclineExchangeParticipant(context.Context, db.DeclineExchangeParticipantParams) error
+	RecordItemRefusal(context.Context, db.RecordItemRefusalParams) error
 	CountPendingExchangeParticipants(context.Context, pgtype.UUID) (int64, error)
 	LockExchangeItems(context.Context, pgtype.UUID) ([]db.LockExchangeItemsRow, error)
 	ReserveExchangeItems(context.Context, pgtype.UUID) (int64, error)
