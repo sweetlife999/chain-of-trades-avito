@@ -12,6 +12,9 @@ import (
 
 	// Регистрирует сгенерированную спеку, которую отдаёт /swagger. Обновляется через make swagger.
 	_ "github.com/sweetlife999/chain-of-trades-avito/docs/swagger"
+	admindashboardhandler "github.com/sweetlife999/chain-of-trades-avito/internal/admindashboard/handler"
+	admindashboardrepository "github.com/sweetlife999/chain-of-trades-avito/internal/admindashboard/repository"
+	admindashboardservice "github.com/sweetlife999/chain-of-trades-avito/internal/admindashboard/service"
 	authhandler "github.com/sweetlife999/chain-of-trades-avito/internal/auth/handler"
 	authmiddleware "github.com/sweetlife999/chain-of-trades-avito/internal/auth/middleware"
 	authservice "github.com/sweetlife999/chain-of-trades-avito/internal/auth/service"
@@ -75,6 +78,7 @@ func main() {
 	exchanges := exchangeservice.New(exchangesRepository)
 	items := itemservice.New(itemrepository.New(pool), exchanges)
 	pickupPoints := pickuppointservice.New(pickuppointrepository.New(queries))
+	adminDashboard := admindashboardservice.New(admindashboardrepository.New(queries))
 
 	tokens := authtoken.NewManager(cfg.JWTSecret, authTokenTTL)
 	authenticator := authmiddleware.New(tokens)
@@ -92,6 +96,7 @@ func main() {
 	router.Route("/admin", func(adminRouter chi.Router) {
 		adminRouter.Use(authenticator.RequireAuthentication)
 		adminRouter.Use(adminAuthorizer.RequireAdmin)
+		admindashboardhandler.New(adminDashboard).RegisterRoutes(adminRouter)
 		pickuppointhandler.New(pickupPoints).RegisterRoutes(adminRouter)
 	})
 

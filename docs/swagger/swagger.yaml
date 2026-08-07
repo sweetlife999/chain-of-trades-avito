@@ -90,6 +90,22 @@ definitions:
       photo_url:
         type: string
     type: object
+  dto.DashboardError:
+    properties:
+      error:
+        type: string
+    type: object
+  dto.DashboardResponse:
+    properties:
+      exchanges:
+        $ref: '#/definitions/dto.ExchangeStatisticsResponse'
+      items:
+        $ref: '#/definitions/dto.ItemStatisticsResponse'
+      pickup_points_total:
+        type: integer
+      users_total:
+        type: integer
+    type: object
   dto.ExchangeResponse:
     properties:
       closed_at:
@@ -108,6 +124,19 @@ definitions:
         type: integer
       updated_at:
         type: string
+    type: object
+  dto.ExchangeStatisticsResponse:
+    properties:
+      cancelled:
+        type: integer
+      completed:
+        type: integer
+      confirmed:
+        type: integer
+      proposed:
+        type: integer
+      total:
+        type: integer
     type: object
   dto.ItemError:
     properties:
@@ -140,6 +169,19 @@ definitions:
         items:
           type: string
         type: array
+    type: object
+  dto.ItemStatisticsResponse:
+    properties:
+      available:
+        type: integer
+      reserved:
+        type: integer
+      total:
+        type: integer
+      traded:
+        type: integer
+      withdrawn:
+        type: integer
     type: object
   dto.LoginRequest:
     properties:
@@ -340,6 +382,34 @@ info:
   title: Цепочка обмена — API
   version: 0.1.0
 paths:
+  /admin/dashboard:
+    get:
+      description: Возвращает количество пользователей, ПВЗ, объявлений и обменов
+        с разбивкой по статусам.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Статистика админки
+          schema:
+            $ref: '#/definitions/dto.DashboardResponse'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/dto.DashboardError'
+        "403":
+          description: Недостаточно прав
+          schema:
+            $ref: '#/definitions/dto.DashboardError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.DashboardError'
+      security:
+      - CookieAuth: []
+      summary: Статистика для главной страницы админки
+      tags:
+      - admin dashboard
   /admin/pickup-points:
     get:
       description: Доступно только администратору. Возвращает ПВЗ от новых к старым.
