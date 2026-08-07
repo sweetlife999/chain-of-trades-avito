@@ -2,7 +2,7 @@
 export
 
 
-.PHONY: lint run up down reset migrate-up migrate-down migrate-status sqlc smoke swagger test-exchange-integration test-user-blocks-integration test-exchange-recovery-integration test-exchange-messages-integration test-user-blocks-integration
+.PHONY: lint run up db down reset migrate-up migrate-down migrate-status sqlc smoke swagger test-exchange-integration test-user-blocks-integration test-exchange-recovery-integration test-exchange-messages-integration test-user-blocks-integration
 
 # Линтер. Требует golangci-lint v2 той же версии, что пиннится в CI:
 # go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
@@ -12,9 +12,13 @@ lint:
 run:
 	go run ./cmd/api
 
-# Поднять БД и накатить миграции (сервис migrate отработает и выйдет)
+# Поднять приложение целиком: БД, миграции, API и фронт на http://localhost
 up:
-	docker compose up -d
+	docker compose up -d --build
+
+# Только БД с миграциями — для разработки, дальше make run и npm run dev
+db:
+	docker compose up -d postgres migrate
 
 down:
 	docker compose down
