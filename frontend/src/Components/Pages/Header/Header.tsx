@@ -17,7 +17,7 @@ type NavigationItem = { to: string; label: string; Icon: LucideIcon };
 const navigationItems: NavigationItem[] = [
   { to: "/", label: "Обмены", Icon: UpdateIcon },
   { to: "/myItems", label: "Мои вещи", Icon: MyThings },
-  { to: "/myChains", label: "Мои цепочки", Icon: ChainsIcon },
+  { to: "/exchanges", label: "Мои цепочки", Icon: ChainsIcon },
 ];
 
 const HeaderComponent = () => {
