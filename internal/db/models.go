@@ -244,6 +244,14 @@ type ItemWant struct {
 	CategoryID int16
 }
 
+type PickupPoint struct {
+	ID        pgtype.UUID
+	Name      string
+	Address   string
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+}
+
 type User struct {
 	ID             pgtype.UUID
 	Nickname       string

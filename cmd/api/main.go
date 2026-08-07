@@ -25,6 +25,9 @@ import (
 	itemhandler "github.com/sweetlife999/chain-of-trades-avito/internal/item/handler"
 	itemrepository "github.com/sweetlife999/chain-of-trades-avito/internal/item/repository"
 	itemservice "github.com/sweetlife999/chain-of-trades-avito/internal/item/service"
+	pickuppointhandler "github.com/sweetlife999/chain-of-trades-avito/internal/pickuppoint/handler"
+	pickuppointrepository "github.com/sweetlife999/chain-of-trades-avito/internal/pickuppoint/repository"
+	pickuppointservice "github.com/sweetlife999/chain-of-trades-avito/internal/pickuppoint/service"
 	userhandler "github.com/sweetlife999/chain-of-trades-avito/internal/user/handler"
 	userrepository "github.com/sweetlife999/chain-of-trades-avito/internal/user/repository"
 	userservice "github.com/sweetlife999/chain-of-trades-avito/internal/user/service"
@@ -71,6 +74,7 @@ func main() {
 	exchangesRepository := exchangerepository.New(pool)
 	exchanges := exchangeservice.New(exchangesRepository)
 	items := itemservice.New(itemrepository.New(pool), exchanges)
+	pickupPoints := pickuppointservice.New(pickuppointrepository.New(queries))
 
 	tokens := authtoken.NewManager(cfg.JWTSecret, authTokenTTL)
 	authenticator := authmiddleware.New(tokens)
@@ -88,6 +92,7 @@ func main() {
 	router.Route("/admin", func(adminRouter chi.Router) {
 		adminRouter.Use(authenticator.RequireAuthentication)
 		adminRouter.Use(adminAuthorizer.RequireAdmin)
+		pickuppointhandler.New(pickupPoints).RegisterRoutes(adminRouter)
 	})
 
 	router.Get("/health", health)
