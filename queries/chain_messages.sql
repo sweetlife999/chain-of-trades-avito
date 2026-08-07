@@ -55,11 +55,21 @@ LEFT JOIN users AS author
 WHERE message.chain_id = sqlc.arg(exchange_id)
 ORDER BY message.created_at, message.id;
 
--- clock_timestamp(), а не now(): сообщения тоже помечаются им, и метка о прочтении
--- обязана лежать в той же шкале. С now() (время начала транзакции) сообщение, попавшее
--- в базу позже её начала, осталось бы непрочитанным навсегда.
+-- Отметка ставится по последнему сообщению, которое клиент реально показал: время берётся
+-- из самой строки треда, а не с часов сервера. Поэтому сообщение, попавшее в базу уже после
+-- ответа на чтение, пометить прочитанным невозможно, и обе метки по построению лежат в одной
+-- шкале. greatest() делает вызов монотонным и идемпотентным: повтор, две открытые вкладки и
+-- id из чужого треда ничего не сдвигают назад, потому что greatest игнорирует NULL.
 -- name: MarkChainMessagesRead :exec
 UPDATE chain_participants
-SET messages_read_at = clock_timestamp()
+SET messages_read_at = greatest(
+        messages_read_at,
+        (
+            SELECT message.created_at
+            FROM chain_messages AS message
+            WHERE message.id = sqlc.arg(last_message_id)
+              AND message.chain_id = sqlc.arg(exchange_id)
+        )
+    )
 WHERE chain_id = sqlc.arg(exchange_id)
   AND user_id = sqlc.arg(user_id);

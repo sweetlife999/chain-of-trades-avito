@@ -97,6 +97,7 @@ func (h *Handler) logout(w http.ResponseWriter, _ *http.Request) {
 // @Success     200 {object} authdto.AuthenticatedUserResponse "Профиль и роль текущего пользователя"
 // @Failure     401 {object} userdto.ErrorResponse "Нет или истекла cookie access_token"
 // @Failure     500 {object} userdto.ErrorResponse "Внутренняя ошибка"
+// @Security    CookieAuth
 // @Router      /auth/me [get]
 func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
 	userID, ok := authcontext.UserID(r.Context())

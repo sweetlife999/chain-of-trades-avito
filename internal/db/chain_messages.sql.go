@@ -171,20 +171,31 @@ func (q *Queries) ListChainMessages(ctx context.Context, exchangeID pgtype.UUID)
 
 const markChainMessagesRead = `-- name: MarkChainMessagesRead :exec
 UPDATE chain_participants
-SET messages_read_at = clock_timestamp()
-WHERE chain_id = $1
-  AND user_id = $2
+SET messages_read_at = greatest(
+        messages_read_at,
+        (
+            SELECT message.created_at
+            FROM chain_messages AS message
+            WHERE message.id = $1
+              AND message.chain_id = $2
+        )
+    )
+WHERE chain_id = $2
+  AND user_id = $3
 `
 
 type MarkChainMessagesReadParams struct {
-	ExchangeID pgtype.UUID
-	UserID     pgtype.UUID
+	LastMessageID pgtype.UUID
+	ExchangeID    pgtype.UUID
+	UserID        pgtype.UUID
 }
 
-// clock_timestamp(), а не now(): сообщения тоже помечаются им, и метка о прочтении
-// обязана лежать в той же шкале. С now() (время начала транзакции) сообщение, попавшее
-// в базу позже её начала, осталось бы непрочитанным навсегда.
+// Отметка ставится по последнему сообщению, которое клиент реально показал: время берётся
+// из самой строки треда, а не с часов сервера. Поэтому сообщение, попавшее в базу уже после
+// ответа на чтение, пометить прочитанным невозможно, и обе метки по построению лежат в одной
+// шкале. greatest() делает вызов монотонным и идемпотентным: повтор, две открытые вкладки и
+// id из чужого треда ничего не сдвигают назад, потому что greatest игнорирует NULL.
 func (q *Queries) MarkChainMessagesRead(ctx context.Context, arg MarkChainMessagesReadParams) error {
-	_, err := q.db.Exec(ctx, markChainMessagesRead, arg.ExchangeID, arg.UserID)
+	_, err := q.db.Exec(ctx, markChainMessagesRead, arg.LastMessageID, arg.ExchangeID, arg.UserID)
 	return err
 }

@@ -814,6 +814,8 @@ func TestPostMessageRejectsInvalidBody(t *testing.T) {
 		"empty":      "",
 		"whitespace": "   \n\t ",
 		"too long":   strings.Repeat("я", maxMessageLength+1),
+		// Postgres не принимает NUL в text: без проверки это 500, а не 400.
+		"nul byte": "при\x00вет",
 	}
 
 	for name, body := range bodies {
@@ -915,25 +917,19 @@ func TestListMessagesReturnsThread(t *testing.T) {
 	}
 }
 
-func TestListMessagesMarksThreadRead(t *testing.T) {
+// Чтение треда не должно двигать отметку: иначе фоновый опрос гасил бы счётчик
+// непрочитанного вслепую. За отметку отвечает только MarkThreadRead.
+func TestListMessagesLeavesTheReadMarkAlone(t *testing.T) {
 	t.Parallel()
 
-	exchangeID := uuid.New()
-	userID := uuid.New()
 	repository := &fakeRepository{accessIsParticipant: true}
 
-	if _, err := New(repository).ListMessages(context.Background(), exchangeID, userID); err != nil {
+	if _, err := New(repository).ListMessages(context.Background(), uuid.New(), uuid.New()); err != nil {
 		t.Fatalf("ListMessages() error = %v", err)
 	}
 
-	if repository.readExchangeID != exchangeID || repository.readUserID != userID {
-		t.Fatalf(
-			"MarkMessagesRead() args = (%s, %s), want (%s, %s)",
-			repository.readExchangeID,
-			repository.readUserID,
-			exchangeID,
-			userID,
-		)
+	if repository.readExchangeID != uuid.Nil {
+		t.Fatal("ListMessages() moved the read mark")
 	}
 }
 
@@ -945,8 +941,53 @@ func TestListMessagesRejectsNonParticipant(t *testing.T) {
 	if _, err := New(repository).ListMessages(context.Background(), uuid.New(), uuid.New()); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("ListMessages() error = %v, want ErrForbidden", err)
 	}
+}
+
+func TestMarkThreadReadPassesTheLastMessage(t *testing.T) {
+	t.Parallel()
+
+	exchangeID, userID, lastMessageID := uuid.New(), uuid.New(), uuid.New()
+	// Закрытый обмен: дочитывать историю сделки можно, статус тут ничего не решает.
+	repository := &fakeRepository{accessIsParticipant: true, accessStatus: "completed"}
+
+	err := New(repository).MarkThreadRead(context.Background(), exchangeID, userID, lastMessageID)
+	if err != nil {
+		t.Fatalf("MarkThreadRead() error = %v", err)
+	}
+
+	if repository.readExchangeID != exchangeID ||
+		repository.readUserID != userID ||
+		repository.readLastMessageID != lastMessageID {
+		t.Fatalf(
+			"MarkMessagesRead() args = (%s, %s, %s), want (%s, %s, %s)",
+			repository.readExchangeID, repository.readUserID, repository.readLastMessageID,
+			exchangeID, userID, lastMessageID,
+		)
+	}
+}
+
+func TestMarkThreadReadRejectsNonParticipant(t *testing.T) {
+	t.Parallel()
+
+	repository := &fakeRepository{accessIsParticipant: false}
+
+	err := New(repository).MarkThreadRead(context.Background(), uuid.New(), uuid.New(), uuid.New())
+	if !errors.Is(err, ErrForbidden) {
+		t.Fatalf("MarkThreadRead() error = %v, want ErrForbidden", err)
+	}
 	if repository.readExchangeID != uuid.Nil {
 		t.Fatal("thread was marked read for a non-participant")
+	}
+}
+
+func TestMarkThreadReadWrapsAccessError(t *testing.T) {
+	t.Parallel()
+
+	repository := &fakeRepository{accessErr: ErrNotFound}
+
+	err := New(repository).MarkThreadRead(context.Background(), uuid.New(), uuid.New(), uuid.New())
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("MarkThreadRead() error = %v, want ErrNotFound", err)
 	}
 }
 
@@ -1005,6 +1046,8 @@ type fakeRepository struct {
 	detailsUserID       uuid.UUID
 	readExchangeID      uuid.UUID
 	readUserID          uuid.UUID
+	readLastMessageID   uuid.UUID
+	readErr             error
 }
 
 func (f *fakeRepository) ExchangeAccess(
@@ -1108,10 +1151,12 @@ func (f *fakeRepository) MarkMessagesRead(
 	_ context.Context,
 	exchangeID uuid.UUID,
 	userID uuid.UUID,
+	lastMessageID uuid.UUID,
 ) error {
 	f.readExchangeID = exchangeID
 	f.readUserID = userID
-	return nil
+	f.readLastMessageID = lastMessageID
+	return f.readErr
 }
 
 func (f *fakeRepository) ConfirmParticipation(

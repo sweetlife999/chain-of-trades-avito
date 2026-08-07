@@ -83,6 +83,11 @@ const docTemplate = `{
         },
         "/auth/me": {
             "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
                 "description": "Возвращает профиль владельца cookie ` + "`" + `access_token` + "`" + `. Удобно для проверки, что вход прошёл.",
                 "produces": [
                     "application/json"
@@ -144,6 +149,11 @@ const docTemplate = `{
         },
         "/exchanges": {
             "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
                 "description": "Возвращает все найденные обмены текущего пользователя вместе с участниками и объявлениями.",
                 "produces": [
                     "application/json"
@@ -179,6 +189,11 @@ const docTemplate = `{
         },
         "/exchanges/{id}": {
             "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
                 "description": "Доступен только участнику этого обмена.",
                 "produces": [
                     "application/json"
@@ -239,6 +254,11 @@ const docTemplate = `{
         },
         "/exchanges/{id}/complete": {
             "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
                 "description": "Сохраняет подтверждение текущего участника. После подтверждения всеми участниками обмен завершается, объявления помечаются переданными, а счётчики завершённых обменов увеличиваются.",
                 "tags": [
                     "exchanges"
@@ -298,6 +318,11 @@ const docTemplate = `{
         },
         "/exchanges/{id}/confirm": {
             "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
                 "description": "Сохраняет согласие текущего участника. После согласия всех участников обмен подтверждается, а объявления резервируются.",
                 "tags": [
                     "exchanges"
@@ -357,6 +382,11 @@ const docTemplate = `{
         },
         "/exchanges/{id}/decline": {
             "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
                 "description": "Отменяет предложенный или подтверждённый обмен. Для подтверждённого обмена освобождает объявления, увеличивает счётчик сорванных обменов отказавшегося пользователя и запускает поиск новых вариантов.",
                 "tags": [
                     "exchanges"
@@ -416,6 +446,11 @@ const docTemplate = `{
         },
         "/exchanges/{id}/messages": {
             "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
                 "description": "Возвращает обсуждение и события обмена одной лентой в хронологическом порядке. Доступен только участнику.",
                 "produces": [
                     "application/json"
@@ -476,6 +511,11 @@ const docTemplate = `{
                 }
             },
             "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
                 "description": "Добавляет сообщение участника в обсуждение обмена. Писать могут только участники и только пока обмен не закрыт.",
                 "consumes": [
                     "application/json"
@@ -551,6 +591,76 @@ const docTemplate = `{
                 }
             }
         },
+        "/exchanges/{id}/messages/read": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Двигает отметку участника до указанного сообщения, обнуляя unread_count в\nGET /exchanges. Клиент присылает id последнего сообщения, которое реально показал,\nпоэтому сообщение, пришедшее позже, прочитанным не считается.\nВызов идемпотентен и назад отметку не двигает: повтор, вторая вкладка и id из\nчужого треда ничего не меняют.",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "exchanges"
+                ],
+                "summary": "Отметить тред прочитанным",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID обмена",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "ID последнего показанного сообщения",
+                        "name": "read",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.MarkReadRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Отметка обновлена"
+                    },
+                    "400": {
+                        "description": "ID не является UUID или тело не JSON",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Пользователь не участвует в обмене",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Обмен не найден",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/health": {
             "get": {
                 "description": "Отвечает 200, если процесс поднят. Состояние БД не проверяет.",
@@ -576,6 +686,11 @@ const docTemplate = `{
         },
         "/items": {
             "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
                 "description": "Требует cookie ` + "`" + `access_token` + "`" + `. Возвращает все объявления текущего пользователя\nлюбого статуса, от новых к старым. Чужие объявления этим маршрутом не отдаются.",
                 "produces": [
                     "application/json"
@@ -609,6 +724,11 @@ const docTemplate = `{
                 }
             },
             "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
                 "description": "Требует cookie ` + "`" + `access_token` + "`" + `. Владелец берётся из токена, а не из тела запроса.\nНужна хотя бы одна фотография (ссылкой) и хотя бы одна желаемая категория —\nбез них объявление не участвует в подборе обменов. Список категорий: GET /categories.",
                 "consumes": [
                     "application/json"
@@ -707,6 +827,11 @@ const docTemplate = `{
                 }
             },
             "delete": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
                 "description": "Требует cookie ` + "`" + `access_token` + "`" + `, удалять можно только свои объявления. Вещь, уже занятую\nв незавершённом обмене, удалить нельзя: иначе участник остался бы без обещанного предмета.",
                 "produces": [
                     "application/json"
@@ -768,6 +893,11 @@ const docTemplate = `{
                 }
             },
             "patch": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
                 "description": "Требует cookie ` + "`" + `access_token` + "`" + `, менять можно только свои объявления. Достаточно одного поля.\n` + "`" + `photo_urls` + "`" + ` и ` + "`" + `wants` + "`" + ` заменяются целиком: чтобы добавить фотографию, пришлите старые\nссылки вместе с новой. Пустой список запрещён — у объявления всегда есть хотя бы одно фото.",
                 "consumes": [
                     "application/json"
@@ -898,6 +1028,11 @@ const docTemplate = `{
         },
         "/users/me/blocks": {
             "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
                 "description": "Возвращает личный список блокировок текущего пользователя. Заблокированные пользователи об этом не уведомляются.",
                 "produces": [
                     "application/json"
@@ -933,6 +1068,11 @@ const docTemplate = `{
         },
         "/users/me/blocks/{user_id}": {
             "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
                 "description": "Исключает пользователя из будущих совместных обменов и отменяет общие неподтверждённые предложения. Повторный запрос безопасен.",
                 "tags": [
                     "users"
@@ -978,6 +1118,11 @@ const docTemplate = `{
                 }
             },
             "delete": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
                 "description": "Разрешает попадание пользователя в новые совместные обмены. Существующие обмены не изменяются.",
                 "tags": [
                     "users"
@@ -1065,6 +1210,11 @@ const docTemplate = `{
                 }
             },
             "patch": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
                 "description": "Требует cookie ` + "`" + `access_token` + "`" + ` (получить через POST /auth/login). Менять можно только собственный профиль. Достаточно одного поля, остальные останутся прежними.",
                 "consumes": [
                     "application/json"
@@ -1234,9 +1384,14 @@ const docTemplate = `{
         },
         "dto.CreateMessageRequest": {
             "type": "object",
+            "required": [
+                "body"
+            ],
             "properties": {
                 "body": {
                     "type": "string",
+                    "maxLength": 2000,
+                    "minLength": 1,
                     "example": "Могу привезти в субботу к метро, удобно?"
                 }
             }
@@ -1347,14 +1502,31 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.MarkReadRequest": {
+            "type": "object",
+            "properties": {
+                "last_message_id": {
+                    "type": "string",
+                    "example": "3f7c1b62-6f0f-4a2b-8f0e-2f2b9a1c7d10"
+                }
+            }
+        },
         "dto.MessageResponse": {
             "type": "object",
             "properties": {
                 "author": {
-                    "$ref": "#/definitions/dto.ParticipantUserResponse"
+                    "description": "Пуст у событий, которые принадлежат всему обмену, а не участнику.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.ParticipantUserResponse"
+                        }
+                    ],
+                    "x-nullable": true
                 },
                 "body": {
-                    "type": "string"
+                    "description": "Заполнен только у kind = text.",
+                    "type": "string",
+                    "x-nullable": true
                 },
                 "created_at": {
                     "type": "string"
@@ -1363,7 +1535,16 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "kind": {
-                    "type": "string"
+                    "type": "string",
+                    "enum": [
+                        "text",
+                        "participant_accepted",
+                        "participant_declined",
+                        "participant_completed",
+                        "exchange_confirmed",
+                        "exchange_completed",
+                        "exchange_superseded"
+                    ]
                 }
             }
         },
@@ -1549,6 +1730,14 @@ const docTemplate = `{
                 }
             }
         }
+    },
+    "securityDefinitions": {
+        "CookieAuth": {
+            "description": "HttpOnly cookie, которую ставит POST /auth/login.",
+            "type": "apiKey",
+            "name": "access_token",
+            "in": "cookie"
+        }
     }
 }`
 
@@ -1559,7 +1748,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "Цепочка обмена — API",
-	Description:      "HTTP API сервиса многостороннего обмена вещами: профили пользователей, вход по JWT\nи объявления о вещах, которые владелец готов обменять.\n\nЗащищённые маршруты читают HttpOnly cookie `access_token`. Кнопки «Authorize» здесь нет\nи не нужно: выполните `POST /auth/login` прямо из этой страницы — браузер сохранит cookie\nи будет отправлять её со всеми следующими запросами сам.",
+	Description:      "HTTP API сервиса многостороннего обмена вещами: профили пользователей, вход по JWT\nи объявления о вещах, которые владелец готов обменять.\n\nЗащищённые маршруты читают HttpOnly cookie `access_token` — они помечены замком.\nКнопки «Authorize» здесь нет и не нужно: выполните `POST /auth/login` прямо из этой\nстраницы — браузер сохранит cookie и будет отправлять её со всеми следующими\nзапросами сам. JavaScript до неё не дотянется, поэтому вписать её руками нельзя.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

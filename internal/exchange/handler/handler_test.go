@@ -364,6 +364,33 @@ func TestPostMessageRejectsBrokenJSON(t *testing.T) {
 	}
 }
 
+// Тело больше лимита обязано отвалиться на границе, а не дойти до сервиса и не съесть
+// память: ограничение в 2000 символов проверяется уже после полного разбора JSON.
+func TestPostMessageRejectsOversizedBody(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeService{postMessage: func(
+		context.Context,
+		uuid.UUID,
+		uuid.UUID,
+		string,
+	) (exchangemodel.Message, error) {
+		t.Fatal("PostMessage() reached the service with an oversized body")
+		return exchangemodel.Message{}, nil
+	}}
+
+	response := performRequestWithBody(
+		service,
+		http.MethodPost,
+		"/exchanges/"+uuid.New().String()+"/messages",
+		strings.NewReader(`{"body":"`+strings.Repeat("a", maxRequestBodyBytes+1)+`"}`),
+		authenticateAs(uuid.New()),
+	)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusBadRequest)
+	}
+}
+
 func TestMessageErrorStatuses(t *testing.T) {
 	t.Parallel()
 
@@ -429,21 +456,96 @@ func TestListMessagesReturnsEmptyArray(t *testing.T) {
 	}
 }
 
+func TestMarkReadPassesTheLastMessage(t *testing.T) {
+	t.Parallel()
+
+	exchangeID, userID, lastMessageID := uuid.New(), uuid.New(), uuid.New()
+	service := &fakeService{markRead: func(
+		_ context.Context,
+		actualExchangeID uuid.UUID,
+		actualUserID uuid.UUID,
+		actualLastMessageID uuid.UUID,
+	) error {
+		if actualExchangeID != exchangeID ||
+			actualUserID != userID ||
+			actualLastMessageID != lastMessageID {
+			t.Fatalf(
+				"MarkThreadRead() args = (%s, %s, %s)",
+				actualExchangeID, actualUserID, actualLastMessageID,
+			)
+		}
+		return nil
+	}}
+
+	response := performRequestWithBody(
+		service,
+		http.MethodPost,
+		"/exchanges/"+exchangeID.String()+"/messages/read",
+		strings.NewReader(`{"last_message_id":"`+lastMessageID.String()+`"}`),
+		authenticateAs(userID),
+	)
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d; body = %s", response.Code, http.StatusNoContent, response.Body.String())
+	}
+}
+
+func TestMarkReadRejectsBrokenLastMessageID(t *testing.T) {
+	t.Parallel()
+
+	for name, body := range map[string]string{
+		"not a uuid":  `{"last_message_id":"не-uuid"}`,
+		"missing":     `{}`,
+		"broken json": "{",
+	} {
+		body := body
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeService{markRead: func(
+				context.Context,
+				uuid.UUID,
+				uuid.UUID,
+				uuid.UUID,
+			) error {
+				t.Fatal("MarkThreadRead() reached the service with a broken request")
+				return nil
+			}}
+
+			response := performRequestWithBody(
+				service,
+				http.MethodPost,
+				"/exchanges/"+uuid.New().String()+"/messages/read",
+				strings.NewReader(body),
+				authenticateAs(uuid.New()),
+			)
+			if response.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d", response.Code, http.StatusBadRequest)
+			}
+		})
+	}
+}
+
 func TestMessageRoutesRequireAuthentication(t *testing.T) {
 	t.Parallel()
 
 	path := "/exchanges/" + uuid.New().String() + "/messages"
 
-	for _, method := range []string{http.MethodGet, http.MethodPost} {
+	routes := []struct{ method, path string }{
+		{http.MethodGet, path},
+		{http.MethodPost, path},
+		{http.MethodPost, path + "/read"},
+	}
+
+	for _, route := range routes {
 		response := performRequestWithBody(
 			&fakeService{},
-			method,
-			path,
+			route.method,
+			route.path,
 			strings.NewReader(`{"body":"привет"}`),
 			passThroughAuth,
 		)
 		if response.Code != http.StatusUnauthorized {
-			t.Fatalf("%s: status = %d, want %d", method, response.Code, http.StatusUnauthorized)
+			t.Fatalf("%s %s: status = %d, want %d", route.method, route.path, response.Code, http.StatusUnauthorized)
 		}
 	}
 }
@@ -456,6 +558,19 @@ type fakeService struct {
 	complete     func(context.Context, uuid.UUID, uuid.UUID) error
 	postMessage  func(context.Context, uuid.UUID, uuid.UUID, string) (exchangemodel.Message, error)
 	listMessages func(context.Context, uuid.UUID, uuid.UUID) ([]exchangemodel.Message, error)
+	markRead     func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) error
+}
+
+func (f *fakeService) MarkThreadRead(
+	ctx context.Context,
+	exchangeID uuid.UUID,
+	userID uuid.UUID,
+	lastMessageID uuid.UUID,
+) error {
+	if f.markRead == nil {
+		return nil
+	}
+	return f.markRead(ctx, exchangeID, userID, lastMessageID)
 }
 
 func (f *fakeService) PostMessage(
