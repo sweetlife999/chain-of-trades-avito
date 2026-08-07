@@ -15,6 +15,49 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/admin/dashboard": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Возвращает количество пользователей, ПВЗ, объявлений и обменов с разбивкой по статусам.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin dashboard"
+                ],
+                "summary": "Статистика для главной страницы админки",
+                "responses": {
+                    "200": {
+                        "description": "Статистика админки",
+                        "schema": {
+                            "$ref": "#/definitions/dto.DashboardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/dto.DashboardError"
+                        }
+                    },
+                    "403": {
+                        "description": "Недостаточно прав",
+                        "schema": {
+                            "$ref": "#/definitions/dto.DashboardError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/dto.DashboardError"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/pickup-points": {
             "get": {
                 "security": [
@@ -1736,6 +1779,31 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.DashboardError": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.DashboardResponse": {
+            "type": "object",
+            "properties": {
+                "exchanges": {
+                    "$ref": "#/definitions/dto.ExchangeStatisticsResponse"
+                },
+                "items": {
+                    "$ref": "#/definitions/dto.ItemStatisticsResponse"
+                },
+                "pickup_points_total": {
+                    "type": "integer"
+                },
+                "users_total": {
+                    "type": "integer"
+                }
+            }
+        },
         "dto.ExchangeResponse": {
             "type": "object",
             "properties": {
@@ -1762,6 +1830,26 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.ExchangeStatisticsResponse": {
+            "type": "object",
+            "properties": {
+                "cancelled": {
+                    "type": "integer"
+                },
+                "completed": {
+                    "type": "integer"
+                },
+                "confirmed": {
+                    "type": "integer"
+                },
+                "proposed": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },
@@ -1811,6 +1899,26 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "dto.ItemStatisticsResponse": {
+            "type": "object",
+            "properties": {
+                "available": {
+                    "type": "integer"
+                },
+                "reserved": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "traded": {
+                    "type": "integer"
+                },
+                "withdrawn": {
+                    "type": "integer"
                 }
             }
         },
