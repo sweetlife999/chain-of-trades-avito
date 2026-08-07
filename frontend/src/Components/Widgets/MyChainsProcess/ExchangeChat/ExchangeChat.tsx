@@ -30,10 +30,36 @@ const formatTime = (value: string) =>
     minute: "2-digit",
   }).format(new Date(value));
 
-const isSystemMessage = (message: TExchangeMessage) => {
-  const kind = message.kind.toLowerCase();
+const isSystemMessage = (message: TExchangeMessage) =>
+  message.kind.toLowerCase() !== "text" || !message.author;
 
-  return !message.author || kind.includes("system") || kind.includes("event");
+const getSystemMessageText = (message: TExchangeMessage) => {
+  const nickname = message.author?.nickname;
+
+  switch (message.kind.toLowerCase()) {
+    case "participant_accepted":
+      return nickname
+        ? `${nickname} подтвердил участие в обмене`
+        : "Участник подтвердил участие в обмене";
+    case "participant_declined":
+    case "participant_rejected":
+      return nickname
+        ? `${nickname} отказался от участия в обмене`
+        : "Участник отказался от участия в обмене";
+    case "participant_completed":
+    case "participant_received":
+      return nickname
+        ? `${nickname} подтвердил получение вещи`
+        : "Участник подтвердил получение вещи";
+    case "exchange_confirmed":
+      return "Все участники подтвердили обмен";
+    case "exchange_completed":
+      return "Обмен успешно завершён";
+    case "exchange_cancelled":
+      return "Обмен отменён";
+    default:
+      return message.body ?? "Событие обмена";
+  }
 };
 
 const ExchangeChatComponent = ({
@@ -52,7 +78,10 @@ const ExchangeChatComponent = ({
     enabled: Boolean(exchangeId),
     refetchInterval: readOnly ? false : 3000,
     refetchIntervalInBackground: false,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
     retry: false,
+    staleTime: 0,
   });
 
   const sendMutation = useMutation({
@@ -66,7 +95,7 @@ const ExchangeChatComponent = ({
 
         return [...messages, message];
       });
-       queryClient.invalidateQueries({
+      queryClient.invalidateQueries({
         queryKey: ["exchanges"],
         exact: true,
       });
@@ -76,12 +105,12 @@ const ExchangeChatComponent = ({
 
   const messages = messagesQuery.data ?? [];
 
-  // useEffect(() => {
-  //   endRef.current?.scrollIntoView({
-  //     behavior: "smooth",
-  //     block: "end",
-  //   });
-  // }, [messages.length]);
+  useEffect(() => {
+    endRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "end",
+    });
+  }, [messages.length]);
 
   const submitMessage = () => {
     const value = body.trim();
@@ -123,7 +152,7 @@ const ExchangeChatComponent = ({
 
         {messagesQuery.isError && (
           <p className={styles.chat__state}>
-            Не удалось загрузить сообщения.
+            Не удалось загрузить историю сообщений.
           </p>
         )}
 
@@ -140,7 +169,7 @@ const ExchangeChatComponent = ({
           if (system) {
             return (
               <div className={styles.chat__system} key={message.id}>
-                <span>{message.body}</span>
+                <span>{getSystemMessageText(message)}</span>
                 <time>{formatTime(message.created_at)}</time>
               </div>
             );
@@ -167,7 +196,7 @@ const ExchangeChatComponent = ({
               )}
               <div>
                 {!own && <strong>{message.author?.nickname}</strong>}
-                <p>{message.body}</p>
+                <p>{message.body ?? ""}</p>
                 <time>{formatTime(message.created_at)}</time>
               </div>
             </article>

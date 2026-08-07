@@ -52,7 +52,7 @@ export const CreateMessageRequestSchema = z.object({
 
 export const ExchangeMessageSchema = z.object({
   author: ExchangeUserSchema.nullable().optional(),
-  body: z.string(),
+  body: z.string().nullable(),
   created_at: z.string(),
   id: z.string(),
   kind: z.string(),
