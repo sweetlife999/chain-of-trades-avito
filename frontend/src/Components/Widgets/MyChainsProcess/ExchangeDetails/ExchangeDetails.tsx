@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useState } from "react";
 import {
   useMutation,
   useQuery,
@@ -20,6 +20,7 @@ import type {
 import { useAuthSelector } from "../../../../Hooks/useAuthDispatch";
 import { ExchangeChat } from "../ExchangeChat/ExchangeChat";
 import { ExchangeProgress } from "../ExchangeProgress/ExchangeProgress";
+import { ConfirmationPopup } from "../../../UI/ConfirmationPopup/ConfirmationPopup";
 
 const statusLabels: Record<TExchangeStatus, string> = {
   proposed: "Ждём подтверждения",
@@ -91,26 +92,44 @@ const formatDate = (value: string) =>
 type TParticipantListProps = {
   participants: TExchangeParticipant[];
   exchangeStatus: TExchangeStatus;
+  currentUserId?: string;
 };
 
 const ParticipantList = ({
   participants,
   exchangeStatus,
+  currentUserId,
 }: TParticipantListProps) => (
   <div className={styles.details__participants}>
     {participants.map((participant) => {
       const confirmed = isCurrentStageConfirmed(participant, exchangeStatus);
 
+      const profilePath =
+        participant.user.id === currentUserId
+          ? "/profile"
+          : `/profile/${participant.user.id}`;
+
       return (
         <div key={participant.user.id}>
-          <span
-            className={`${styles.details__avatar} ${
-              confirmed ? styles.details__avatar_confirmed : ""
-            }`}
-          >
-            {participant.user.nickname.charAt(0).toUpperCase()}
-          </span>
-          <strong>{participant.user.nickname}</strong>
+          <Link className={styles.details__avatarLink} to={profilePath}>
+            <span
+              className={`${styles.details__avatar} ${
+                confirmed ? styles.details__avatar_confirmed : ""
+              }`}
+            >
+              {participant.user.photo_url ? (
+                <img
+                  alt={participant.user.nickname}
+                  src={participant.user.photo_url}
+                />
+              ) : (
+                participant.user.nickname.charAt(0).toUpperCase()
+              )}
+            </span>
+          </Link>
+          <Link className={styles.details__nameLink} to={profilePath}>
+            <strong>{participant.user.nickname}</strong>
+          </Link>
           <span>{getParticipantStatus(participant, exchangeStatus)}</span>
         </div>
       );
@@ -122,6 +141,7 @@ const ExchangeDetailsComponent = () => {
   const { id = "" } = useParams();
   const { user } = useAuthSelector();
   const queryClient = useQueryClient();
+  const [declinePopupOpen, setDeclinePopupOpen] = useState(false);
 
   const {
     data: exchange,
@@ -143,7 +163,10 @@ const ExchangeDetailsComponent = () => {
 
   const declineMutation = useMutation({
     mutationFn: () => declineExchange(id),
-    onSuccess: refreshExchange,
+    onSuccess: () => {
+      setDeclinePopupOpen(false);
+      refreshExchange();
+    },
   });
 
   const completeMutation = useMutation({
@@ -172,12 +195,21 @@ const ExchangeDetailsComponent = () => {
     confirmMutation.isPending ||
     declineMutation.isPending ||
     completeMutation.isPending;
-  const actionError =
-    confirmMutation.isError ||
-    declineMutation.isError ||
-    completeMutation.isError;
+  const actionError = confirmMutation.isError || completeMutation.isError;
   const chatReadOnly =
     exchange.status === "completed" || exchange.status === "cancelled";
+  const openDeclinePopup = () => {
+    declineMutation.reset();
+    setDeclinePopupOpen(true);
+  };
+  const closeDeclinePopup = () => {
+    if (declineMutation.isPending) {
+      return;
+    }
+
+    declineMutation.reset();
+    setDeclinePopupOpen(false);
+  };
   const title = referenceParticipant
     ? `${referenceParticipant.gives_item.title} → ${referenceParticipant.receives_item.title}`
     : "Цепочка обмена";
@@ -222,6 +254,7 @@ const ExchangeDetailsComponent = () => {
               </div>
             )}
             <ParticipantList
+              currentUserId={user?.id}
               exchangeStatus={exchange.status}
               participants={exchange.participants}
             />
@@ -236,6 +269,7 @@ const ExchangeDetailsComponent = () => {
                 </div>
                 <h3>Подтверждения участников</h3>
                 <ParticipantList
+                  currentUserId={user?.id}
                   exchangeStatus={exchange.status}
                   participants={exchange.participants}
                 />
@@ -255,7 +289,7 @@ const ExchangeDetailsComponent = () => {
                   <button
                     className={styles.details__dangerButton}
                     disabled={actionPending}
-                    onClick={() => declineMutation.mutate()}
+                    onClick={openDeclinePopup}
                     type="button"
                   >
                     {declineMutation.isPending
@@ -274,6 +308,7 @@ const ExchangeDetailsComponent = () => {
                 <h2>Хотите принять участие в этой цепочке?</h2>
                 <h3>Подтверждения участников</h3>
                 <ParticipantList
+                  currentUserId={user?.id}
                   exchangeStatus={exchange.status}
                   participants={exchange.participants}
                 />
@@ -327,6 +362,7 @@ const ExchangeDetailsComponent = () => {
               <div className={styles.details__participantProgress}>
                 <h3>Получение участников</h3>
                 <ParticipantList
+                  currentUserId={user?.id}
                   exchangeStatus={exchange.status}
                   participants={exchange.participants}
                 />
@@ -348,7 +384,7 @@ const ExchangeDetailsComponent = () => {
                 <button
                   className={styles.details__dangerButton}
                   disabled={actionPending || receiptConfirmed}
-                  onClick={() => declineMutation.mutate()}
+                  onClick={openDeclinePopup}
                   type="button"
                 >
                   {declineMutation.isPending
@@ -372,6 +408,7 @@ const ExchangeDetailsComponent = () => {
           <h2>Обмен завершён</h2>
           <p>Все участники получили свои вещи.</p>
           <ParticipantList
+            currentUserId={user?.id}
             exchangeStatus={exchange.status}
             participants={exchange.participants}
           />
@@ -402,6 +439,28 @@ const ExchangeDetailsComponent = () => {
           readOnly={chatReadOnly}
         />
       )}
+
+      {declinePopupOpen &&
+        exchange.status !== "completed" &&
+        exchange.status !== "cancelled" && (
+          <ConfirmationPopup
+            confirmLabel="Да, отказаться"
+            description={
+              exchange.status === "confirmed"
+                ? "Подтверждённый обмен будет отменён. Отказ может увеличить счётчик сорванных обменов."
+                : "После отказа эта цепочка будет отменена. Подтвердите действие, если точно не хотите участвовать."
+            }
+            error={
+              declineMutation.isError
+                ? "Не удалось отказаться от обмена. Повторите попытку."
+                : undefined
+            }
+            isPending={declineMutation.isPending}
+            title="Отказаться от обмена?"
+            onClose={closeDeclinePopup}
+            onConfirm={() => declineMutation.mutate()}
+          />
+        )}
     </section>
   );
 };

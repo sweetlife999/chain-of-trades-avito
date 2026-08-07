@@ -6,14 +6,26 @@ export const UserSchema = z.object({
   deals_completed: z.number(),
   description: z.string(),
   id: z.string(),
+  is_admin: z.boolean().optional(),
   nickname: z.string(),
   photo_url: z.string(),
   rating: z.number().nullable().transform((value) => value ?? 0),
   updated_at: z.string(),
 });
 
-
 export type TUser = z.infer<typeof UserSchema>;
+
+export const BlockedUserSchema = z.object({
+  blocked_at: z.string(),
+  id: z.string(),
+  nickname: z.string(),
+  photo_url: z.string(),
+});
+
+export const BlockedUsersSchema = z.array(BlockedUserSchema);
+
+export type TBlockedUser = z.infer<typeof BlockedUserSchema>;
+export type TBlockedUsers = z.infer<typeof BlockedUsersSchema>;
 
 const getByteLength = (value: string) => {
   return new TextEncoder().encode(value).length;
@@ -46,4 +58,11 @@ export const registerSchema = z.object({
     .or(z.literal("")),
 });
 
+export const UpdateUserSchema = z.object({
+  nickname: z.string().trim().min(3).max(32).optional(),
+  description: z.string().trim().optional(),
+  photo_url: z.string().trim().optional(),
+});
+
 export type TRegister = z.infer<typeof registerSchema>;
+export type TUpdateUser = z.infer<typeof UpdateUserSchema>;
