@@ -11,6 +11,7 @@ import AvitoLogo from "/src/Assets/avito-logo.svg";
 import styles from "./Styles.module.scss";
 import { Button } from "../../UI/Button/Button";
 import { FetchProfile } from "../../Widgets/FetchProfile/FetchProfile";
+import { Notifications } from "../../Widgets/Notifications/Notifications";
 
 type NavigationItem = { to: string; label: string; Icon: LucideIcon };
 
@@ -53,6 +54,7 @@ const HeaderComponent = () => {
           <Button size="m" color="green" onClick={() => navigate("/exchanges/create")}>
             Добавить вещь
           </Button>
+          <Notifications />
           <FetchProfile />
         </div>
       </div>

@@ -1,9 +1,17 @@
 import api from "../client";
 
-import { CreateMessageRequestSchema, ExchangeMessageSchema, ExchangeMessagesSchema, ExchangeSchema, ExchangesSchema, type TExchange, type TExchangeMessage, type TExchangeMessages, type TExchanges } from "./exchanges.types";
-
-
-
+import {
+  CreateMessageRequestSchema,
+  ExchangeMessageSchema,
+  ExchangeMessagesSchema,
+  ExchangeSchema,
+  ExchangesSchema,
+  MarkReadRequestSchema,
+  type TExchange,
+  type TExchangeMessage,
+  type TExchangeMessages,
+  type TExchanges,
+} from "./exchanges.types";
 
 export const getExchanges = async (): Promise<TExchanges> => {
   const { data } = await api.get("/exchanges");
@@ -14,8 +22,6 @@ export const getExchange = async (id: string): Promise<TExchange> => {
   const { data } = await api.get(`/exchanges/${id}`);
   return ExchangeSchema.parse(data);
 };
-
-
 
 export const confirmExchange = async (id: string): Promise<void> => {
   await api.post(`/exchanges/${id}/confirm`);
@@ -44,4 +50,15 @@ export const sendExchangeMessage = async (
   const { data } = await api.post(`/exchanges/${id}/messages`, payload);
 
   return ExchangeMessageSchema.parse(data);
+};
+
+export const markExchangeMessagesRead = async (
+  id: string,
+  lastMessageId: string,
+): Promise<void> => {
+  const payload = MarkReadRequestSchema.parse({
+    last_message_id: lastMessageId,
+  });
+
+  await api.post(`/exchanges/${id}/messages/read`, payload);
 };

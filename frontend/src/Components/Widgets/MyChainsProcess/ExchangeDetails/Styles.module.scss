@@ -97,7 +97,11 @@
 
   &__nameLink {
     color: #171717;
+    max-width: 80px;
+    overflow: hidden;
 
+    text-overflow: ellipsis;
+    white-space: nowrap;
     &:hover {
       color: $green-button;
     }
