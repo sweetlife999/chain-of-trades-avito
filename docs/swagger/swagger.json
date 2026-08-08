@@ -1320,6 +1320,81 @@
                 }
             }
         },
+        "/reports": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Принимает жалобу на сообщение треда обмена. Пожаловаться можно только на чужое\nсообщение участника в обмене, где жалобщик сам участвует, и только один раз.\nНа события обмена (подтверждение, отмена и прочие) жаловаться нельзя: их пишет сервис.\nЖалоба попадает в очередь модерации со статусом open и ни на что в подборе не влияет.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "reports"
+                ],
+                "summary": "Пожаловаться на сообщение",
+                "parameters": [
+                    {
+                        "description": "Сообщение, причина и необязательный комментарий",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateReportRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Жалоба принята",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректное тело, неизвестная причина, длинный комментарий или жалоба на событие обмена",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "403": {
+                        "description": "Не участник обмена или жалоба на собственное сообщение",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "404": {
+                        "description": "Сообщение не найдено",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "409": {
+                        "description": "Пользователь уже жаловался на это сообщение",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    }
+                }
+            }
+        },
         "/users": {
             "post": {
                 "description": "Регистрация: nickname 3–32 символа, пароль 8–72 байта. Пароль хранится bcrypt-хешем и в ответе не возвращается.",
@@ -1755,6 +1830,23 @@
                 }
             }
         },
+        "dto.CreateReportRequest": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string",
+                    "example": "переходит на личности"
+                },
+                "message_id": {
+                    "type": "string",
+                    "example": "3f2a1b4c-5d6e-4f70-8a91-b2c3d4e5f607"
+                },
+                "reason": {
+                    "type": "string",
+                    "example": "abuse"
+                }
+            }
+        },
         "dto.CreateUserRequest": {
             "type": "object",
             "properties": {
@@ -2056,6 +2148,37 @@
                     "type": "string"
                 },
                 "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ReportError": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ReportResponse": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "message_id": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 }
             }
