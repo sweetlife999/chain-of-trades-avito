@@ -15,6 +15,8 @@ import (
 	admindashboardhandler "github.com/sweetlife999/chain-of-trades-avito/internal/admindashboard/handler"
 	admindashboardrepository "github.com/sweetlife999/chain-of-trades-avito/internal/admindashboard/repository"
 	admindashboardservice "github.com/sweetlife999/chain-of-trades-avito/internal/admindashboard/service"
+	adminexchangehandler "github.com/sweetlife999/chain-of-trades-avito/internal/adminexchange/handler"
+	adminexchangeservice "github.com/sweetlife999/chain-of-trades-avito/internal/adminexchange/service"
 	authhandler "github.com/sweetlife999/chain-of-trades-avito/internal/auth/handler"
 	authmiddleware "github.com/sweetlife999/chain-of-trades-avito/internal/auth/middleware"
 	authservice "github.com/sweetlife999/chain-of-trades-avito/internal/auth/service"
@@ -103,6 +105,7 @@ func main() {
 		adminRouter.Use(authenticator.RequireAuthentication)
 		adminRouter.Use(adminAuthorizer.RequireAdmin)
 		admindashboardhandler.New(adminDashboard).RegisterRoutes(adminRouter)
+		adminexchangehandler.New(adminExchanges).RegisterRoutes(adminRouter)
 		pickuppointhandler.New(pickupPoints).RegisterRoutes(adminRouter)
 	})
 
