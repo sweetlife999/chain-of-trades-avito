@@ -1,0 +1,28 @@
+.admin {
+  display: grid;
+  gap: 30px;
+
+  &__header {
+    h1 {
+      margin-top: 8px;
+      color: #171717;
+      font-size: clamp(38px, 5vw, 52px);
+      line-height: 1.15;
+    }
+
+    p {
+      margin-top: 8px;
+      color: #6b7280;
+      font-size: 16px;
+      line-height: 1.5;
+    }
+  }
+
+  &__eyebrow {
+    color: #08783f;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+}
