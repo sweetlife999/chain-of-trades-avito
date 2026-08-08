@@ -76,6 +76,7 @@ func main() {
 	users := userservice.New(usersRepository)
 	exchangesRepository := exchangerepository.New(pool)
 	exchanges := exchangeservice.New(exchangesRepository)
+	exchangesHandler := exchangehandler.New(exchanges)
 	items := itemservice.New(itemrepository.New(pool), exchanges)
 	pickupPoints := pickuppointservice.New(pickuppointrepository.New(queries))
 	adminDashboard := admindashboardservice.New(admindashboardrepository.New(queries))
@@ -89,7 +90,7 @@ func main() {
 	itemhandler.New(items).RegisterRoutes(router, authenticator.RequireAuthentication)
 	authhandler.New(auth, cfg.CookieSecure, authTokenTTL).
 		RegisterRoutes(router, authenticator.RequireAuthentication)
-	exchangehandler.New(exchanges).RegisterRoutes(router, authenticator.RequireAuthentication)
+	exchangesHandler.RegisterRoutes(router, authenticator.RequireAuthentication)
 
 	// Все следующие административные модули регистрируются только внутри этой группы.
 	// JWT сначала определяет пользователя, затем роль проверяется по актуальным данным БД.
@@ -98,6 +99,7 @@ func main() {
 		adminRouter.Use(adminAuthorizer.RequireAdmin)
 		admindashboardhandler.New(adminDashboard).RegisterRoutes(adminRouter)
 		pickuppointhandler.New(pickupPoints).RegisterRoutes(adminRouter)
+		exchangesHandler.RegisterAdminRoutes(adminRouter)
 	})
 
 	router.Get("/health", health)

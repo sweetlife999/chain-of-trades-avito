@@ -58,6 +58,70 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/exchanges/{id}/cancel": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Закрывает proposed или confirmed обмен. Для confirmed освобождает объявления и запускает повторный поиск. Решения участников и их статистика не изменяются.",
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Принудительно отменить обмен",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID обмена",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Обмен отменён"
+                    },
+                    "400": {
+                        "description": "ID не является UUID",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Недостаточно прав",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Обмен не найден",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Обмен уже завершён или отменён либо объявления находятся в несовместимом состоянии",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/pickup-points": {
             "get": {
                 "security": [

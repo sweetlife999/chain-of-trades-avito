@@ -410,6 +410,50 @@ paths:
       summary: Статистика для главной страницы админки
       tags:
       - admin dashboard
+  /admin/exchanges/{id}/cancel:
+    post:
+      description: Закрывает proposed или confirmed обмен. Для confirmed освобождает
+        объявления и запускает повторный поиск. Решения участников и их статистика
+        не изменяются.
+      parameters:
+      - description: UUID обмена
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: Обмен отменён
+        "400":
+          description: ID не является UUID
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "403":
+          description: Недостаточно прав
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "404":
+          description: Обмен не найден
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "409":
+          description: Обмен уже завершён или отменён либо объявления находятся в
+            несовместимом состоянии
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Принудительно отменить обмен
+      tags:
+      - admin
   /admin/pickup-points:
     get:
       description: Доступно только администратору. Возвращает ПВЗ от новых к старым.
