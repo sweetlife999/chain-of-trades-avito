@@ -368,6 +368,87 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/users/{user_id}/exchanges": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Доступно только администратору. Возвращает proposed и confirmed обмены пользователя вместе с участниками и вещами.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin exchanges"
+                ],
+                "summary": "Получить активные обмены пользователя",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID пользователя",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "maximum": 100,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Размер страницы (1–100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "minimum": 0,
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Смещение от начала списка",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Активные обмены пользователя",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный UUID или пагинация",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Недостаточно прав",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Пользователь не найден",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/login": {
             "post": {
                 "description": "Проверяет nickname и password, кладёт JWT на 12 часов в HttpOnly cookie ` + "`" + `access_token` + "`" + `. Из Swagger UI cookie сохранится в браузере, дальше защищённые запросы уйдут с ней автоматически.",
@@ -521,7 +602,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/dto.ExchangeResponse"
+                                "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ExchangeResponse"
                             }
                         }
                     },
@@ -569,7 +650,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Обмен",
                         "schema": {
-                            "$ref": "#/definitions/dto.ExchangeResponse"
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ExchangeResponse"
                         }
                     },
                     "400": {
@@ -1804,35 +1885,6 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.ExchangeResponse": {
-            "type": "object",
-            "properties": {
-                "closed_at": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "participants": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.ParticipantResponse"
-                    }
-                },
-                "status": {
-                    "type": "string"
-                },
-                "unread_count": {
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
         "dto.ExchangeStatisticsResponse": {
             "type": "object",
             "properties": {
@@ -1922,6 +1974,20 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.ListResponse": {
+            "type": "object",
+            "properties": {
+                "exchanges": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ExchangeResponse"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/dto.PaginationResponse"
+                }
+            }
+        },
         "dto.LoginRequest": {
             "type": "object",
             "properties": {
@@ -1976,6 +2042,20 @@ const docTemplate = `{
                         "exchange_completed",
                         "exchange_superseded"
                     ]
+                }
+            }
+        },
+        "dto.PaginationResponse": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },
@@ -2162,6 +2242,41 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ExchangeResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "participants": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ParticipantResponse"
+                    }
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "proposed",
+                        "confirmed"
+                    ]
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.CategoryResponse": {
             "type": "object",
             "properties": {
@@ -2177,6 +2292,35 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ExchangeResponse": {
+            "type": "object",
+            "properties": {
+                "closed_at": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "participants": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ParticipantResponse"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                },
+                "unread_count": {
+                    "type": "integer"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }

@@ -17,6 +17,11 @@ var ErrNotFound = errors.New("exchange not found")
 
 type exchangeReadQueries interface {
 	ListExchangesByUser(context.Context, pgtype.UUID) ([]db.ListExchangesByUserRow, error)
+	ListActiveExchangesByUserForAdmin(
+		context.Context,
+		db.ListActiveExchangesByUserForAdminParams,
+	) ([]db.ListActiveExchangesByUserForAdminRow, error)
+	CountActiveExchangesByUserForAdmin(context.Context, pgtype.UUID) (int64, error)
 	GetExchangeByID(context.Context, db.GetExchangeByIDParams) ([]db.GetExchangeByIDRow, error)
 }
 
@@ -60,6 +65,41 @@ func (r *Repository) ListByUser(ctx context.Context, userID uuid.UUID) ([]exchan
 	}
 
 	return groupExchangeRecords(records), nil
+}
+
+func (r *Repository) ListActiveByUser(
+	ctx context.Context,
+	userID uuid.UUID,
+	limit int32,
+	offset int32,
+) ([]exchangemodel.Details, error) {
+	rows, err := r.reads.ListActiveExchangesByUserForAdmin(
+		ctx,
+		db.ListActiveExchangesByUserForAdminParams{
+			UserID:     pgUUID(userID),
+			PageLimit:  limit,
+			PageOffset: offset,
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list active exchanges by user: %w", err)
+	}
+
+	records := make([]exchangeRecord, len(rows))
+	for index, row := range rows {
+		records[index] = recordFromAdminListRow(row)
+	}
+
+	return groupExchangeRecords(records), nil
+}
+
+func (r *Repository) CountActiveByUser(ctx context.Context, userID uuid.UUID) (int64, error) {
+	total, err := r.reads.CountActiveExchangesByUserForAdmin(ctx, pgUUID(userID))
+	if err != nil {
+		return 0, fmt.Errorf("count active exchanges by user: %w", err)
+	}
+
+	return total, nil
 }
 
 func (r *Repository) GetByID(
@@ -153,6 +193,36 @@ func participantFromRecord(record exchangeRecord) exchangemodel.DetailsParticipa
 }
 
 func recordFromListRow(row db.ListExchangesByUserRow) exchangeRecord {
+	return exchangeRecord{
+		ExchangeID:              row.ExchangeID,
+		ExchangeStatus:          row.ExchangeStatus,
+		ExchangeCreatedAt:       row.ExchangeCreatedAt,
+		ExchangeUpdatedAt:       row.ExchangeUpdatedAt,
+		ExchangeClosedAt:        row.ExchangeClosedAt,
+		UserID:                  row.UserID,
+		Position:                row.Position,
+		ParticipantStatus:       row.ParticipantStatus,
+		DecidedAt:               row.DecidedAt,
+		CompletionConfirmedAt:   row.CompletionConfirmedAt,
+		Nickname:                row.Nickname,
+		UserPhotoURL:            row.UserPhotoUrl,
+		GivesItemID:             row.GivesItemID,
+		GivesItemTitle:          row.GivesItemTitle,
+		GivesItemDescription:    row.GivesItemDescription,
+		GivesItemStatus:         row.GivesItemStatus,
+		GivesCategorySlug:       row.GivesCategorySlug,
+		GivesCategoryName:       row.GivesCategoryName,
+		ReceivesItemID:          row.ReceivesItemID,
+		ReceivesItemTitle:       row.ReceivesItemTitle,
+		ReceivesItemDescription: row.ReceivesItemDescription,
+		ReceivesItemStatus:      row.ReceivesItemStatus,
+		ReceivesCategorySlug:    row.ReceivesCategorySlug,
+		ReceivesCategoryName:    row.ReceivesCategoryName,
+		UnreadCount:             row.UnreadCount,
+	}
+}
+
+func recordFromAdminListRow(row db.ListActiveExchangesByUserForAdminRow) exchangeRecord {
 	return exchangeRecord{
 		ExchangeID:              row.ExchangeID,
 		ExchangeStatus:          row.ExchangeStatus,
