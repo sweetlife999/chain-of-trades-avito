@@ -106,25 +106,6 @@ definitions:
       users_total:
         type: integer
     type: object
-  dto.ExchangeResponse:
-    properties:
-      closed_at:
-        type: string
-      created_at:
-        type: string
-      id:
-        type: string
-      participants:
-        items:
-          $ref: '#/definitions/dto.ParticipantResponse'
-        type: array
-      status:
-        type: string
-      unread_count:
-        type: integer
-      updated_at:
-        type: string
-    type: object
   dto.ExchangeStatisticsResponse:
     properties:
       cancelled:
@@ -183,6 +164,15 @@ definitions:
       withdrawn:
         type: integer
     type: object
+  dto.ListResponse:
+    properties:
+      exchanges:
+        items:
+          $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ExchangeResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/dto.PaginationResponse'
+    type: object
   dto.LoginRequest:
     properties:
       nickname:
@@ -221,6 +211,15 @@ definitions:
         - exchange_completed
         - exchange_superseded
         type: string
+    type: object
+  dto.PaginationResponse:
+    properties:
+      limit:
+        type: integer
+      offset:
+        type: integer
+      total:
+        type: integer
     type: object
   dto.ParticipantItemResponse:
     properties:
@@ -343,6 +342,29 @@ definitions:
       updated_at:
         type: string
     type: object
+  github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ExchangeResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      participants:
+        items:
+          $ref: '#/definitions/dto.ParticipantResponse'
+        type: array
+      status:
+        enum:
+        - proposed
+        - confirmed
+        type: string
+      updated_at:
+        type: string
+    type: object
   github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.CategoryResponse:
     properties:
       name:
@@ -353,6 +375,25 @@ definitions:
   github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse:
     properties:
       error:
+        type: string
+    type: object
+  github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ExchangeResponse:
+    properties:
+      closed_at:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      participants:
+        items:
+          $ref: '#/definitions/dto.ParticipantResponse'
+        type: array
+      status:
+        type: string
+      unread_count:
+        type: integer
+      updated_at:
         type: string
     type: object
   github_com_sweetlife999_chain-of-trades-avito_internal_item_dto.CategoryResponse:
@@ -610,6 +651,61 @@ paths:
       summary: Изменить ПВЗ
       tags:
       - admin pickup-points
+  /admin/users/{user_id}/exchanges:
+    get:
+      description: Доступно только администратору. Возвращает proposed и confirmed
+        обмены пользователя вместе с участниками и вещами.
+      parameters:
+      - description: UUID пользователя
+        in: path
+        name: user_id
+        required: true
+        type: string
+      - default: 20
+        description: Размер страницы (1–100)
+        in: query
+        maximum: 100
+        minimum: 1
+        name: limit
+        type: integer
+      - default: 0
+        description: Смещение от начала списка
+        in: query
+        minimum: 0
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Активные обмены пользователя
+          schema:
+            $ref: '#/definitions/dto.ListResponse'
+        "400":
+          description: Некорректный UUID или пагинация
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse'
+        "403":
+          description: Недостаточно прав
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse'
+        "404":
+          description: Пользователь не найден
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Получить активные обмены пользователя
+      tags:
+      - admin exchanges
   /auth/login:
     post:
       consumes:
@@ -711,7 +807,7 @@ paths:
           description: Список обменов; если обменов нет, возвращается []
           schema:
             items:
-              $ref: '#/definitions/dto.ExchangeResponse'
+              $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ExchangeResponse'
             type: array
         "401":
           description: Пользователь не авторизован
@@ -742,7 +838,7 @@ paths:
         "200":
           description: Обмен
           schema:
-            $ref: '#/definitions/dto.ExchangeResponse'
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ExchangeResponse'
         "400":
           description: ID не является UUID
           schema:
