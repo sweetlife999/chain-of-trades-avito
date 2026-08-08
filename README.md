@@ -89,8 +89,10 @@ TypeScript падает в CI, а не в `docker build`.
 | `docs/exchange-messages.md` | Тред обмена: переписка участников и события сделки    |
 | `docs/user-blocks.md` | Блокировка пользователей и её влияние на подбор обменов      |
 | `docs/admin-exchange-cancellation.md` | Принудительная отмена обмена администратором      |
+| `docs/reports.md` | Жалобы на сообщения треда: причины, запреты и очередь модерации   |
 | `docs/swagger.md` | Интерактивная документация: как открыть и как перегенерировать   |
 | `docs/swagger/`   | Сгенерированная спека — РУКАМИ НЕ ПРАВИТЬ! Только `make swagger` |
 | `internal/user/`  | Handler, service, repository, DTO и model пользователей          |
 | `internal/item/`  | Handler, service, repository, DTO и model объявлений             |
 | `internal/auth/`  | Вход, JWT и middleware аутентификации                            |
+| `internal/report/`| Жалобы на сообщения треда: приём и запись в очередь модерации     |

@@ -108,3 +108,66 @@ JOIN categories AS receives_category
     ON receives_category.id = receives_item.category_id
 WHERE exchange.id = sqlc.arg(exchange_id)
 ORDER BY participant.position;
+
+-- name: ListActiveExchangesByUserForAdmin :many
+WITH selected_exchanges AS (
+    SELECT exchange.id, exchange.created_at
+    FROM chains AS exchange
+    JOIN chain_participants AS selected_participant
+        ON selected_participant.chain_id = exchange.id
+       AND selected_participant.user_id = sqlc.arg(user_id)
+    WHERE exchange.status IN ('proposed', 'confirmed')
+    ORDER BY exchange.created_at DESC, exchange.id
+    LIMIT sqlc.arg(page_limit)
+    OFFSET sqlc.arg(page_offset)
+)
+SELECT
+    exchange.id          AS exchange_id,
+    exchange.status      AS exchange_status,
+    exchange.created_at  AS exchange_created_at,
+    exchange.updated_at  AS exchange_updated_at,
+    exchange.closed_at   AS exchange_closed_at,
+    participant.user_id,
+    participant.position,
+    participant.status   AS participant_status,
+    participant.decided_at,
+    participant.completion_confirmed_at,
+    exchange_user.nickname,
+    exchange_user.photo_url AS user_photo_url,
+    gives_item.id          AS gives_item_id,
+    gives_item.title       AS gives_item_title,
+    gives_item.description AS gives_item_description,
+    gives_item.status      AS gives_item_status,
+    gives_category.slug    AS gives_category_slug,
+    gives_category.name    AS gives_category_name,
+    receives_item.id          AS receives_item_id,
+    receives_item.title       AS receives_item_title,
+    receives_item.description AS receives_item_description,
+    receives_item.status      AS receives_item_status,
+    receives_category.slug    AS receives_category_slug,
+    receives_category.name    AS receives_category_name,
+    0::bigint AS unread_count
+FROM selected_exchanges AS selected
+JOIN chains AS exchange
+    ON exchange.id = selected.id
+JOIN chain_participants AS participant
+    ON participant.chain_id = exchange.id
+JOIN users AS exchange_user
+    ON exchange_user.id = participant.user_id
+JOIN items AS gives_item
+    ON gives_item.id = participant.gives_item_id
+JOIN categories AS gives_category
+    ON gives_category.id = gives_item.category_id
+JOIN items AS receives_item
+    ON receives_item.id = participant.receives_item_id
+JOIN categories AS receives_category
+    ON receives_category.id = receives_item.category_id
+ORDER BY exchange.created_at DESC, exchange.id, participant.position;
+
+-- name: CountActiveExchangesByUserForAdmin :one
+SELECT count(*)
+FROM chains AS exchange
+JOIN chain_participants AS participant
+    ON participant.chain_id = exchange.id
+   AND participant.user_id = sqlc.arg(user_id)
+WHERE exchange.status IN ('proposed', 'confirmed');

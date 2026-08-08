@@ -432,6 +432,87 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/users/{user_id}/exchanges": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Доступно только администратору. Возвращает proposed и confirmed обмены пользователя вместе с участниками и вещами.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin exchanges"
+                ],
+                "summary": "Получить активные обмены пользователя",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID пользователя",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "maximum": 100,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Размер страницы (1–100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "minimum": 0,
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Смещение от начала списка",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Активные обмены пользователя",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный UUID или пагинация",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Недостаточно прав",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Пользователь не найден",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/login": {
             "post": {
                 "description": "Проверяет nickname и password, кладёт JWT на 12 часов в HttpOnly cookie ` + "`" + `access_token` + "`" + `. Из Swagger UI cookie сохранится в браузере, дальше защищённые запросы уйдут с ней автоматически.",
@@ -585,7 +666,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/dto.ExchangeResponse"
+                                "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ExchangeResponse"
                             }
                         }
                     },
@@ -633,7 +714,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Обмен",
                         "schema": {
-                            "$ref": "#/definitions/dto.ExchangeResponse"
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ExchangeResponse"
                         }
                     },
                     "400": {
@@ -1391,6 +1472,81 @@ const docTemplate = `{
                 }
             }
         },
+        "/reports": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Принимает жалобу на сообщение треда обмена. Пожаловаться можно только на чужое\nсообщение участника в обмене, где жалобщик сам участвует, и только один раз.\nНа события обмена (подтверждение, отмена и прочие) жаловаться нельзя: их пишет сервис.\nЖалоба попадает в очередь модерации со статусом open и ни на что в подборе не влияет.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "reports"
+                ],
+                "summary": "Пожаловаться на сообщение",
+                "parameters": [
+                    {
+                        "description": "Сообщение, причина и необязательный комментарий",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateReportRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Жалоба принята",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректное тело, неизвестная причина, длинный комментарий или жалоба на событие обмена",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "403": {
+                        "description": "Не участник обмена или жалоба на собственное сообщение",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "404": {
+                        "description": "Сообщение не найдено",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "409": {
+                        "description": "Пользователь уже жаловался на это сообщение",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    }
+                }
+            }
+        },
         "/users": {
             "post": {
                 "description": "Регистрация: nickname 3–32 символа, пароль 8–72 байта. Пароль хранится bcrypt-хешем и в ответе не возвращается.",
@@ -1826,6 +1982,23 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.CreateReportRequest": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string",
+                    "example": "переходит на личности"
+                },
+                "message_id": {
+                    "type": "string",
+                    "example": "3f2a1b4c-5d6e-4f70-8a91-b2c3d4e5f607"
+                },
+                "reason": {
+                    "type": "string",
+                    "example": "abuse"
+                }
+            }
+        },
         "dto.CreateUserRequest": {
             "type": "object",
             "properties": {
@@ -1865,35 +2038,6 @@ const docTemplate = `{
                 },
                 "users_total": {
                     "type": "integer"
-                }
-            }
-        },
-        "dto.ExchangeResponse": {
-            "type": "object",
-            "properties": {
-                "closed_at": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "participants": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.ParticipantResponse"
-                    }
-                },
-                "status": {
-                    "type": "string"
-                },
-                "unread_count": {
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "type": "string"
                 }
             }
         },
@@ -1986,6 +2130,20 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.ListResponse": {
+            "type": "object",
+            "properties": {
+                "exchanges": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ExchangeResponse"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/dto.PaginationResponse"
+                }
+            }
+        },
         "dto.LoginRequest": {
             "type": "object",
             "properties": {
@@ -2040,6 +2198,20 @@ const docTemplate = `{
                         "exchange_completed",
                         "exchange_superseded"
                     ]
+                }
+            }
+        },
+        "dto.PaginationResponse": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },
@@ -2127,6 +2299,37 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ReportError": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ReportResponse": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "message_id": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 }
             }
@@ -2226,6 +2429,41 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ExchangeResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "participants": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ParticipantResponse"
+                    }
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "proposed",
+                        "confirmed"
+                    ]
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.CategoryResponse": {
             "type": "object",
             "properties": {
@@ -2241,6 +2479,35 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ExchangeResponse": {
+            "type": "object",
+            "properties": {
+                "closed_at": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "participants": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ParticipantResponse"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                },
+                "unread_count": {
+                    "type": "integer"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }

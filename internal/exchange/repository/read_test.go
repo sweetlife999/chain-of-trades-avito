@@ -97,6 +97,41 @@ func TestListByUserError(t *testing.T) {
 	}
 }
 
+func TestListActiveByUserForAdminUsesPaginationAndGroupsParticipants(t *testing.T) {
+	t.Parallel()
+
+	userID := uuid.New()
+	exchangeID := uuid.New()
+	first := activeExchangeRow(exchangeID, userID, 0)
+	second := activeExchangeRow(exchangeID, uuid.New(), 1)
+	queries := &fakeExchangeReadQueries{
+		activeRows:  []db.ListActiveExchangesByUserForAdminRow{first, second},
+		activeCount: 4,
+	}
+	repository := newRepositoryWithReads(queries)
+
+	exchanges, err := repository.ListActiveByUser(context.Background(), userID, 2, 1)
+	if err != nil {
+		t.Fatalf("ListActiveByUser() error = %v", err)
+	}
+	if queries.activeParams != (db.ListActiveExchangesByUserForAdminParams{
+		UserID: pgUUID(userID), PageLimit: 2, PageOffset: 1,
+	}) {
+		t.Fatalf("params = %+v", queries.activeParams)
+	}
+	if len(exchanges) != 1 || exchanges[0].ID != exchangeID || len(exchanges[0].Participants) != 2 {
+		t.Fatalf("exchanges = %+v", exchanges)
+	}
+
+	total, err := repository.CountActiveByUser(context.Background(), userID)
+	if err != nil {
+		t.Fatalf("CountActiveByUser() error = %v", err)
+	}
+	if total != 4 || queries.countUserID != pgUUID(userID) {
+		t.Fatalf("total = %d, count user = %v", total, queries.countUserID)
+	}
+}
+
 func TestGetByID(t *testing.T) {
 	t.Parallel()
 
@@ -173,10 +208,32 @@ type fakeExchangeReadQueries struct {
 	listRows      []db.ListExchangesByUserRow
 	listErr       error
 	listUserID    pgtype.UUID
+	activeRows    []db.ListActiveExchangesByUserForAdminRow
+	activeErr     error
+	activeParams  db.ListActiveExchangesByUserForAdminParams
+	activeCount   int64
+	countErr      error
+	countUserID   pgtype.UUID
 	getRows       []db.GetExchangeByIDRow
 	getErr        error
 	getExchangeID pgtype.UUID
 	getUserID     pgtype.UUID
+}
+
+func (f *fakeExchangeReadQueries) ListActiveExchangesByUserForAdmin(
+	_ context.Context,
+	params db.ListActiveExchangesByUserForAdminParams,
+) ([]db.ListActiveExchangesByUserForAdminRow, error) {
+	f.activeParams = params
+	return f.activeRows, f.activeErr
+}
+
+func (f *fakeExchangeReadQueries) CountActiveExchangesByUserForAdmin(
+	_ context.Context,
+	userID pgtype.UUID,
+) (int64, error) {
+	f.countUserID = userID
+	return f.activeCount, f.countErr
 }
 
 func (f *fakeExchangeReadQueries) ListExchangesByUser(
@@ -247,5 +304,39 @@ func getExchangeRow(exchangeID, userID uuid.UUID, position int32) db.GetExchange
 		ReceivesItemStatus:      listRow.ReceivesItemStatus,
 		ReceivesCategorySlug:    listRow.ReceivesCategorySlug,
 		ReceivesCategoryName:    listRow.ReceivesCategoryName,
+	}
+}
+
+func activeExchangeRow(
+	exchangeID uuid.UUID,
+	userID uuid.UUID,
+	position int32,
+) db.ListActiveExchangesByUserForAdminRow {
+	row := listExchangeRow(exchangeID, userID, position)
+	return db.ListActiveExchangesByUserForAdminRow{
+		ExchangeID:              row.ExchangeID,
+		ExchangeStatus:          row.ExchangeStatus,
+		ExchangeCreatedAt:       row.ExchangeCreatedAt,
+		ExchangeUpdatedAt:       row.ExchangeUpdatedAt,
+		ExchangeClosedAt:        row.ExchangeClosedAt,
+		UserID:                  row.UserID,
+		Position:                row.Position,
+		ParticipantStatus:       row.ParticipantStatus,
+		DecidedAt:               row.DecidedAt,
+		CompletionConfirmedAt:   row.CompletionConfirmedAt,
+		Nickname:                row.Nickname,
+		UserPhotoUrl:            row.UserPhotoUrl,
+		GivesItemID:             row.GivesItemID,
+		GivesItemTitle:          row.GivesItemTitle,
+		GivesItemDescription:    row.GivesItemDescription,
+		GivesItemStatus:         row.GivesItemStatus,
+		GivesCategorySlug:       row.GivesCategorySlug,
+		GivesCategoryName:       row.GivesCategoryName,
+		ReceivesItemID:          row.ReceivesItemID,
+		ReceivesItemTitle:       row.ReceivesItemTitle,
+		ReceivesItemDescription: row.ReceivesItemDescription,
+		ReceivesItemStatus:      row.ReceivesItemStatus,
+		ReceivesCategorySlug:    row.ReceivesCategorySlug,
+		ReceivesCategoryName:    row.ReceivesCategoryName,
 	}
 }

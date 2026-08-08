@@ -189,6 +189,92 @@ func (ns NullParticipantStatus) Value() (driver.Value, error) {
 	return string(ns.ParticipantStatus), nil
 }
 
+type ReportReason string
+
+const (
+	ReportReasonSpam  ReportReason = "spam"
+	ReportReasonAbuse ReportReason = "abuse"
+	ReportReasonOther ReportReason = "other"
+)
+
+func (e *ReportReason) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ReportReason(s)
+	case string:
+		*e = ReportReason(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ReportReason: %T", src)
+	}
+	return nil
+}
+
+type NullReportReason struct {
+	ReportReason ReportReason
+	Valid        bool // Valid is true if ReportReason is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullReportReason) Scan(value interface{}) error {
+	if value == nil {
+		ns.ReportReason, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ReportReason.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullReportReason) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ReportReason), nil
+}
+
+type ReportStatus string
+
+const (
+	ReportStatusOpen     ReportStatus = "open"
+	ReportStatusResolved ReportStatus = "resolved"
+	ReportStatusRejected ReportStatus = "rejected"
+)
+
+func (e *ReportStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ReportStatus(s)
+	case string:
+		*e = ReportStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ReportStatus: %T", src)
+	}
+	return nil
+}
+
+type NullReportStatus struct {
+	ReportStatus ReportStatus
+	Valid        bool // Valid is true if ReportStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullReportStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.ReportStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ReportStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullReportStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ReportStatus), nil
+}
+
 type Category struct {
 	ID   int16
 	Slug string
@@ -256,6 +342,17 @@ type PickupPoint struct {
 	Address   string
 	CreatedAt pgtype.Timestamptz
 	UpdatedAt pgtype.Timestamptz
+}
+
+type Report struct {
+	ID         pgtype.UUID
+	ReporterID pgtype.UUID
+	MessageID  pgtype.UUID
+	Reason     ReportReason
+	Comment    string
+	Status     ReportStatus
+	AssigneeID pgtype.UUID
+	CreatedAt  pgtype.Timestamptz
 }
 
 type User struct {
