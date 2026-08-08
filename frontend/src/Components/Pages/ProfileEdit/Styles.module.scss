@@ -29,8 +29,7 @@
 
   &__actions {
     display: flex;
-    justify-content: flex-end;
-    gap: 12px;
+    justify-content: space-between;
   }
 
   &__error,
