@@ -15,6 +15,8 @@ import (
 	admindashboardhandler "github.com/sweetlife999/chain-of-trades-avito/internal/admindashboard/handler"
 	admindashboardrepository "github.com/sweetlife999/chain-of-trades-avito/internal/admindashboard/repository"
 	admindashboardservice "github.com/sweetlife999/chain-of-trades-avito/internal/admindashboard/service"
+	adminexchangehandler "github.com/sweetlife999/chain-of-trades-avito/internal/adminexchange/handler"
+	adminexchangeservice "github.com/sweetlife999/chain-of-trades-avito/internal/adminexchange/service"
 	authhandler "github.com/sweetlife999/chain-of-trades-avito/internal/auth/handler"
 	authmiddleware "github.com/sweetlife999/chain-of-trades-avito/internal/auth/middleware"
 	authservice "github.com/sweetlife999/chain-of-trades-avito/internal/auth/service"
@@ -31,6 +33,9 @@ import (
 	pickuppointhandler "github.com/sweetlife999/chain-of-trades-avito/internal/pickuppoint/handler"
 	pickuppointrepository "github.com/sweetlife999/chain-of-trades-avito/internal/pickuppoint/repository"
 	pickuppointservice "github.com/sweetlife999/chain-of-trades-avito/internal/pickuppoint/service"
+	reporthandler "github.com/sweetlife999/chain-of-trades-avito/internal/report/handler"
+	reportrepository "github.com/sweetlife999/chain-of-trades-avito/internal/report/repository"
+	reportservice "github.com/sweetlife999/chain-of-trades-avito/internal/report/service"
 	userhandler "github.com/sweetlife999/chain-of-trades-avito/internal/user/handler"
 	userrepository "github.com/sweetlife999/chain-of-trades-avito/internal/user/repository"
 	userservice "github.com/sweetlife999/chain-of-trades-avito/internal/user/service"
@@ -76,9 +81,12 @@ func main() {
 	users := userservice.New(usersRepository)
 	exchangesRepository := exchangerepository.New(pool)
 	exchanges := exchangeservice.New(exchangesRepository)
+	exchangesHandler := exchangehandler.New(exchanges)
 	items := itemservice.New(itemrepository.New(pool), exchanges)
 	pickupPoints := pickuppointservice.New(pickuppointrepository.New(queries))
 	adminDashboard := admindashboardservice.New(admindashboardrepository.New(queries))
+	adminExchanges := adminexchangeservice.New(usersRepository, exchangesRepository)
+	reports := reportservice.New(reportrepository.New(queries))
 
 	tokens := authtoken.NewManager(cfg.JWTSecret, authTokenTTL)
 	authenticator := authmiddleware.New(tokens)
@@ -89,7 +97,9 @@ func main() {
 	itemhandler.New(items).RegisterRoutes(router, authenticator.RequireAuthentication)
 	authhandler.New(auth, cfg.CookieSecure, authTokenTTL).
 		RegisterRoutes(router, authenticator.RequireAuthentication)
-	exchangehandler.New(exchanges).RegisterRoutes(router, authenticator.RequireAuthentication)
+	exchangesHandler.RegisterRoutes(router, authenticator.RequireAuthentication)
+	// Жалуется обычный участник обмена, поэтому маршрут живёт вне группы /admin.
+	reporthandler.New(reports).RegisterRoutes(router, authenticator.RequireAuthentication)
 
 	// Все следующие административные модули регистрируются только внутри этой группы.
 	// JWT сначала определяет пользователя, затем роль проверяется по актуальным данным БД.
@@ -97,7 +107,9 @@ func main() {
 		adminRouter.Use(authenticator.RequireAuthentication)
 		adminRouter.Use(adminAuthorizer.RequireAdmin)
 		admindashboardhandler.New(adminDashboard).RegisterRoutes(adminRouter)
+		adminexchangehandler.New(adminExchanges).RegisterRoutes(adminRouter)
 		pickuppointhandler.New(pickupPoints).RegisterRoutes(adminRouter)
+		exchangesHandler.RegisterAdminRoutes(adminRouter)
 	})
 
 	router.Get("/health", health)

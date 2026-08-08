@@ -38,6 +38,7 @@ type Repository interface {
 	GetByID(context.Context, uuid.UUID, uuid.UUID) (exchangemodel.Details, error)
 	ConfirmParticipation(context.Context, uuid.UUID, uuid.UUID) error
 	DeclineParticipation(context.Context, uuid.UUID, uuid.UUID) ([]exchangemodel.Node, string, error)
+	CancelByAdmin(context.Context, uuid.UUID) ([]exchangemodel.Node, string, error)
 	CompleteParticipation(context.Context, uuid.UUID, uuid.UUID) error
 	ExchangeAccess(context.Context, uuid.UUID, uuid.UUID) (string, bool, error)
 	CreateMessage(context.Context, uuid.UUID, uuid.UUID, string) (exchangemodel.Message, error)
@@ -282,6 +283,22 @@ func (s *Service) DeclineParticipation(
 	// Отмена уже зафиксирована в БД. Ошибка дополнительного поиска не должна
 	// превращать успешный decline в HTTP 500: клиент иначе повторит запрос к уже
 	// закрытому обмену. Поэтому поиск выполняется best effort и только логируется.
+	s.recoverExchanges(ctx, recoveryNodes, cancelledSignature)
+
+	return nil
+}
+
+// CancelByAdmin принудительно закрывает активный обмен. В отличие от отказа
+// участника, административная отмена не помечает никого виновным и не меняет
+// пользовательскую статистику. Освободившиеся объявления сразу возвращаются в поиск.
+func (s *Service) CancelByAdmin(ctx context.Context, exchangeID uuid.UUID) error {
+	recoveryNodes, cancelledSignature, err := s.repository.CancelByAdmin(ctx, exchangeID)
+	if err != nil {
+		return fmt.Errorf("cancel exchange by admin: %w", err)
+	}
+
+	// Сама отмена уже зафиксирована транзакцией. Повторный поиск — best effort:
+	// его сбой не должен превращать успешный административный запрос в HTTP 500.
 	s.recoverExchanges(ctx, recoveryNodes, cancelledSignature)
 
 	return nil

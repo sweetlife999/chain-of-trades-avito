@@ -79,6 +79,18 @@ definitions:
         example: ПВЗ на Ленина
         type: string
     type: object
+  dto.CreateReportRequest:
+    properties:
+      comment:
+        example: переходит на личности
+        type: string
+      message_id:
+        example: 3f2a1b4c-5d6e-4f70-8a91-b2c3d4e5f607
+        type: string
+      reason:
+        example: abuse
+        type: string
+    type: object
   dto.CreateUserRequest:
     properties:
       description:
@@ -105,25 +117,6 @@ definitions:
         type: integer
       users_total:
         type: integer
-    type: object
-  dto.ExchangeResponse:
-    properties:
-      closed_at:
-        type: string
-      created_at:
-        type: string
-      id:
-        type: string
-      participants:
-        items:
-          $ref: '#/definitions/dto.ParticipantResponse'
-        type: array
-      status:
-        type: string
-      unread_count:
-        type: integer
-      updated_at:
-        type: string
     type: object
   dto.ExchangeStatisticsResponse:
     properties:
@@ -183,6 +176,15 @@ definitions:
       withdrawn:
         type: integer
     type: object
+  dto.ListResponse:
+    properties:
+      exchanges:
+        items:
+          $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ExchangeResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/dto.PaginationResponse'
+    type: object
   dto.LoginRequest:
     properties:
       nickname:
@@ -221,6 +223,15 @@ definitions:
         - exchange_completed
         - exchange_superseded
         type: string
+    type: object
+  dto.PaginationResponse:
+    properties:
+      limit:
+        type: integer
+      offset:
+        type: integer
+      total:
+        type: integer
     type: object
   dto.ParticipantItemResponse:
     properties:
@@ -277,6 +288,26 @@ definitions:
       name:
         type: string
       updated_at:
+        type: string
+    type: object
+  dto.ReportError:
+    properties:
+      error:
+        type: string
+    type: object
+  dto.ReportResponse:
+    properties:
+      comment:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      message_id:
+        type: string
+      reason:
+        type: string
+      status:
         type: string
     type: object
   dto.UpdateItemRequest:
@@ -343,6 +374,29 @@ definitions:
       updated_at:
         type: string
     type: object
+  github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ExchangeResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      participants:
+        items:
+          $ref: '#/definitions/dto.ParticipantResponse'
+        type: array
+      status:
+        enum:
+        - proposed
+        - confirmed
+        type: string
+      updated_at:
+        type: string
+    type: object
   github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.CategoryResponse:
     properties:
       name:
@@ -353,6 +407,25 @@ definitions:
   github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse:
     properties:
       error:
+        type: string
+    type: object
+  github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ExchangeResponse:
+    properties:
+      closed_at:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      participants:
+        items:
+          $ref: '#/definitions/dto.ParticipantResponse'
+        type: array
+      status:
+        type: string
+      unread_count:
+        type: integer
+      updated_at:
         type: string
     type: object
   github_com_sweetlife999_chain-of-trades-avito_internal_item_dto.CategoryResponse:
@@ -410,6 +483,50 @@ paths:
       summary: Статистика для главной страницы админки
       tags:
       - admin dashboard
+  /admin/exchanges/{id}/cancel:
+    post:
+      description: Закрывает proposed или confirmed обмен. Для confirmed освобождает
+        объявления и запускает повторный поиск. Решения участников и их статистика
+        не изменяются.
+      parameters:
+      - description: UUID обмена
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: Обмен отменён
+        "400":
+          description: ID не является UUID
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "403":
+          description: Недостаточно прав
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "404":
+          description: Обмен не найден
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "409":
+          description: Обмен уже завершён или отменён либо объявления находятся в
+            несовместимом состоянии
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Принудительно отменить обмен
+      tags:
+      - admin
   /admin/pickup-points:
     get:
       description: Доступно только администратору. Возвращает ПВЗ от новых к старым.
@@ -610,6 +727,61 @@ paths:
       summary: Изменить ПВЗ
       tags:
       - admin pickup-points
+  /admin/users/{user_id}/exchanges:
+    get:
+      description: Доступно только администратору. Возвращает proposed и confirmed
+        обмены пользователя вместе с участниками и вещами.
+      parameters:
+      - description: UUID пользователя
+        in: path
+        name: user_id
+        required: true
+        type: string
+      - default: 20
+        description: Размер страницы (1–100)
+        in: query
+        maximum: 100
+        minimum: 1
+        name: limit
+        type: integer
+      - default: 0
+        description: Смещение от начала списка
+        in: query
+        minimum: 0
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Активные обмены пользователя
+          schema:
+            $ref: '#/definitions/dto.ListResponse'
+        "400":
+          description: Некорректный UUID или пагинация
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse'
+        "403":
+          description: Недостаточно прав
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse'
+        "404":
+          description: Пользователь не найден
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Получить активные обмены пользователя
+      tags:
+      - admin exchanges
   /auth/login:
     post:
       consumes:
@@ -711,7 +883,7 @@ paths:
           description: Список обменов; если обменов нет, возвращается []
           schema:
             items:
-              $ref: '#/definitions/dto.ExchangeResponse'
+              $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ExchangeResponse'
             type: array
         "401":
           description: Пользователь не авторизован
@@ -742,7 +914,7 @@ paths:
         "200":
           description: Обмен
           schema:
-            $ref: '#/definitions/dto.ExchangeResponse'
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ExchangeResponse'
         "400":
           description: ID не является UUID
           schema:
@@ -1259,6 +1431,59 @@ paths:
       summary: Изменить своё объявление
       tags:
       - items
+  /reports:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Принимает жалобу на сообщение треда обмена. Пожаловаться можно только на чужое
+        сообщение участника в обмене, где жалобщик сам участвует, и только один раз.
+        На события обмена (подтверждение, отмена и прочие) жаловаться нельзя: их пишет сервис.
+        Жалоба попадает в очередь модерации со статусом open и ни на что в подборе не влияет.
+      parameters:
+      - description: Сообщение, причина и необязательный комментарий
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateReportRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Жалоба принята
+          schema:
+            $ref: '#/definitions/dto.ReportResponse'
+        "400":
+          description: Некорректное тело, неизвестная причина, длинный комментарий
+            или жалоба на событие обмена
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "403":
+          description: Не участник обмена или жалоба на собственное сообщение
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "404":
+          description: Сообщение не найдено
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "409":
+          description: Пользователь уже жаловался на это сообщение
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+      security:
+      - CookieAuth: []
+      summary: Пожаловаться на сообщение
+      tags:
+      - reports
   /users:
     post:
       consumes:

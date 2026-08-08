@@ -1027,6 +1027,7 @@ type fakeRepository struct {
 	declineRecovery     []exchangemodel.Node
 	declineSignature    string
 	declineErr          error
+	adminCancel         fakeAdminCancellation
 	blockConflicts      map[uuid.UUID]bool
 	blockConflictErrors map[uuid.UUID]error
 	blockChecks         map[uuid.UUID][]uuid.UUID
@@ -1180,6 +1181,23 @@ func (f *fakeRepository) DeclineParticipation(
 	f.declinedExchangeID = exchangeID
 	f.declinedUserID = userID
 	return append([]exchangemodel.Node(nil), f.declineRecovery...), f.declineSignature, f.declineErr
+}
+
+func (f *fakeRepository) CancelByAdmin(
+	_ context.Context,
+	exchangeID uuid.UUID,
+) ([]exchangemodel.Node, string, error) {
+	f.adminCancel.exchangeID = exchangeID
+	return append([]exchangemodel.Node(nil), f.adminCancel.recovery...),
+		f.adminCancel.signature,
+		f.adminCancel.err
+}
+
+type fakeAdminCancellation struct {
+	exchangeID uuid.UUID
+	recovery   []exchangemodel.Node
+	signature  string
+	err        error
 }
 
 func (f *fakeRepository) CompleteParticipation(

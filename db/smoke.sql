@@ -295,4 +295,43 @@ BEGIN
     RAISE NOTICE 'ok 20: отменённая подпись не мешает ни истории отмен, ни новому предложению';
 END $$;
 
+-- 21. повторная жалоба на то же сообщение от того же человека
+-- Блок сам заводит сообщение: EXCEPTION откатывает всё, что блок успел сделать,
+-- поэтому кейсы жалоб независимы и ничего друг другу не оставляют.
+DO $$
+DECLARE reported_message uuid;
+BEGIN
+    INSERT INTO chain_messages (chain_id, author_id, body)
+    VALUES ('dddddddd-0000-0000-0000-000000000000',
+            '22222222-2222-2222-2222-222222222222', 'встретимся у метро')
+    RETURNING id INTO reported_message;
+
+    INSERT INTO reports (reporter_id, message_id, reason)
+    VALUES ('11111111-1111-1111-1111-111111111111', reported_message, 'spam');
+    INSERT INTO reports (reporter_id, message_id, reason)
+    VALUES ('11111111-1111-1111-1111-111111111111', reported_message, 'abuse');
+
+    RAISE EXCEPTION 'вторая жалоба на то же сообщение прошла, а не должна была';
+EXCEPTION WHEN unique_violation THEN
+    RAISE NOTICE 'ok 21: повторная жалоба на то же сообщение запрещена';
+END $$;
+
+-- 22. комментарий к жалобе длиннее 2000 символов
+DO $$
+DECLARE reported_message uuid;
+BEGIN
+    INSERT INTO chain_messages (chain_id, author_id, body)
+    VALUES ('dddddddd-0000-0000-0000-000000000000',
+            '22222222-2222-2222-2222-222222222222', 'встретимся у метро')
+    RETURNING id INTO reported_message;
+
+    INSERT INTO reports (reporter_id, message_id, reason, comment)
+    VALUES ('11111111-1111-1111-1111-111111111111', reported_message, 'other',
+            repeat('a', 2001));
+
+    RAISE EXCEPTION 'комментарий длиннее 2000 символов прошёл, а не должен был';
+EXCEPTION WHEN check_violation THEN
+    RAISE NOTICE 'ok 22: комментарий к жалобе ограничен 2000 символами';
+END $$;
+
 ROLLBACK;
