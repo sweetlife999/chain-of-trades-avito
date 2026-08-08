@@ -23,6 +23,7 @@ type Service interface {
 	GetForUser(context.Context, uuid.UUID, uuid.UUID) (exchangemodel.Details, error)
 	ConfirmParticipation(context.Context, uuid.UUID, uuid.UUID) error
 	DeclineParticipation(context.Context, uuid.UUID, uuid.UUID) error
+	CancelByAdmin(context.Context, uuid.UUID) error
 	CompleteParticipation(context.Context, uuid.UUID, uuid.UUID) error
 	PostMessage(context.Context, uuid.UUID, uuid.UUID, string) (exchangemodel.Message, error)
 	ListMessages(context.Context, uuid.UUID, uuid.UUID) ([]exchangemodel.Message, error)
@@ -46,6 +47,40 @@ func (h *Handler) RegisterRoutes(router chi.Router, requireAuth func(http.Handle
 	router.With(requireAuth).Post("/exchanges/{id}/messages", h.postMessage)
 	router.With(requireAuth).Get("/exchanges/{id}/messages", h.listMessages)
 	router.With(requireAuth).Post("/exchanges/{id}/messages/read", h.markRead)
+}
+
+// RegisterAdminRoutes вызывается только внутри общей /admin-группы, где уже стоят
+// middleware аутентификации и проверки роли администратора.
+func (h *Handler) RegisterAdminRoutes(router chi.Router) {
+	router.Post("/exchanges/{id}/cancel", h.cancelByAdmin)
+}
+
+// @Summary     Принудительно отменить обмен
+// @Description Закрывает proposed или confirmed обмен. Для confirmed освобождает объявления и запускает повторный поиск. Решения участников и их статистика не изменяются.
+// @Tags        admin
+// @Param       id path string true "UUID обмена"
+// @Success     204 "Обмен отменён"
+// @Failure     400 {object} exchangedto.ErrorResponse "ID не является UUID"
+// @Failure     401 {object} exchangedto.ErrorResponse "Пользователь не авторизован"
+// @Failure     403 {object} exchangedto.ErrorResponse "Недостаточно прав"
+// @Failure     404 {object} exchangedto.ErrorResponse "Обмен не найден"
+// @Failure     409 {object} exchangedto.ErrorResponse "Обмен уже завершён или отменён либо объявления находятся в несовместимом состоянии"
+// @Failure     500 {object} exchangedto.ErrorResponse "Внутренняя ошибка"
+// @Security    CookieAuth
+// @Router      /admin/exchanges/{id}/cancel [post]
+func (h *Handler) cancelByAdmin(w http.ResponseWriter, r *http.Request) {
+	exchangeID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid exchange id")
+		return
+	}
+
+	if err := h.service.CancelByAdmin(r.Context(), exchangeID); err != nil {
+		handleServiceError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // @Summary     Получить свои обмены

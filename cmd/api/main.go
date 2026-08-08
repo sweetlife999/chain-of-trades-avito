@@ -81,9 +81,11 @@ func main() {
 	users := userservice.New(usersRepository)
 	exchangesRepository := exchangerepository.New(pool)
 	exchanges := exchangeservice.New(exchangesRepository)
+	exchangesHandler := exchangehandler.New(exchanges)
 	items := itemservice.New(itemrepository.New(pool), exchanges)
 	pickupPoints := pickuppointservice.New(pickuppointrepository.New(queries))
 	adminDashboard := admindashboardservice.New(admindashboardrepository.New(queries))
+	adminExchanges := adminexchangeservice.New(usersRepository, exchangesRepository)
 	reports := reportservice.New(reportrepository.New(queries))
 
 	tokens := authtoken.NewManager(cfg.JWTSecret, authTokenTTL)
@@ -95,7 +97,7 @@ func main() {
 	itemhandler.New(items).RegisterRoutes(router, authenticator.RequireAuthentication)
 	authhandler.New(auth, cfg.CookieSecure, authTokenTTL).
 		RegisterRoutes(router, authenticator.RequireAuthentication)
-	exchangehandler.New(exchanges).RegisterRoutes(router, authenticator.RequireAuthentication)
+	exchangesHandler.RegisterRoutes(router, authenticator.RequireAuthentication)
 	// Жалуется обычный участник обмена, поэтому маршрут живёт вне группы /admin.
 	reporthandler.New(reports).RegisterRoutes(router, authenticator.RequireAuthentication)
 
@@ -107,6 +109,7 @@ func main() {
 		admindashboardhandler.New(adminDashboard).RegisterRoutes(adminRouter)
 		adminexchangehandler.New(adminExchanges).RegisterRoutes(adminRouter)
 		pickuppointhandler.New(pickupPoints).RegisterRoutes(adminRouter)
+		exchangesHandler.RegisterAdminRoutes(adminRouter)
 	})
 
 	router.Get("/health", health)
