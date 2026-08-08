@@ -4,6 +4,7 @@ import {
   ArrowLeftRight as UpdateIcon,
   PackageOpen as MyThings,
   Link2 as ChainsIcon,
+  ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
 
@@ -12,6 +13,7 @@ import styles from "./Styles.module.scss";
 import { Button } from "../../UI/Button/Button";
 import { FetchProfile } from "../../Widgets/FetchProfile/FetchProfile";
 import { Notifications } from "../../Widgets/Notifications/Notifications";
+import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
 
 type NavigationItem = { to: string; label: string; Icon: LucideIcon };
 
@@ -21,8 +23,18 @@ const navigationItems: NavigationItem[] = [
   { to: "/exchanges", label: "Мои цепочки", Icon: ChainsIcon },
 ];
 
+const adminNavigationItem: NavigationItem = {
+  to: "/admin",
+  label: "Админка",
+  Icon: ShieldCheck,
+};
+
 const HeaderComponent = () => {
   const navigate = useNavigate();
+  const { isAdmin } = useAuthSelector();
+  const visibleNavigationItems = isAdmin
+    ? [...navigationItems, adminNavigationItem]
+    : navigationItems;
 
   return (
     <header className={styles.header}>
@@ -33,7 +45,7 @@ const HeaderComponent = () => {
 
         <nav className={styles.header__nav} aria-label="Основная навигация">
           <ul className={styles.header__navList}>
-            {navigationItems.map(({ to, label, Icon }) => (
+            {visibleNavigationItems.map(({ to, label, Icon }) => (
               <li key={to}>
                 <NavLink
                   to={to}

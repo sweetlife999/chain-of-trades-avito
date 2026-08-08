@@ -1,0 +1,230 @@
+.admin {
+  &__sectionHeader {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+
+    h2 {
+      color: #202124;
+      font-size: 25px;
+      line-height: 1.25;
+    }
+
+    p {
+      margin-top: 5px;
+      color: #858b94;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+  }
+
+  &__refresh {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 9px 13px;
+    color: #525862;
+    background: #fff;
+    border: 1px solid #dfe2e6;
+    border-radius: 9px;
+    font-size: 12px;
+    font-weight: 600;
+
+    &:hover:not(:disabled) {
+      color: $green-button;
+      border-color: $green-button;
+    }
+
+    &:disabled {
+      cursor: wait;
+      opacity: 0.65;
+    }
+
+    svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  &__state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 220px;
+    padding: 30px;
+    color: #737982;
+    background: #fff;
+    border: 1px solid #e7e9ec;
+    border-radius: 16px;
+    text-align: center;
+
+    h3 {
+      color: #282b30;
+      font-size: 18px;
+    }
+
+    p {
+      max-width: 420px;
+      margin: 8px 0 18px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+  }
+}
+
+.dashboard {
+  display: grid;
+  gap: 18px;
+  padding: 24px;
+  background: #fff;
+  border: 1px solid #e7e9ec;
+  border-radius: 20px;
+  box-shadow: 0 12px 34px rgba(17, 24, 39, 0.05);
+
+  &__mainGrid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 13px;
+  }
+
+  &__mainCard {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    min-width: 0;
+    padding: 16px;
+    background: #fafbfc;
+    border: 1px solid #eceef1;
+    border-radius: 14px;
+
+    > div {
+      display: grid;
+      gap: 5px;
+      min-width: 0;
+    }
+
+    > div span {
+      overflow: hidden;
+      color: #777d86;
+      font-size: 11px;
+      font-weight: 500;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    strong {
+      color: #1f2328;
+      font-size: 25px;
+      line-height: 1;
+    }
+  }
+
+  &__mainIcon {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    border-radius: 12px;
+
+    svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    &_blue { color: #2563eb; background: #eff6ff; }
+    &_green { color: #08783f; background: #ecfdf3; }
+    &_orange { color: #c76b05; background: #fff7ed; }
+    &_violet { color: #7c3aed; background: #f5f3ff; }
+  }
+
+  &__detailsGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 13px;
+  }
+
+  &__detailsCard {
+    padding: 17px;
+    background: #fafbfc;
+    border: 1px solid #eceef1;
+    border-radius: 14px;
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #e8eaed;
+    }
+
+    h3 {
+      color: #30343a;
+      font-size: 14px;
+      line-height: 1.35;
+    }
+
+    header strong {
+      color: #171717;
+      font-size: 20px;
+    }
+
+    dl {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px 18px;
+      padding-top: 13px;
+    }
+
+    dl > div {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    dt {
+      color: #747a83;
+      font-size: 11px;
+    }
+
+    dd {
+      color: #30343a;
+      font-size: 12px;
+      font-weight: 700;
+    }
+  }
+}
+
+@media (max-width: 1100px) {
+  .dashboard__mainGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 780px) {
+  .dashboard__detailsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .admin__sectionHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dashboard {
+    padding: 17px;
+    border-radius: 16px;
+
+    &__mainGrid,
+    &__detailsCard dl {
+      grid-template-columns: 1fr;
+    }
+  }
+}

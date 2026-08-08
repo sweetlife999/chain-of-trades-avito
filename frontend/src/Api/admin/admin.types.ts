@@ -1,0 +1,47 @@
+import { z } from "zod";
+
+const StatisticsNumberSchema = z.number().int().nonnegative();
+
+export const DashboardSchema = z.object({
+  exchanges: z.object({
+    cancelled: StatisticsNumberSchema,
+    completed: StatisticsNumberSchema,
+    confirmed: StatisticsNumberSchema,
+    proposed: StatisticsNumberSchema,
+    total: StatisticsNumberSchema,
+  }),
+  items: z.object({
+    available: StatisticsNumberSchema,
+    reserved: StatisticsNumberSchema,
+    total: StatisticsNumberSchema,
+    traded: StatisticsNumberSchema,
+    withdrawn: StatisticsNumberSchema,
+  }),
+  pickup_points_total: StatisticsNumberSchema,
+  users_total: StatisticsNumberSchema,
+});
+
+export const PickupPointSchema = z.object({
+  address: z.string(),
+  created_at: z.string(),
+  id: z.string(),
+  name: z.string(),
+  updated_at: z.string(),
+});
+
+export const PickupPointsSchema = z.array(PickupPointSchema);
+
+export const CreatePickupPointSchema = z.object({
+  name: z.string().trim().min(1, "Укажите название ПВЗ"),
+  address: z.string().trim().min(1, "Укажите адрес ПВЗ"),
+});
+
+export const UpdatePickupPointSchema = CreatePickupPointSchema.partial().refine(
+  (request) => Object.keys(request).length > 0,
+  { message: "Передайте хотя бы одно поле для изменения" },
+);
+
+export type TDashboard = z.infer<typeof DashboardSchema>;
+export type TPickupPoint = z.infer<typeof PickupPointSchema>;
+export type TCreatePickupPoint = z.infer<typeof CreatePickupPointSchema>;
+export type TUpdatePickupPoint = z.infer<typeof UpdatePickupPointSchema>;

@@ -17,6 +17,8 @@ import { ItemEdit } from "../Components/Widgets/ItemEdit/ItemEdit";
 import { MyChains } from "../Components/Widgets/MyChainsProcess/MyChains/MyChains";
 import { CreateChain } from "../Components/Widgets/MyChainsProcess/CreateChain/CreateChain";
 import { ExchangeDetails } from "../Components/Widgets/MyChainsProcess/ExchangeDetails/ExchangeDetails";
+import { AdminRoute } from "../Components/Widgets/Admin/AdminRoute/AdminRoute";
+
 
 function App() {
   return (
@@ -38,6 +40,7 @@ function App() {
                 <Route path="exchanges" element={<MyChains />} />
                 <Route path="exchanges/create" element={<CreateChain />} />
                 <Route path="exchanges/:id" element={<ExchangeDetails />} />
+                <Route path="admin" element={<AdminRoute />} />
               </Route>
             </Routes>
           </AuthInitializer>
