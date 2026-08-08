@@ -73,7 +73,7 @@ const loginMutation = useMutation({
               className={styles.login__input}
               type="text"
               placeholder="nickname"
-              // autoComplete="email"
+              autoComplete="username"
               {...register("nickname")}
             />
             {errors.nickname && (
