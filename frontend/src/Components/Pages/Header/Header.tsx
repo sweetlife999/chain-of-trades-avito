@@ -18,7 +18,7 @@ import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
 type NavigationItem = { to: string; label: string; Icon: LucideIcon };
 
 const navigationItems: NavigationItem[] = [
-  { to: "/", label: "Обмены", Icon: UpdateIcon },
+  { to: "/feed", label: "Обмены", Icon: UpdateIcon },
   { to: "/myItems", label: "Мои вещи", Icon: MyThings },
   { to: "/exchanges", label: "Мои цепочки", Icon: ChainsIcon },
 ];
@@ -39,7 +39,7 @@ const HeaderComponent = () => {
   return (
     <header className={styles.header}>
       <div className={styles.header__wrapper}>
-        <NavLink to="/" className={styles.header__logoLink} aria-label="На главную">
+        <NavLink to="/feed" className={styles.header__logoLink} aria-label="На главную">
           <img className={styles.header__logo} src={AvitoLogo} alt="Авито Обмен" />
         </NavLink>
 
@@ -49,7 +49,6 @@ const HeaderComponent = () => {
               <li className={styles.header__navItem} key={to}>
                 <NavLink
                   to={to}
-                  end={to === "/"}
                   className={({ isActive }) =>
                     `${styles.header__navLink} ${isActive ? styles.header__navLink_active : ""}`
                   }
