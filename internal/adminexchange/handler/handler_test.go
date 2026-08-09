@@ -141,6 +141,10 @@ type fakeAdminChecker struct{ admin bool }
 
 func (f fakeAdminChecker) IsAdmin(context.Context, uuid.UUID) (bool, error) { return f.admin, nil }
 
+func (f fakeAdminChecker) CanAuthenticate(context.Context, uuid.UUID) (bool, error) {
+	return true, nil
+}
+
 func TestAdminExchangeRouteRequiresAdministrator(t *testing.T) {
 	t.Parallel()
 
@@ -160,8 +164,9 @@ func TestAdminExchangeRouteRequiresAdministrator(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			service := &fakeService{page: adminexchangemodel.Page{Exchanges: []exchangemodel.Details{}}}
-			authenticator := authmiddleware.New(fakeTokenParser{userID: uuid.New()})
-			authorizer := authmiddleware.NewAdminAuthorizer(fakeAdminChecker{admin: test.admin})
+			checker := fakeAdminChecker{admin: test.admin}
+			authenticator := authmiddleware.New(fakeTokenParser{userID: uuid.New()}, checker)
+			authorizer := authmiddleware.NewAdminAuthorizer(checker)
 			router := chi.NewRouter()
 			router.Route("/admin", func(admin chi.Router) {
 				admin.Use(authenticator.RequireAuthentication)

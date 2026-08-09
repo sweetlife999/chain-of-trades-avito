@@ -25,6 +25,18 @@ type fakeAdminRepository struct {
 	gotAdminID  uuid.UUID
 	gotDecision string
 	gotComment  string
+	auditErr    error
+	auditedID   uuid.UUID
+}
+
+func (f *fakeAdminRepository) RecordMessagesViewed(
+	_ context.Context,
+	reportID uuid.UUID,
+	adminID uuid.UUID,
+) error {
+	f.auditedID = reportID
+	f.gotAdminID = adminID
+	return f.auditErr
 }
 
 func (f *fakeAdminRepository) ListForAdmin(
@@ -173,6 +185,7 @@ func TestAdminListMessagesUsesExchangeFromReport(t *testing.T) {
 
 	reportID := uuid.New()
 	exchangeID := uuid.New()
+	adminID := uuid.New()
 	repository := &fakeAdminRepository{report: reportmodel.AdminReport{
 		ID:       reportID,
 		Exchange: reportmodel.ReportExchange{ID: exchangeID},
@@ -184,6 +197,7 @@ func TestAdminListMessagesUsesExchangeFromReport(t *testing.T) {
 	report, messages, err := NewAdmin(repository, messagesRepository).ListMessages(
 		context.Background(),
 		reportID,
+		adminID,
 	)
 	if err != nil {
 		t.Fatalf("ListMessages() = %v, want no error", err)
@@ -193,6 +207,9 @@ func TestAdminListMessagesUsesExchangeFromReport(t *testing.T) {
 	}
 	if messagesRepository.gotExchangeID != exchangeID || len(messages) != 1 {
 		t.Fatalf("exchange id = %s, messages = %d", messagesRepository.gotExchangeID, len(messages))
+	}
+	if repository.auditedID != reportID || repository.gotAdminID != adminID {
+		t.Fatalf("audit report/admin = %s/%s", repository.auditedID, repository.gotAdminID)
 	}
 }
 

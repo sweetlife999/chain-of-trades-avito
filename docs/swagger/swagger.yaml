@@ -202,6 +202,23 @@ definitions:
       users_total:
         type: integer
     type: object
+  dto.EntryResponse:
+    properties:
+      action:
+        type: string
+      admin_id:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      metadata:
+        type: object
+      target_id:
+        type: string
+      target_type:
+        type: string
+    type: object
   dto.ExchangeStatisticsResponse:
     properties:
       cancelled:
@@ -328,6 +345,19 @@ definitions:
         - exchange_completed
         - exchange_superseded
         type: string
+    type: object
+  dto.PageResponse:
+    properties:
+      entries:
+        items:
+          $ref: '#/definitions/dto.EntryResponse'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+      total:
+        type: integer
     type: object
   dto.ParticipantItemResponse:
     properties:
@@ -470,6 +500,19 @@ definitions:
       photo_url:
         type: string
     type: object
+  dto.UserBlockResponse:
+    properties:
+      blocked_at:
+        type: string
+      blocked_by:
+        type: string
+      id:
+        type: string
+      is_blocked:
+        type: boolean
+      nickname:
+        type: string
+    type: object
   dto.UserResponse:
     properties:
       created_at:
@@ -489,6 +532,11 @@ definitions:
       rating:
         type: number
       updated_at:
+        type: string
+    type: object
+  github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.ErrorResponse:
+    properties:
+      error:
         type: string
     type: object
   github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse:
@@ -590,6 +638,61 @@ info:
   title: Цепочка обмена — API
   version: 0.1.0
 paths:
+  /admin/audit-log:
+    get:
+      description: Возвращает журнал действий с фильтрами по администратору, действию
+        и диапазону дат RFC3339.
+      parameters:
+      - description: UUID администратора
+        in: query
+        name: admin_id
+        type: string
+      - description: Тип действия
+        in: query
+        name: action
+        type: string
+      - description: Начало периода RFC3339
+        in: query
+        name: from
+        type: string
+      - description: Конец периода RFC3339
+        in: query
+        name: to
+        type: string
+      - default: 20
+        description: Размер страницы (1-100)
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Смещение
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.PageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: История действий администраторов
+      tags:
+      - admin-audit
   /admin/dashboard:
     get:
       description: Возвращает количество пользователей, ПВЗ, объявлений и обменов
@@ -1169,6 +1272,88 @@ paths:
       summary: Подтвердить жалобу
       tags:
       - admin-reports
+  /admin/users/{id}/block:
+    post:
+      description: Блокировка сразу запрещает новый вход и использование ранее выданного
+        JWT. Личный список user_blocks не изменяется.
+      parameters:
+      - description: UUID пользователя
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.UserBlockResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Глобально заблокировать пользователя
+      tags:
+      - admin-audit
+  /admin/users/{id}/unblock:
+    post:
+      parameters:
+      - description: UUID пользователя
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.UserBlockResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Снять глобальную блокировку пользователя
+      tags:
+      - admin-audit
   /admin/users/{user_id}/exchanges:
     get:
       description: Доступно только администратору. Возвращает proposed и confirmed
@@ -1251,6 +1436,10 @@ paths:
             $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
         "401":
           description: Неверный nickname или пароль
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
+        "403":
+          description: Аккаунт глобально заблокирован
           schema:
             $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse'
         "500":

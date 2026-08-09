@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -66,6 +67,15 @@ func (r *Repository) IsAdmin(ctx context.Context, id uuid.UUID) (bool, error) {
 	}
 
 	return isAdmin, nil
+}
+
+func (r *Repository) CanAuthenticate(ctx context.Context, id uuid.UUID) (bool, error) {
+	allowed, err := r.queries.CanUserAuthenticate(ctx, pgUUID(id))
+	if err != nil {
+		return false, fmt.Errorf("check user authentication access: %w", err)
+	}
+
+	return allowed, nil
 }
 
 func (r *Repository) Update(ctx context.Context, id uuid.UUID, changes usermodel.Changes) (usermodel.User, error) {
@@ -162,6 +172,18 @@ func toModel(user db.User) (usermodel.User, error) {
 		}
 	}
 
+	var blockedAt *time.Time
+	if user.BlockedAt.Valid {
+		value := user.BlockedAt.Time
+		blockedAt = &value
+	}
+
+	var blockedBy *uuid.UUID
+	if user.BlockedBy.Valid {
+		value := uuid.UUID(user.BlockedBy.Bytes)
+		blockedBy = &value
+	}
+
 	return usermodel.User{
 		ID:             uuid.UUID(user.ID.Bytes),
 		Nickname:       user.Nickname,
@@ -172,6 +194,9 @@ func toModel(user db.User) (usermodel.User, error) {
 		DealsBroken:    user.DealsBroken,
 		Rating:         rating,
 		IsAdmin:        user.IsAdmin,
+		IsBlocked:      user.IsBlocked,
+		BlockedAt:      blockedAt,
+		BlockedBy:      blockedBy,
 		CreatedAt:      user.CreatedAt.Time,
 		UpdatedAt:      user.UpdatedAt.Time,
 	}, nil

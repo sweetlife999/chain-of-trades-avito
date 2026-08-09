@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	authcontext "github.com/sweetlife999/chain-of-trades-avito/internal/auth/authcontext"
 	exchangeservice "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/service"
 )
 
@@ -17,9 +18,12 @@ func TestAdminCancelExchange(t *testing.T) {
 	t.Parallel()
 
 	exchangeID := uuid.New()
-	service := &fakeService{adminCancel: func(_ context.Context, actualID uuid.UUID) error {
+	service := &fakeService{adminCancel: func(_ context.Context, actualID, adminID uuid.UUID) error {
 		if actualID != exchangeID {
 			t.Fatalf("CancelByAdmin() exchange ID = %s, want %s", actualID, exchangeID)
+		}
+		if adminID == uuid.Nil {
+			t.Fatal("CancelByAdmin() admin ID is empty")
 		}
 		return nil
 	}}
@@ -50,7 +54,7 @@ func TestAdminCancelExchangeErrorStatuses(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			service := &fakeService{adminCancel: func(context.Context, uuid.UUID) error {
+			service := &fakeService{adminCancel: func(context.Context, uuid.UUID, uuid.UUID) error {
 				return test.serviceErr
 			}}
 			response := performAdminRequest(service, "/exchanges/"+test.pathID+"/cancel")
@@ -66,6 +70,7 @@ func performAdminRequest(service Service, path string) *httptest.ResponseRecorde
 	New(service).RegisterAdminRoutes(router)
 
 	request := httptest.NewRequest(http.MethodPost, path, nil)
+	request = request.WithContext(authcontext.WithUserID(request.Context(), uuid.New()))
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, request)
 	return response

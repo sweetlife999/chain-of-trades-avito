@@ -25,7 +25,8 @@ func TestAdminCancelProposedExchange(t *testing.T) {
 	transactions := &fakeTransactionManager{queries: queries}
 	repository := newRepository(&fakeNeighborQueries{}, transactions)
 
-	nodes, signature, err := repository.CancelByAdmin(context.Background(), uuid.New())
+	adminID := uuid.New()
+	nodes, signature, err := repository.CancelByAdmin(context.Background(), uuid.New(), adminID)
 	if err != nil {
 		t.Fatalf("CancelByAdmin() error = %v", err)
 	}
@@ -49,6 +50,9 @@ func TestAdminCancelProposedExchange(t *testing.T) {
 	if !transactions.committed {
 		t.Fatal("admin cancellation transaction was not committed")
 	}
+	if len(queries.adminAudit) != 1 || uuid.UUID(queries.adminAudit[0].AdminID.Bytes) != adminID {
+		t.Fatalf("admin audit = %+v, want one entry by %s", queries.adminAudit, adminID)
+	}
 }
 
 func TestAdminCancelConfirmedExchangeReleasesItems(t *testing.T) {
@@ -64,7 +68,7 @@ func TestAdminCancelConfirmedExchangeReleasesItems(t *testing.T) {
 	transactions := &fakeTransactionManager{queries: queries}
 	repository := newRepository(&fakeNeighborQueries{}, transactions)
 
-	nodes, _, err := repository.CancelByAdmin(context.Background(), uuid.New())
+	nodes, _, err := repository.CancelByAdmin(context.Background(), uuid.New(), uuid.New())
 	if err != nil {
 		t.Fatalf("CancelByAdmin() error = %v", err)
 	}
@@ -129,7 +133,7 @@ func TestAdminCancelExchangeErrors(t *testing.T) {
 			transactions := &fakeTransactionManager{queries: queries}
 			repository := newRepository(&fakeNeighborQueries{}, transactions)
 
-			_, _, err := repository.CancelByAdmin(context.Background(), uuid.New())
+			_, _, err := repository.CancelByAdmin(context.Background(), uuid.New(), uuid.New())
 			if !errors.Is(err, test.want) {
 				t.Fatalf("CancelByAdmin() error = %v, want %v", err, test.want)
 			}

@@ -23,7 +23,7 @@ func TestCancelByAdminRecoversWithoutRecreatingCancelledCycle(t *testing.T) {
 	}
 	exchangeID := uuid.New()
 
-	if err := New(repository).CancelByAdmin(context.Background(), exchangeID); err != nil {
+	if err := New(repository).CancelByAdmin(context.Background(), exchangeID, uuid.New()); err != nil {
 		t.Fatalf("CancelByAdmin() error = %v", err)
 	}
 	if repository.adminCancel.exchangeID != exchangeID {
@@ -52,7 +52,7 @@ func TestCancelByAdminRecoversWithAlternativeCycle(t *testing.T) {
 		},
 	}
 
-	if err := New(repository).CancelByAdmin(context.Background(), uuid.New()); err != nil {
+	if err := New(repository).CancelByAdmin(context.Background(), uuid.New(), uuid.New()); err != nil {
 		t.Fatalf("CancelByAdmin() error = %v", err)
 	}
 	if repository.saveCalls != 1 {
@@ -66,7 +66,7 @@ func TestCancelByAdminWrapsRepositoryError(t *testing.T) {
 	databaseError := errors.New("database unavailable")
 	repository := &fakeRepository{adminCancel: fakeAdminCancellation{err: databaseError}}
 
-	err := New(repository).CancelByAdmin(context.Background(), uuid.New())
+	err := New(repository).CancelByAdmin(context.Background(), uuid.New(), uuid.New())
 	if !errors.Is(err, databaseError) {
 		t.Fatalf("CancelByAdmin() error = %v, want wrapped %v", err, databaseError)
 	}

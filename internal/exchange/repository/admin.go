@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -18,6 +19,7 @@ import (
 func (r *Repository) CancelByAdmin(
 	ctx context.Context,
 	exchangeID uuid.UUID,
+	adminID uuid.UUID,
 ) ([]exchangemodel.Node, string, error) {
 	var (
 		recoveryNodes []exchangemodel.Node
@@ -85,6 +87,20 @@ func (r *Repository) CancelByAdmin(
 
 		if err := queries.CancelExchange(ctx, pgUUID(exchangeID)); err != nil {
 			return fmt.Errorf("cancel exchange by admin: %w", err)
+		}
+
+		metadata, err := json.Marshal(map[string]string{"previous_status": string(exchange.Status)})
+		if err != nil {
+			return fmt.Errorf("encode admin cancellation audit: %w", err)
+		}
+		if _, err := queries.CreateAdminAuditLog(ctx, db.CreateAdminAuditLogParams{
+			AdminID:    pgUUID(adminID),
+			Action:     db.AdminAuditActionExchangeCancelled,
+			TargetType: db.AdminAuditTargetExchange,
+			TargetID:   pgUUID(exchangeID),
+			Metadata:   metadata,
+		}); err != nil {
+			return fmt.Errorf("record admin cancellation audit: %w", err)
 		}
 
 		return nil

@@ -123,6 +123,26 @@ func TestLoginRejectsInvalidCredentials(t *testing.T) {
 	}
 }
 
+func TestLoginRejectsBlockedAccount(t *testing.T) {
+	t.Parallel()
+
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.MinCost)
+	if err != nil {
+		t.Fatalf("GenerateFromPassword() error = %v", err)
+	}
+	repository := &fakeRepository{getByNickname: func(context.Context, string) (usermodel.User, error) {
+		return usermodel.User{PasswordHash: string(passwordHash), IsBlocked: true}, nil
+	}}
+
+	_, err = New(repository, &fakeTokenIssuer{}).Login(context.Background(), LoginInput{
+		Nickname: "Samir",
+		Password: "password123",
+	})
+	if !errors.Is(err, ErrAccountBlocked) {
+		t.Fatalf("Login() error = %v, want ErrAccountBlocked", err)
+	}
+}
+
 func TestCurrentUserReturnsUnauthorizedWhenUserIsMissing(t *testing.T) {
 	t.Parallel()
 

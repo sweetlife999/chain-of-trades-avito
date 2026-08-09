@@ -12,13 +12,19 @@ import (
 )
 
 const assignReportForAdmin = `-- name: AssignReportForAdmin :execrows
-UPDATE reports
-SET
-    assignee_id = $1,
-    assigned_at = now()
-WHERE id = $2
-  AND status = 'open'
-  AND assignee_id IS NULL
+WITH changed AS (
+    UPDATE reports AS report
+    SET
+        assignee_id = $1,
+        assigned_at = now()
+    WHERE report.id = $2
+      AND report.status = 'open'
+      AND report.assignee_id IS NULL
+    RETURNING report.id
+)
+INSERT INTO admin_audit_log (admin_id, action, target_type, target_id)
+SELECT $1, 'report_assigned', 'report', changed.id
+FROM changed
 `
 
 type AssignReportForAdminParams struct {
@@ -102,31 +108,45 @@ func (q *Queries) CreateReport(ctx context.Context, arg CreateReportParams) (Rep
 }
 
 const decideReportForAdmin = `-- name: DecideReportForAdmin :execrows
-UPDATE reports
-SET
-    status = $1,
-    closed_at = now(),
-    resolution_comment = $2
-WHERE id = $3
-  AND status = 'open'
-  AND assignee_id = $4
+WITH changed AS (
+    UPDATE reports AS report
+    SET
+        status = $2,
+        closed_at = now(),
+        resolution_comment = $3
+    WHERE report.id = $4
+      AND report.status = 'open'
+      AND report.assignee_id = $1
+    RETURNING report.id
+)
+INSERT INTO admin_audit_log (admin_id, action, target_type, target_id, metadata)
+SELECT
+    $1,
+    CASE
+        WHEN $2::text = 'resolved' THEN 'report_resolved'::admin_audit_action
+        ELSE 'report_rejected'::admin_audit_action
+    END,
+    'report',
+    changed.id,
+    jsonb_build_object('resolution_comment', $3::text)
+FROM changed
 `
 
 type DecideReportForAdminParams struct {
-	Decision          ReportStatus
+	AdminID           pgtype.UUID
+	Decision          string
 	ResolutionComment string
 	ReportID          pgtype.UUID
-	AdminID           pgtype.UUID
 }
 
 // Решение может принять только текущий исполнитель и только пока жалоба open.
 // status и время закрытия меняются одним атомарным запросом.
 func (q *Queries) DecideReportForAdmin(ctx context.Context, arg DecideReportForAdminParams) (int64, error) {
 	result, err := q.db.Exec(ctx, decideReportForAdmin,
+		arg.AdminID,
 		arg.Decision,
 		arg.ResolutionComment,
 		arg.ReportID,
-		arg.AdminID,
 	)
 	if err != nil {
 		return 0, err
@@ -231,8 +251,8 @@ func (q *Queries) GetReportForAdmin(ctx context.Context, reportID pgtype.UUID) (
 
 const getReportProcessingState = `-- name: GetReportProcessingState :one
 SELECT status, assignee_id
-FROM reports
-WHERE id = $1
+FROM reports AS report
+WHERE report.id = $1
 `
 
 type GetReportProcessingStateRow struct {
