@@ -193,9 +193,16 @@ func TestReportsIntegration(t *testing.T) {
 	}
 
 	// Второй участник жалуется на то же сообщение: UNIQUE стоит на паре, а не на сообщении.
-	if w := post(users[2], messageID, "abuse"); w.Code != http.StatusCreated {
+	secondAccepted := post(users[2], messageID, "abuse")
+	if secondAccepted.Code != http.StatusCreated {
 		t.Fatalf("жалоба второго участника: status = %d, want %d (body %s)",
-			w.Code, http.StatusCreated, w.Body.String())
+			secondAccepted.Code, http.StatusCreated, secondAccepted.Body.String())
+	}
+	var secondCreated struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(secondAccepted.Body).Decode(&secondCreated); err != nil {
+		t.Fatalf("decode second report: %v", err)
 	}
 
 	// Админские чтения используют ту же живую базу: фильтр очереди, карточку и полный
@@ -253,5 +260,87 @@ func TestReportsIntegration(t *testing.T) {
 	}
 	if messages.ExchangeID != chainID.String() || len(messages.Messages) != 2 {
 		t.Fatalf("admin thread = %+v", messages)
+	}
+
+	adminPost := func(adminID uuid.UUID, path string, body string) *httptest.ResponseRecorder {
+		request := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
+		request = request.WithContext(authcontext.WithUserID(request.Context(), adminID))
+		response := httptest.NewRecorder()
+		adminRouter.ServeHTTP(response, request)
+		return response
+	}
+
+	// Два назначения реально стартуют одновременно. Условный UPDATE должен отдать
+	// жалобу ровно одному администратору, без схемы «сначала SELECT, потом UPDATE».
+	start := make(chan struct{})
+	result := make(chan int, 2)
+	for _, adminID := range []uuid.UUID{users[0], users[2]} {
+		go func(id uuid.UUID) {
+			<-start
+			result <- adminPost(
+				id,
+				"/reports/"+secondCreated.ID+"/assign",
+				"",
+			).Code
+		}(adminID)
+	}
+	close(start)
+	firstCode, secondCode := <-result, <-result
+	if !((firstCode == http.StatusOK && secondCode == http.StatusConflict) ||
+		(firstCode == http.StatusConflict && secondCode == http.StatusOK)) {
+		t.Fatalf("concurrent assignments = %d/%d, want 200/409", firstCode, secondCode)
+	}
+
+	assignPath := "/reports/" + created.ID + "/assign"
+	assigned := adminPost(users[0], assignPath, "")
+	if assigned.Code != http.StatusOK {
+		t.Fatalf("assign report: status = %d, want 200 (body %s)", assigned.Code, assigned.Body.String())
+	}
+	var assignedReport reportdto.AdminReportResponse
+	if err := json.NewDecoder(assigned.Body).Decode(&assignedReport); err != nil {
+		t.Fatalf("decode assigned report: %v", err)
+	}
+	if assignedReport.Assignee == nil || assignedReport.Assignee.ID != users[0].String() ||
+		assignedReport.AssignedAt == nil {
+		t.Fatalf("assigned report = %+v", assignedReport)
+	}
+
+	// Повтор того же админа идемпотентен, но другой админ не может перехватить жалобу.
+	if repeated := adminPost(users[0], assignPath, ""); repeated.Code != http.StatusOK {
+		t.Fatalf("repeat own assignment: status = %d, want 200 (body %s)",
+			repeated.Code, repeated.Body.String())
+	}
+	if competing := adminPost(users[2], assignPath, ""); competing.Code != http.StatusConflict {
+		t.Fatalf("competing assignment: status = %d, want 409 (body %s)",
+			competing.Code, competing.Body.String())
+	}
+
+	resolvePath := "/reports/" + created.ID + "/resolve"
+	decisionBody := `{"comment":" нарушение подтверждено "}`
+	if foreignDecision := adminPost(users[2], resolvePath, decisionBody); foreignDecision.Code != http.StatusConflict {
+		t.Fatalf("foreign decision: status = %d, want 409 (body %s)",
+			foreignDecision.Code, foreignDecision.Body.String())
+	}
+
+	resolved := adminPost(users[0], resolvePath, decisionBody)
+	if resolved.Code != http.StatusOK {
+		t.Fatalf("resolve report: status = %d, want 200 (body %s)", resolved.Code, resolved.Body.String())
+	}
+	var resolvedReport reportdto.AdminReportResponse
+	if err := json.NewDecoder(resolved.Body).Decode(&resolvedReport); err != nil {
+		t.Fatalf("decode resolved report: %v", err)
+	}
+	if resolvedReport.Status != "resolved" || resolvedReport.ClosedAt == nil ||
+		resolvedReport.ResolutionComment != "нарушение подтверждено" {
+		t.Fatalf("resolved report = %+v", resolvedReport)
+	}
+
+	if repeated := adminPost(
+		users[0],
+		"/reports/"+created.ID+"/reject",
+		`{"comment":"передумал"}`,
+	); repeated.Code != http.StatusConflict {
+		t.Fatalf("repeat decision: status = %d, want 409 (body %s)",
+			repeated.Code, repeated.Body.String())
 	}
 }

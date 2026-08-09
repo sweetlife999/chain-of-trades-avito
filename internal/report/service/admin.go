@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 
@@ -23,6 +24,8 @@ type AdminRepository interface {
 	ListForAdmin(context.Context, reportmodel.AdminFilter) ([]reportmodel.AdminReport, error)
 	CountForAdmin(context.Context, reportmodel.AdminFilter) (int64, error)
 	GetForAdmin(context.Context, uuid.UUID) (reportmodel.AdminReport, error)
+	AssignForAdmin(context.Context, uuid.UUID, uuid.UUID) error
+	DecideForAdmin(context.Context, uuid.UUID, uuid.UUID, string, string) error
 }
 
 // MessageRepository нужен только для чтения треда. AdminService намеренно не получает
@@ -103,6 +106,67 @@ func (s *AdminService) Get(
 	}
 
 	return report, nil
+}
+
+func (s *AdminService) Assign(
+	ctx context.Context,
+	reportID uuid.UUID,
+	adminID uuid.UUID,
+) (reportmodel.AdminReport, error) {
+	if reportID == uuid.Nil {
+		return reportmodel.AdminReport{}, validationError("report id is required")
+	}
+	if adminID == uuid.Nil {
+		return reportmodel.AdminReport{}, validationError("admin id is required")
+	}
+
+	if err := s.reports.AssignForAdmin(ctx, reportID, adminID); err != nil {
+		return reportmodel.AdminReport{}, fmt.Errorf("assign report: %w", err)
+	}
+
+	return s.Get(ctx, reportID)
+}
+
+func (s *AdminService) Decide(
+	ctx context.Context,
+	reportID uuid.UUID,
+	adminID uuid.UUID,
+	decision string,
+	comment string,
+) (reportmodel.AdminReport, error) {
+	if reportID == uuid.Nil {
+		return reportmodel.AdminReport{}, validationError("report id is required")
+	}
+	if adminID == uuid.Nil {
+		return reportmodel.AdminReport{}, validationError("admin id is required")
+	}
+	if decision != "resolved" && decision != "rejected" {
+		return reportmodel.AdminReport{}, validationError(
+			"decision must be one of: resolved, rejected",
+		)
+	}
+
+	comment = strings.TrimSpace(comment)
+	if comment == "" {
+		return reportmodel.AdminReport{}, validationError("comment is required")
+	}
+	if utf8.RuneCountInString(comment) > maxCommentLength {
+		return reportmodel.AdminReport{}, validationError(
+			fmt.Sprintf("comment must be at most %d characters", maxCommentLength),
+		)
+	}
+
+	if err := s.reports.DecideForAdmin(
+		ctx,
+		reportID,
+		adminID,
+		decision,
+		comment,
+	); err != nil {
+		return reportmodel.AdminReport{}, fmt.Errorf("decide report: %w", err)
+	}
+
+	return s.Get(ctx, reportID)
 }
 
 // ListMessages сначала получает жалобу, а уже из неё — exchange_id. Поэтому админ не

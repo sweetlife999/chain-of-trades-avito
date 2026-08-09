@@ -6,12 +6,14 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	authcontext "github.com/sweetlife999/chain-of-trades-avito/internal/auth/authcontext"
 	authmiddleware "github.com/sweetlife999/chain-of-trades-avito/internal/auth/middleware"
 	exchangemodel "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/model"
 	reportdto "github.com/sweetlife999/chain-of-trades-avito/internal/report/dto"
@@ -27,6 +29,9 @@ type fakeAdminReadService struct {
 	called      bool
 	gotFilter   reportmodel.AdminFilter
 	gotReportID uuid.UUID
+	gotAdminID  uuid.UUID
+	gotDecision string
+	gotComment  string
 }
 
 func (f *fakeAdminReadService) List(
@@ -56,10 +61,41 @@ func (f *fakeAdminReadService) ListMessages(
 	return f.report, f.messages, f.err
 }
 
-func adminReportRouter(service AdminReadService) http.Handler {
+func (f *fakeAdminReadService) Assign(
+	_ context.Context,
+	reportID uuid.UUID,
+	adminID uuid.UUID,
+) (reportmodel.AdminReport, error) {
+	f.called = true
+	f.gotReportID = reportID
+	f.gotAdminID = adminID
+	return f.report, f.err
+}
+
+func (f *fakeAdminReadService) Decide(
+	_ context.Context,
+	reportID uuid.UUID,
+	adminID uuid.UUID,
+	decision string,
+	comment string,
+) (reportmodel.AdminReport, error) {
+	f.called = true
+	f.gotReportID = reportID
+	f.gotAdminID = adminID
+	f.gotDecision = decision
+	f.gotComment = comment
+	return f.report, f.err
+}
+
+func adminReportRouter(service AdminService) http.Handler {
 	router := chi.NewRouter()
 	NewAdmin(service).RegisterRoutes(router)
 	return router
+}
+
+func adminRequest(method string, target string, body string, adminID uuid.UUID) *http.Request {
+	request := httptest.NewRequest(method, target, strings.NewReader(body))
+	return request.WithContext(authcontext.WithUserID(request.Context(), adminID))
 }
 
 func TestAdminReportListParsesFiltersAndReturnsPage(t *testing.T) {
@@ -178,6 +214,88 @@ func TestAdminReportErrors(t *testing.T) {
 				response,
 				httptest.NewRequest(http.MethodGet, test.path, nil),
 			)
+			if response.Code != test.wantStatus {
+				t.Fatalf("status = %d, want %d; body = %s", response.Code, test.wantStatus, response.Body.String())
+			}
+		})
+	}
+}
+
+func TestAdminReportAssignAndResolve(t *testing.T) {
+	t.Parallel()
+
+	reportID := uuid.New()
+	adminID := uuid.New()
+	service := &fakeAdminReadService{report: reportmodel.AdminReport{
+		ID:       reportID,
+		Status:   "open",
+		Reporter: reportmodel.AdminUser{ID: uuid.New()},
+		Offender: reportmodel.AdminUser{ID: uuid.New()},
+		Message:  reportmodel.ReportedMessage{ID: uuid.New()},
+		Exchange: reportmodel.ReportExchange{ID: uuid.New()},
+	}}
+
+	assigned := httptest.NewRecorder()
+	adminReportRouter(service).ServeHTTP(
+		assigned,
+		adminRequest(http.MethodPost, "/reports/"+reportID.String()+"/assign", "", adminID),
+	)
+	if assigned.Code != http.StatusOK {
+		t.Fatalf("assign status = %d; body = %s", assigned.Code, assigned.Body.String())
+	}
+	if service.gotReportID != reportID || service.gotAdminID != adminID {
+		t.Fatalf("assign got report/admin = %s/%s", service.gotReportID, service.gotAdminID)
+	}
+
+	resolved := httptest.NewRecorder()
+	adminReportRouter(service).ServeHTTP(
+		resolved,
+		adminRequest(
+			http.MethodPost,
+			"/reports/"+reportID.String()+"/resolve",
+			`{"comment":"нарушение подтверждено"}`,
+			adminID,
+		),
+	)
+	if resolved.Code != http.StatusOK {
+		t.Fatalf("resolve status = %d; body = %s", resolved.Code, resolved.Body.String())
+	}
+	if service.gotDecision != "resolved" || service.gotComment != "нарушение подтверждено" {
+		t.Fatalf("resolve got decision/comment = %q/%q", service.gotDecision, service.gotComment)
+	}
+}
+
+func TestAdminReportMutationErrors(t *testing.T) {
+	t.Parallel()
+
+	reportID := uuid.NewString()
+	adminID := uuid.New()
+	tests := []struct {
+		name       string
+		path       string
+		body       string
+		serviceErr error
+		withAdmin  bool
+		wantStatus int
+	}{
+		{name: "missing admin context", path: "/reports/" + reportID + "/assign", wantStatus: http.StatusUnauthorized},
+		{name: "invalid body", path: "/reports/" + reportID + "/resolve", body: `{`, withAdmin: true, wantStatus: http.StatusBadRequest},
+		{name: "already assigned", path: "/reports/" + reportID + "/assign", serviceErr: reportservice.ErrAlreadyAssigned, withAdmin: true, wantStatus: http.StatusConflict},
+		{name: "not assigned", path: "/reports/" + reportID + "/reject", body: `{"comment":"нет нарушения"}`, serviceErr: reportservice.ErrNotAssigned, withAdmin: true, wantStatus: http.StatusConflict},
+		{name: "assigned to other", path: "/reports/" + reportID + "/resolve", body: `{"comment":"ok"}`, serviceErr: reportservice.ErrAssignedToOther, withAdmin: true, wantStatus: http.StatusConflict},
+		{name: "already processed", path: "/reports/" + reportID + "/resolve", body: `{"comment":"ok"}`, serviceErr: reportservice.ErrAlreadyProcessed, withAdmin: true, wantStatus: http.StatusConflict},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			service := &fakeAdminReadService{err: test.serviceErr}
+			request := httptest.NewRequest(http.MethodPost, test.path, strings.NewReader(test.body))
+			if test.withAdmin {
+				request = request.WithContext(authcontext.WithUserID(request.Context(), adminID))
+			}
+			response := httptest.NewRecorder()
+			adminReportRouter(service).ServeHTTP(response, request)
 			if response.Code != test.wantStatus {
 				t.Fatalf("status = %d, want %d; body = %s", response.Code, test.wantStatus, response.Body.String())
 			}
