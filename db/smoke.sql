@@ -391,4 +391,21 @@ EXCEPTION WHEN foreign_key_violation THEN
     RAISE NOTICE 'ok 24: ПВЗ с вещью защищён ON DELETE RESTRICT';
 END $$;
 
+-- 25. Причина закрытия предложения при снятии объявления поддерживается схемой треда.
+DO $$
+DECLARE n int;
+BEGIN
+    INSERT INTO chain_messages (chain_id, kind)
+    VALUES ('dddddddd-0000-0000-0000-000000000000', 'exchange_item_withdrawn');
+
+    SELECT count(*) INTO n
+    FROM chain_messages
+    WHERE chain_id = 'dddddddd-0000-0000-0000-000000000000'
+      AND kind = 'exchange_item_withdrawn';
+    IF n <> 1 THEN
+        RAISE EXCEPTION 'ожидали одно событие снятия объявления, получили %', n;
+    END IF;
+    RAISE NOTICE 'ok 25: снятие объявления имеет отдельное событие треда';
+END $$;
+
 ROLLBACK;
