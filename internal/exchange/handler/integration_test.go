@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	exchangerepository "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/repository"
+	exchangesearch "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/search"
 	exchangeservice "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/service"
 	itemrepository "github.com/sweetlife999/chain-of-trades-avito/internal/item/repository"
 	itemservice "github.com/sweetlife999/chain-of-trades-avito/internal/item/service"
@@ -98,6 +99,81 @@ func TestThreeUserExchangeIntegration(t *testing.T) {
 	)
 	if detailResponse.Code != http.StatusOK {
 		t.Fatalf("detail status = %d; body = %s", detailResponse.Code, detailResponse.Body.String())
+	}
+}
+
+func TestAsyncExchangeSearchIntegration(t *testing.T) {
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("DATABASE_URL is not set")
+	}
+
+	ctx := context.Background()
+	pool, err := pgxpool.New(ctx, databaseURL)
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+
+	users := []uuid.UUID{uuid.New(), uuid.New(), uuid.New()}
+	items := make([]uuid.UUID, 0, 3)
+	t.Cleanup(func() {
+		cleanupIntegrationData(context.Background(), pool, users, items)
+		pool.Close()
+	})
+	for index, userID := range users {
+		if _, err := pool.Exec(
+			ctx,
+			"INSERT INTO users (id, nickname, password_hash) VALUES ($1, $2, $3)",
+			userID,
+			"async-search-"+userID.String()[:8],
+			"not-used-in-integration-test",
+		); err != nil {
+			t.Fatalf("create user %d: %v", index, err)
+		}
+	}
+
+	queue, err := exchangesearch.NewQueue(8)
+	if err != nil {
+		t.Fatalf("create search queue: %v", err)
+	}
+	repository := exchangerepository.New(pool)
+	exchanges := exchangeservice.New(repository, queue)
+	itemsService := itemservice.New(itemrepository.New(pool), exchanges)
+	categories := []string{"books", "hobby", "sports"}
+	wants := []string{"hobby", "sports", "books"}
+
+	// Worker намеренно ещё не запущен: HTTP/service-сценарий должен сохранить объявления
+	// и вернуться, не выполняя DFS внутри запроса.
+	for index := range users {
+		created, err := itemsService.Create(ctx, itemservice.CreateInput{
+			OwnerID:   users[index],
+			Category:  categories[index],
+			Title:     "Async integration item",
+			PhotoURLs: []string{"https://example.com/integration.jpg"},
+			Wants:     []string{wants[index]},
+		})
+		if err != nil {
+			t.Fatalf("create item %d through service: %v", index, err)
+		}
+		items = append(items, created.ID)
+	}
+	beforeWorker, err := exchanges.ListForUser(ctx, users[0])
+	if err != nil {
+		t.Fatalf("list exchanges before worker: %v", err)
+	}
+	if len(beforeWorker) != 0 {
+		t.Fatalf("exchanges before worker = %d, want 0", len(beforeWorker))
+	}
+
+	queue.Close()
+	exchangesearch.NewWorker(queue, exchanges).Run(ctx)
+
+	afterWorker, err := exchanges.ListForUser(ctx, users[0])
+	if err != nil {
+		t.Fatalf("list exchanges after worker: %v", err)
+	}
+	if len(afterWorker) != 1 {
+		t.Fatalf("exchanges after worker = %d, want 1", len(afterWorker))
 	}
 }
 
