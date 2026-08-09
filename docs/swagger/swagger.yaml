@@ -558,6 +558,8 @@ definitions:
         enum:
         - proposed
         - confirmed
+        - delivering
+        - delivered
         type: string
       updated_at:
         type: string
@@ -721,6 +723,62 @@ paths:
       summary: Статистика для главной страницы админки
       tags:
       - admin dashboard
+  /admin/exchanges:
+    get:
+      description: Доступно только администратору. Возвращает очередь обменов нужного
+        этапа вместе с ID, участниками и вещами.
+      parameters:
+      - description: Статус обмена
+        enum:
+        - proposed
+        - confirmed
+        - delivering
+        - delivered
+        in: query
+        name: status
+        required: true
+        type: string
+      - default: 20
+        description: Размер страницы (1–100)
+        in: query
+        maximum: 100
+        minimum: 1
+        name: limit
+        type: integer
+      - default: 0
+        description: Смещение от начала списка
+        in: query
+        minimum: 0
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Активные обмены
+          schema:
+            $ref: '#/definitions/dto.ListResponse'
+        "400":
+          description: Некорректный статус или пагинация
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse'
+        "403":
+          description: Недостаточно прав
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Получить активные обмены по статусу
+      tags:
+      - admin exchanges
   /admin/exchanges/{id}/cancel:
     post:
       description: Закрывает proposed или confirmed обмен. Для confirmed освобождает
@@ -1399,8 +1457,8 @@ paths:
       - admin-audit
   /admin/users/{user_id}/exchanges:
     get:
-      description: Доступно только администратору. Возвращает proposed и confirmed
-        обмены пользователя вместе с участниками и вещами.
+      description: Доступно только администратору. Возвращает proposed, confirmed,
+        delivering и delivered обмены пользователя вместе с участниками и вещами.
       parameters:
       - description: UUID пользователя
         in: path

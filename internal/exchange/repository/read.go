@@ -17,11 +17,11 @@ var ErrNotFound = errors.New("exchange not found")
 
 type exchangeReadQueries interface {
 	ListExchangesByUser(context.Context, pgtype.UUID) ([]db.ListExchangesByUserRow, error)
-	ListActiveExchangesByUserForAdmin(
+	ListActiveExchangesForAdmin(
 		context.Context,
-		db.ListActiveExchangesByUserForAdminParams,
-	) ([]db.ListActiveExchangesByUserForAdminRow, error)
-	CountActiveExchangesByUserForAdmin(context.Context, pgtype.UUID) (int64, error)
+		db.ListActiveExchangesForAdminParams,
+	) ([]db.ListActiveExchangesForAdminRow, error)
+	CountActiveExchangesForAdmin(context.Context, db.CountActiveExchangesForAdminParams) (int64, error)
 	GetExchangeByID(context.Context, db.GetExchangeByIDParams) ([]db.GetExchangeByIDRow, error)
 }
 
@@ -79,12 +79,13 @@ func (r *Repository) ListActiveByUser(
 	limit int32,
 	offset int32,
 ) ([]exchangemodel.Details, error) {
-	rows, err := r.reads.ListActiveExchangesByUserForAdmin(
+	rows, err := r.reads.ListActiveExchangesForAdmin(
 		ctx,
-		db.ListActiveExchangesByUserForAdminParams{
-			UserID:     pgUUID(userID),
-			PageLimit:  limit,
-			PageOffset: offset,
+		db.ListActiveExchangesForAdminParams{
+			UserID:         pgUUID(userID),
+			ExchangeStatus: "",
+			PageLimit:      limit,
+			PageOffset:     offset,
 		},
 	)
 	if err != nil {
@@ -100,9 +101,49 @@ func (r *Repository) ListActiveByUser(
 }
 
 func (r *Repository) CountActiveByUser(ctx context.Context, userID uuid.UUID) (int64, error) {
-	total, err := r.reads.CountActiveExchangesByUserForAdmin(ctx, pgUUID(userID))
+	total, err := r.reads.CountActiveExchangesForAdmin(ctx, db.CountActiveExchangesForAdminParams{
+		UserID:         pgUUID(userID),
+		ExchangeStatus: "",
+	})
 	if err != nil {
 		return 0, fmt.Errorf("count active exchanges by user: %w", err)
+	}
+
+	return total, nil
+}
+
+func (r *Repository) ListActiveForAdmin(
+	ctx context.Context,
+	status string,
+	limit int32,
+	offset int32,
+) ([]exchangemodel.Details, error) {
+	rows, err := r.reads.ListActiveExchangesForAdmin(
+		ctx,
+		db.ListActiveExchangesForAdminParams{
+			ExchangeStatus: status,
+			PageLimit:      limit,
+			PageOffset:     offset,
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list active exchanges for admin: %w", err)
+	}
+
+	records := make([]exchangeRecord, len(rows))
+	for index, row := range rows {
+		records[index] = recordFromAdminListRow(row)
+	}
+
+	return groupExchangeRecords(records), nil
+}
+
+func (r *Repository) CountActiveForAdmin(ctx context.Context, status string) (int64, error) {
+	total, err := r.reads.CountActiveExchangesForAdmin(ctx, db.CountActiveExchangesForAdminParams{
+		ExchangeStatus: status,
+	})
+	if err != nil {
+		return 0, fmt.Errorf("count active exchanges for admin: %w", err)
 	}
 
 	return total, nil
@@ -214,7 +255,7 @@ func recordFromListRow(row db.ListExchangesByUserRow) exchangeRecord {
 	return recordFromGetRow(db.GetExchangeByIDRow(row))
 }
 
-func recordFromAdminListRow(row db.ListActiveExchangesByUserForAdminRow) exchangeRecord {
+func recordFromAdminListRow(row db.ListActiveExchangesForAdminRow) exchangeRecord {
 	return recordFromGetRow(db.GetExchangeByIDRow(row))
 }
 

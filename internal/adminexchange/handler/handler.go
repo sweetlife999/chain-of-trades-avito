@@ -18,6 +18,7 @@ import (
 
 type Service interface {
 	ListActiveByUser(context.Context, uuid.UUID, int32, int32) (adminexchangemodel.Page, error)
+	ListActive(context.Context, string, int32, int32) (adminexchangemodel.Page, error)
 }
 
 type Handler struct {
@@ -30,12 +31,54 @@ func New(service Service) *Handler {
 
 // RegisterRoutes вызывается только внутри уже защищённой группы /admin.
 func (h *Handler) RegisterRoutes(router chi.Router) {
+	router.Get("/exchanges", h.listActive)
 	router.Get("/users/{user_id}/exchanges", h.listActiveByUser)
+}
+
+// listActive godoc
+// @Summary     Получить активные обмены по статусу
+// @Description Доступно только администратору. Возвращает очередь обменов нужного этапа вместе с ID, участниками и вещами.
+// @Tags        admin exchanges
+// @Produce     json
+// @Param       status query string true  "Статус обмена" Enums(proposed,confirmed,delivering,delivered)
+// @Param       limit  query int    false "Размер страницы (1–100)" default(20) minimum(1) maximum(100)
+// @Param       offset query int    false "Смещение от начала списка" default(0) minimum(0)
+// @Success     200 {object} adminexchangedto.ListResponse "Активные обмены"
+// @Failure     400 {object} adminexchangedto.ErrorResponse "Некорректный статус или пагинация"
+// @Failure     401 {object} adminexchangedto.ErrorResponse "Пользователь не авторизован"
+// @Failure     403 {object} adminexchangedto.ErrorResponse "Недостаточно прав"
+// @Failure     500 {object} adminexchangedto.ErrorResponse "Внутренняя ошибка"
+// @Security    CookieAuth
+// @Router      /admin/exchanges [get]
+func (h *Handler) listActive(w http.ResponseWriter, r *http.Request) {
+	limit, err := queryInt32(r, "limit", adminexchangeservice.DefaultLimit)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid limit")
+		return
+	}
+	offset, err := queryInt32(r, "offset", 0)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid offset")
+		return
+	}
+
+	page, err := h.service.ListActive(
+		r.Context(),
+		r.URL.Query().Get("status"),
+		limit,
+		offset,
+	)
+	if err != nil {
+		handleServiceError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, adminexchangedto.FromModel(page))
 }
 
 // listActiveByUser godoc
 // @Summary     Получить активные обмены пользователя
-// @Description Доступно только администратору. Возвращает proposed и confirmed обмены пользователя вместе с участниками и вещами.
+// @Description Доступно только администратору. Возвращает proposed, confirmed, delivering и delivered обмены пользователя вместе с участниками и вещами.
 // @Tags        admin exchanges
 // @Produce     json
 // @Param       user_id path  string true  "UUID пользователя"
@@ -93,7 +136,7 @@ func queryInt32(r *http.Request, name string, defaultValue int32) (int32, error)
 func handleServiceError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, adminexchangeservice.ErrValidation):
-		writeError(w, http.StatusBadRequest, "invalid pagination")
+		writeError(w, http.StatusBadRequest, "invalid status or pagination")
 	case errors.Is(err, adminexchangeservice.ErrNotFound):
 		writeError(w, http.StatusNotFound, "user not found")
 	default:

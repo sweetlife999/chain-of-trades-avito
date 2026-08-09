@@ -105,7 +105,7 @@ func TestListActiveByUserForAdminUsesPaginationAndGroupsParticipants(t *testing.
 	first := activeExchangeRow(exchangeID, userID, 0)
 	second := activeExchangeRow(exchangeID, uuid.New(), 1)
 	queries := &fakeExchangeReadQueries{
-		activeRows:  []db.ListActiveExchangesByUserForAdminRow{first, second},
+		activeRows:  []db.ListActiveExchangesForAdminRow{first, second},
 		activeCount: 4,
 	}
 	repository := newRepositoryWithReads(queries)
@@ -114,8 +114,8 @@ func TestListActiveByUserForAdminUsesPaginationAndGroupsParticipants(t *testing.
 	if err != nil {
 		t.Fatalf("ListActiveByUser() error = %v", err)
 	}
-	if queries.activeParams != (db.ListActiveExchangesByUserForAdminParams{
-		UserID: pgUUID(userID), PageLimit: 2, PageOffset: 1,
+	if queries.activeParams != (db.ListActiveExchangesForAdminParams{
+		UserID: pgUUID(userID), ExchangeStatus: "", PageLimit: 2, PageOffset: 1,
 	}) {
 		t.Fatalf("params = %+v", queries.activeParams)
 	}
@@ -127,8 +127,44 @@ func TestListActiveByUserForAdminUsesPaginationAndGroupsParticipants(t *testing.
 	if err != nil {
 		t.Fatalf("CountActiveByUser() error = %v", err)
 	}
-	if total != 4 || queries.countUserID != pgUUID(userID) {
-		t.Fatalf("total = %d, count user = %v", total, queries.countUserID)
+	if total != 4 || queries.countParams != (db.CountActiveExchangesForAdminParams{
+		UserID: pgUUID(userID), ExchangeStatus: "",
+	}) {
+		t.Fatalf("total = %d, count params = %+v", total, queries.countParams)
+	}
+}
+
+func TestListActiveForAdminFiltersByStatus(t *testing.T) {
+	t.Parallel()
+
+	exchangeID := uuid.New()
+	queries := &fakeExchangeReadQueries{
+		activeRows:  []db.ListActiveExchangesForAdminRow{activeExchangeRow(exchangeID, uuid.New(), 0)},
+		activeCount: 1,
+	}
+	repository := newRepositoryWithReads(queries)
+
+	exchanges, err := repository.ListActiveForAdmin(context.Background(), "delivering", 10, 5)
+	if err != nil {
+		t.Fatalf("ListActiveForAdmin() error = %v", err)
+	}
+	if queries.activeParams != (db.ListActiveExchangesForAdminParams{
+		ExchangeStatus: "delivering", PageLimit: 10, PageOffset: 5,
+	}) {
+		t.Fatalf("params = %+v", queries.activeParams)
+	}
+	if len(exchanges) != 1 || exchanges[0].ID != exchangeID {
+		t.Fatalf("exchanges = %+v", exchanges)
+	}
+
+	total, err := repository.CountActiveForAdmin(context.Background(), "delivering")
+	if err != nil {
+		t.Fatalf("CountActiveForAdmin() error = %v", err)
+	}
+	if total != 1 || queries.countParams != (db.CountActiveExchangesForAdminParams{
+		ExchangeStatus: "delivering",
+	}) {
+		t.Fatalf("total = %d, count params = %+v", total, queries.countParams)
 	}
 }
 
@@ -208,31 +244,31 @@ type fakeExchangeReadQueries struct {
 	listRows      []db.ListExchangesByUserRow
 	listErr       error
 	listUserID    pgtype.UUID
-	activeRows    []db.ListActiveExchangesByUserForAdminRow
+	activeRows    []db.ListActiveExchangesForAdminRow
 	activeErr     error
-	activeParams  db.ListActiveExchangesByUserForAdminParams
+	activeParams  db.ListActiveExchangesForAdminParams
 	activeCount   int64
 	countErr      error
-	countUserID   pgtype.UUID
+	countParams   db.CountActiveExchangesForAdminParams
 	getRows       []db.GetExchangeByIDRow
 	getErr        error
 	getExchangeID pgtype.UUID
 	getUserID     pgtype.UUID
 }
 
-func (f *fakeExchangeReadQueries) ListActiveExchangesByUserForAdmin(
+func (f *fakeExchangeReadQueries) ListActiveExchangesForAdmin(
 	_ context.Context,
-	params db.ListActiveExchangesByUserForAdminParams,
-) ([]db.ListActiveExchangesByUserForAdminRow, error) {
+	params db.ListActiveExchangesForAdminParams,
+) ([]db.ListActiveExchangesForAdminRow, error) {
 	f.activeParams = params
 	return f.activeRows, f.activeErr
 }
 
-func (f *fakeExchangeReadQueries) CountActiveExchangesByUserForAdmin(
+func (f *fakeExchangeReadQueries) CountActiveExchangesForAdmin(
 	_ context.Context,
-	userID pgtype.UUID,
+	params db.CountActiveExchangesForAdminParams,
 ) (int64, error) {
-	f.countUserID = userID
+	f.countParams = params
 	return f.activeCount, f.countErr
 }
 
@@ -311,9 +347,9 @@ func activeExchangeRow(
 	exchangeID uuid.UUID,
 	userID uuid.UUID,
 	position int32,
-) db.ListActiveExchangesByUserForAdminRow {
+) db.ListActiveExchangesForAdminRow {
 	row := listExchangeRow(exchangeID, userID, position)
-	return db.ListActiveExchangesByUserForAdminRow{
+	return db.ListActiveExchangesForAdminRow{
 		ExchangeID:              row.ExchangeID,
 		ExchangeStatus:          row.ExchangeStatus,
 		ExchangeCreatedAt:       row.ExchangeCreatedAt,

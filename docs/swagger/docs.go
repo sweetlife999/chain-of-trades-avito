@@ -141,6 +141,87 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/exchanges": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Доступно только администратору. Возвращает очередь обменов нужного этапа вместе с ID, участниками и вещами.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin exchanges"
+                ],
+                "summary": "Получить активные обмены по статусу",
+                "parameters": [
+                    {
+                        "enum": [
+                            "proposed",
+                            "confirmed",
+                            "delivering",
+                            "delivered"
+                        ],
+                        "type": "string",
+                        "description": "Статус обмена",
+                        "name": "status",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "maximum": 100,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Размер страницы (1–100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "minimum": 0,
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Смещение от начала списка",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Активные обмены",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный статус или пагинация",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Недостаточно прав",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/exchanges/{id}/cancel": {
             "post": {
                 "security": [
@@ -1168,7 +1249,7 @@ const docTemplate = `{
                         "CookieAuth": []
                     }
                 ],
-                "description": "Доступно только администратору. Возвращает proposed и confirmed обмены пользователя вместе с участниками и вещами.",
+                "description": "Доступно только администратору. Возвращает proposed, confirmed, delivering и delivered обмены пользователя вместе с участниками и вещами.",
                 "produces": [
                     "application/json"
                 ],
@@ -3693,7 +3774,9 @@ const docTemplate = `{
                     "type": "string",
                     "enum": [
                         "proposed",
-                        "confirmed"
+                        "confirmed",
+                        "delivering",
+                        "delivered"
                     ]
                 },
                 "updated_at": {

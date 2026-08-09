@@ -24,6 +24,7 @@ type fakeService struct {
 	err       error
 	called    bool
 	gotUserID uuid.UUID
+	gotStatus string
 	gotLimit  int32
 	gotOffset int32
 }
@@ -36,6 +37,19 @@ func (f *fakeService) ListActiveByUser(
 ) (adminexchangemodel.Page, error) {
 	f.called = true
 	f.gotUserID = userID
+	f.gotLimit = limit
+	f.gotOffset = offset
+	return f.page, f.err
+}
+
+func (f *fakeService) ListActive(
+	_ context.Context,
+	status string,
+	limit int32,
+	offset int32,
+) (adminexchangemodel.Page, error) {
+	f.called = true
+	f.gotStatus = status
 	f.gotLimit = limit
 	f.gotOffset = offset
 	return f.page, f.err
@@ -97,6 +111,69 @@ func TestListActiveExchangesByUserUsesPaginationDefaults(t *testing.T) {
 	}
 	if service.gotLimit != adminexchangeservice.DefaultLimit || service.gotOffset != 0 {
 		t.Fatalf("defaults = %d/%d", service.gotLimit, service.gotOffset)
+	}
+}
+
+func TestListActiveExchanges(t *testing.T) {
+	t.Parallel()
+
+	exchangeID := uuid.New()
+	service := &fakeService{page: adminexchangemodel.Page{
+		Exchanges: []exchangemodel.Details{{ID: exchangeID, Status: "delivering"}},
+		Limit:     10, Offset: 5, Total: 1,
+	}}
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/exchanges?status=delivering&limit=10&offset=5",
+		nil,
+	)
+	response := httptest.NewRecorder()
+	newRouter(service).ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %s", response.Code, response.Body.String())
+	}
+	if service.gotStatus != "delivering" || service.gotLimit != 10 || service.gotOffset != 5 {
+		t.Fatalf("arguments = %q, %d, %d", service.gotStatus, service.gotLimit, service.gotOffset)
+	}
+
+	var body adminexchangedto.ListResponse
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(body.Exchanges) != 1 || body.Exchanges[0].ID != exchangeID.String() || body.Pagination.Total != 1 {
+		t.Fatalf("body = %+v", body)
+	}
+}
+
+func TestListActiveExchangesErrors(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		path       string
+		serviceErr error
+		wantStatus int
+	}{
+		{name: "missing status", path: "/exchanges", serviceErr: adminexchangeservice.ErrValidation, wantStatus: http.StatusBadRequest},
+		{name: "unknown status", path: "/exchanges?status=cancelled", serviceErr: adminexchangeservice.ErrValidation, wantStatus: http.StatusBadRequest},
+		{name: "invalid limit", path: "/exchanges?status=delivering&limit=text", wantStatus: http.StatusBadRequest},
+		{name: "invalid offset", path: "/exchanges?status=delivering&offset=text", wantStatus: http.StatusBadRequest},
+		{name: "internal error", path: "/exchanges?status=delivering", serviceErr: errors.New("database unavailable"), wantStatus: http.StatusInternalServerError},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			response := httptest.NewRecorder()
+			newRouter(&fakeService{err: test.serviceErr}).ServeHTTP(
+				response,
+				httptest.NewRequest(http.MethodGet, test.path, nil),
+			)
+			if response.Code != test.wantStatus {
+				t.Fatalf("status = %d, want %d; body = %s", response.Code, test.wantStatus, response.Body.String())
+			}
+		})
 	}
 }
 

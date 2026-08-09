@@ -18,6 +18,13 @@ const (
 	MaxLimit     int32 = 100
 )
 
+var activeStatuses = map[string]struct{}{
+	"proposed":   {},
+	"confirmed":  {},
+	"delivering": {},
+	"delivered":  {},
+}
+
 var (
 	ErrNotFound   = userrepository.ErrNotFound
 	ErrValidation = errors.New("validation error")
@@ -30,6 +37,8 @@ type UserRepository interface {
 type ExchangeRepository interface {
 	ListActiveByUser(context.Context, uuid.UUID, int32, int32) ([]exchangemodel.Details, error)
 	CountActiveByUser(context.Context, uuid.UUID) (int64, error)
+	ListActiveForAdmin(context.Context, string, int32, int32) ([]exchangemodel.Details, error)
+	CountActiveForAdmin(context.Context, string) (int64, error)
 }
 
 type Service struct {
@@ -47,7 +56,7 @@ func (s *Service) ListActiveByUser(
 	limit int32,
 	offset int32,
 ) (adminexchangemodel.Page, error) {
-	if limit < 1 || limit > MaxLimit || offset < 0 {
+	if !validPagination(limit, offset) {
 		return adminexchangemodel.Page{}, ErrValidation
 	}
 
@@ -74,4 +83,44 @@ func (s *Service) ListActiveByUser(
 		Offset:    offset,
 		Total:     total,
 	}, nil
+}
+
+func (s *Service) ListActive(
+	ctx context.Context,
+	status string,
+	limit int32,
+	offset int32,
+) (adminexchangemodel.Page, error) {
+	if !validPagination(limit, offset) || !validActiveStatus(status) {
+		return adminexchangemodel.Page{}, ErrValidation
+	}
+
+	exchanges, err := s.exchanges.ListActiveForAdmin(ctx, status, limit, offset)
+	if err != nil {
+		return adminexchangemodel.Page{}, fmt.Errorf("list active exchanges: %w", err)
+	}
+	if exchanges == nil {
+		exchanges = []exchangemodel.Details{}
+	}
+
+	total, err := s.exchanges.CountActiveForAdmin(ctx, status)
+	if err != nil {
+		return adminexchangemodel.Page{}, fmt.Errorf("count active exchanges: %w", err)
+	}
+
+	return adminexchangemodel.Page{
+		Exchanges: exchanges,
+		Limit:     limit,
+		Offset:    offset,
+		Total:     total,
+	}, nil
+}
+
+func validPagination(limit, offset int32) bool {
+	return limit >= 1 && limit <= MaxLimit && offset >= 0
+}
+
+func validActiveStatus(status string) bool {
+	_, exists := activeStatuses[status]
+	return exists
 }
