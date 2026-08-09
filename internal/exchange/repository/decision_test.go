@@ -167,7 +167,7 @@ func TestDeclineParticipationCancelsExchange(t *testing.T) {
 	exchangeID := uuid.New()
 	userID := uuid.New()
 
-	nodes, signature, err := repository.DeclineParticipation(context.Background(), exchangeID, userID)
+	nodes, composition, err := repository.DeclineParticipation(context.Background(), exchangeID, userID)
 	if err != nil {
 		t.Fatalf("DeclineParticipation() error = %v", err)
 	}
@@ -176,8 +176,8 @@ func TestDeclineParticipationCancelsExchange(t *testing.T) {
 	if len(nodes) != 1 || nodes[0].ItemID != itemID || nodes[0].OwnerID != ownerID {
 		t.Fatalf("recovery nodes = %+v, want item %s owned by %s", nodes, itemID, ownerID)
 	}
-	if signature != queries.chainSignature {
-		t.Fatalf("cancelled signature = %q, want %q", signature, queries.chainSignature)
+	if composition != queries.chainComposition {
+		t.Fatalf("cancelled composition = %q, want %q", composition, queries.chainComposition)
 	}
 	wantRefusal := db.RecordItemRefusalParams{ExchangeID: pgUUID(exchangeID), UserID: pgUUID(userID)}
 	if len(queries.refusals) != 1 || queries.refusals[0] != wantRefusal {
@@ -214,15 +214,15 @@ func TestDeclineConfirmedExchangeReleasesItems(t *testing.T) {
 	transactions := &fakeTransactionManager{queries: queries}
 	repository := newRepository(&fakeNeighborQueries{}, transactions)
 
-	nodes, signature, err := repository.DeclineParticipation(context.Background(), uuid.New(), uuid.New())
+	nodes, composition, err := repository.DeclineParticipation(context.Background(), uuid.New(), uuid.New())
 	if err != nil {
 		t.Fatalf("DeclineParticipation() error = %v", err)
 	}
 	if len(nodes) != 1 || nodes[0].ItemID != itemID || nodes[0].OwnerID != ownerID {
 		t.Fatalf("recovery nodes = %+v, want item %s owned by %s", nodes, itemID, ownerID)
 	}
-	if signature != queries.chainSignature {
-		t.Fatalf("cancelled signature = %q, want %q", signature, queries.chainSignature)
+	if composition != queries.chainComposition {
+		t.Fatalf("cancelled composition = %q, want %q", composition, queries.chainComposition)
 	}
 	// Сорванная сделка — не «не хочу эту вещь», ребро графа остаётся на месте.
 	if len(queries.refusals) != 0 {
@@ -332,6 +332,7 @@ func pendingDecisionQueries() *fakeExchangeWriteQueries {
 	return &fakeExchangeWriteQueries{
 		chainStatus:       db.ChainStatusProposed,
 		chainSignature:    "item-a>item-b|item-b>item-a",
+		chainComposition:  "item-a|item-b",
 		participantStatus: db.ParticipantStatusPending,
 	}
 }

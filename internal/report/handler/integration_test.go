@@ -94,8 +94,9 @@ func TestReportsIntegration(t *testing.T) {
 
 	if _, err := pool.Exec(
 		ctx,
-		"INSERT INTO chains (id, signature) VALUES ($1, $2)",
+		"INSERT INTO chains (id, signature, composition_key) VALUES ($1, $2, $3)",
 		chainID,
+		"reports:"+chainID.String(),
 		"reports:"+chainID.String(),
 	); err != nil {
 		t.Fatalf("create chain: %v", err)

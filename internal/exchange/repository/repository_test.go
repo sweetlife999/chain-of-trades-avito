@@ -165,6 +165,10 @@ func TestSaveExchange(t *testing.T) {
 	if queries.signature != wantSignature {
 		t.Fatalf("signature = %q, want %q", queries.signature, wantSignature)
 	}
+	wantComposition := firstItemID.String() + "|" + secondItemID.String()
+	if queries.compositionKey != wantComposition {
+		t.Fatalf("composition key = %q, want %q", queries.compositionKey, wantComposition)
+	}
 
 	wantParams := []db.CreateExchangeParticipantParams{
 		{
@@ -281,11 +285,13 @@ type fakeExchangeWriteQueries struct {
 	exchangeID     pgtype.UUID
 	createErr      error
 	signature      string
+	compositionKey string
 	participantErr error
 	participants   []db.CreateExchangeParticipantParams
 
 	chainStatus                  db.ChainStatus
 	chainSignature               string
+	chainComposition             string
 	lockExchangeErr              error
 	participantStatus            db.ParticipantStatus
 	participantCompletedAt       pgtype.Timestamptz
@@ -429,8 +435,12 @@ func assertRecordedEvents(
 	}
 }
 
-func (f *fakeExchangeWriteQueries) CreateExchange(_ context.Context, signature string) (pgtype.UUID, error) {
-	f.signature = signature
+func (f *fakeExchangeWriteQueries) CreateExchange(
+	_ context.Context,
+	params db.CreateExchangeParams,
+) (pgtype.UUID, error) {
+	f.signature = params.Signature
+	f.compositionKey = params.CompositionKey
 	return f.exchangeID, f.createErr
 }
 
@@ -447,8 +457,9 @@ func (f *fakeExchangeWriteQueries) LockExchange(
 	pgtype.UUID,
 ) (db.LockExchangeRow, error) {
 	return db.LockExchangeRow{
-		Status:    f.chainStatus,
-		Signature: f.chainSignature,
+		Status:         f.chainStatus,
+		Signature:      f.chainSignature,
+		CompositionKey: f.chainComposition,
 	}, f.lockExchangeErr
 }
 

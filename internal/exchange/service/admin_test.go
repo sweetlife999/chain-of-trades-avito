@@ -16,8 +16,8 @@ func TestCancelByAdminRecoversWithoutRecreatingCancelledCycle(t *testing.T) {
 	nodes := makeNodes(3)
 	repository := &fakeRepository{
 		adminCancel: fakeAdminCancellation{
-			recovery:  nodes,
-			signature: cycleKey(nodes),
+			recovery:    nodes,
+			composition: compositionKey(nodes),
 		},
 		neighbors: cycleGraph(nodes),
 	}
@@ -41,8 +41,8 @@ func TestCancelByAdminRecoversWithAlternativeCycle(t *testing.T) {
 	alternative := testNode(4)
 	repository := &fakeRepository{
 		adminCancel: fakeAdminCancellation{
-			recovery:  original,
-			signature: cycleKey(original),
+			recovery:    original,
+			composition: compositionKey(original),
 		},
 		neighbors: map[uuid.UUID][]exchangemodel.Node{
 			original[0].ItemID: {original[1]},
@@ -57,6 +57,33 @@ func TestCancelByAdminRecoversWithAlternativeCycle(t *testing.T) {
 	}
 	if repository.saveCalls != 1 {
 		t.Fatalf("SaveExchange() calls = %d, want one alternative", repository.saveCalls)
+	}
+}
+
+func TestRecoveryStopsAfterFirstSavedExchange(t *testing.T) {
+	t.Parallel()
+
+	first := makeNodes(3)
+	second := []exchangemodel.Node{testNode(4), testNode(5), testNode(6)}
+	recovery := append(append([]exchangemodel.Node(nil), first...), second...)
+	neighbors := cycleGraph(first)
+	for itemID, candidates := range cycleGraph(second) {
+		neighbors[itemID] = candidates
+	}
+
+	repository := &fakeRepository{
+		adminCancel: fakeAdminCancellation{
+			recovery:    recovery,
+			composition: "cancelled-composition",
+		},
+		neighbors: neighbors,
+	}
+
+	if err := New(repository).CancelByAdmin(context.Background(), uuid.New(), uuid.New()); err != nil {
+		t.Fatalf("CancelByAdmin() error = %v", err)
+	}
+	if repository.saveCalls != 1 {
+		t.Fatalf("SaveExchange() calls = %d, want recovery to stop after first success", repository.saveCalls)
 	}
 }
 

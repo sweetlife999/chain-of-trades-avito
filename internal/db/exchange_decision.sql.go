@@ -161,15 +161,16 @@ func (q *Queries) IncrementUserDealsBroken(ctx context.Context, userID pgtype.UU
 }
 
 const lockExchange = `-- name: LockExchange :one
-SELECT status, signature
+SELECT status, signature, composition_key
 FROM chains
 WHERE id = $1
 FOR UPDATE
 `
 
 type LockExchangeRow struct {
-	Status    ChainStatus
-	Signature string
+	Status         ChainStatus
+	Signature      string
+	CompositionKey string
 }
 
 // Строка обмена блокируется первой. Поэтому два одновременных решения по одному
@@ -177,7 +178,7 @@ type LockExchangeRow struct {
 func (q *Queries) LockExchange(ctx context.Context, exchangeID pgtype.UUID) (LockExchangeRow, error) {
 	row := q.db.QueryRow(ctx, lockExchange, exchangeID)
 	var i LockExchangeRow
-	err := row.Scan(&i.Status, &i.Signature)
+	err := row.Scan(&i.Status, &i.Signature, &i.CompositionKey)
 	return i, err
 }
 

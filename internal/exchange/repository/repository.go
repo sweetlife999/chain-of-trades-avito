@@ -98,7 +98,10 @@ func (r *Repository) SaveExchange(
 	var exchangeID uuid.UUID
 
 	err := r.transactions.WithinTransaction(ctx, func(queries exchangeWriteQueries) error {
-		id, err := queries.CreateExchange(ctx, exchange.Signature())
+		id, err := queries.CreateExchange(ctx, db.CreateExchangeParams{
+			Signature:      exchange.Signature(),
+			CompositionKey: exchange.CompositionKey(),
+		})
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrDuplicateExchange
 		}

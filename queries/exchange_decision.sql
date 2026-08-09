@@ -18,7 +18,7 @@ ORDER BY exchange_item.item_id;
 -- Строка обмена блокируется первой. Поэтому два одновременных решения по одному
 -- обмену выполняются последовательно и не могут потерять обновления друг друга.
 -- name: LockExchange :one
-SELECT status, signature
+SELECT status, signature, composition_key
 FROM chains
 WHERE id = sqlc.arg(exchange_id)
 FOR UPDATE;

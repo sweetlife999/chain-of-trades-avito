@@ -32,8 +32,12 @@ INSERT INTO item_wants (item_id, category_id) VALUES
     ('bbbbbbbb-0000-0000-0000-000000000000', (SELECT id FROM categories WHERE slug = 'phones')),
     ('cccccccc-0000-0000-0000-000000000000', (SELECT id FROM categories WHERE slug = 'bikes'));
 
-INSERT INTO chains (id, signature)
-VALUES ('dddddddd-0000-0000-0000-000000000000', 'smoke:dddddddd-0000-0000-0000-000000000000');
+INSERT INTO chains (id, signature, composition_key)
+VALUES (
+    'dddddddd-0000-0000-0000-000000000000',
+    'smoke:dddddddd-0000-0000-0000-000000000000',
+    'aaaaaaaa-0000-0000-0000-000000000000|bbbbbbbb-0000-0000-0000-000000000000|cccccccc-0000-0000-0000-000000000000'
+);
 
 INSERT INTO chain_participants (chain_id, user_id, gives_item_id, receives_item_id, position) VALUES
     ('dddddddd-0000-0000-0000-000000000000', '11111111-1111-1111-1111-111111111111',
@@ -273,10 +277,24 @@ END $$;
 -- 19. подпись занята, пока обмен открыт
 DO $$
 BEGIN
-    INSERT INTO chains (signature) VALUES ('smoke:dddddddd-0000-0000-0000-000000000000');
+    INSERT INTO chains (signature, composition_key)
+    VALUES ('smoke:dddddddd-0000-0000-0000-000000000000', 'smoke:different-composition');
     RAISE EXCEPTION 'второе открытое предложение с той же подписью прошло';
 EXCEPTION WHEN unique_violation THEN
     RAISE NOTICE 'ok 19: открытый обмен с той же подписью не создаётся';
+END $$;
+
+-- 19b. Другая перестановка того же набора вещей тоже не создаёт второй обмен.
+DO $$
+BEGIN
+    INSERT INTO chains (signature, composition_key)
+    VALUES (
+        'smoke:reverse-direction',
+        'aaaaaaaa-0000-0000-0000-000000000000|bbbbbbbb-0000-0000-0000-000000000000|cccccccc-0000-0000-0000-000000000000'
+    );
+    RAISE EXCEPTION 'второй активный обмен с тем же набором вещей прошёл';
+EXCEPTION WHEN unique_violation THEN
+    RAISE NOTICE 'ok 19b: один набор вещей не создаёт разные активные перестановки';
 END $$;
 
 -- 20. отменённый обмен подпись не держит: иначе вытесненная цепочка не собралась бы
@@ -287,10 +305,18 @@ BEGIN
     UPDATE chains SET status = 'cancelled', closed_at = now()
     WHERE id = 'dddddddd-0000-0000-0000-000000000000';
 
-    INSERT INTO chains (signature, status, closed_at)
-    VALUES ('smoke:dddddddd-0000-0000-0000-000000000000', 'cancelled', now());
-    INSERT INTO chains (signature)
-    VALUES ('smoke:dddddddd-0000-0000-0000-000000000000');
+    INSERT INTO chains (signature, composition_key, status, closed_at)
+    VALUES (
+        'smoke:dddddddd-0000-0000-0000-000000000000',
+        'aaaaaaaa-0000-0000-0000-000000000000|bbbbbbbb-0000-0000-0000-000000000000|cccccccc-0000-0000-0000-000000000000',
+        'cancelled',
+        now()
+    );
+    INSERT INTO chains (signature, composition_key)
+    VALUES (
+        'smoke:dddddddd-0000-0000-0000-000000000000',
+        'aaaaaaaa-0000-0000-0000-000000000000|bbbbbbbb-0000-0000-0000-000000000000|cccccccc-0000-0000-0000-000000000000'
+    );
 
     RAISE NOTICE 'ok 20: отменённая подпись не мешает ни истории отмен, ни новому предложению';
 END $$;
@@ -338,8 +364,10 @@ END $$;
 -- цепочки выше: она к этому моменту уже отменена кейсом 20.
 DO $$
 BEGIN
-    INSERT INTO chains (signature, status) VALUES ('smoke:delivering', 'delivering');
-    INSERT INTO chains (signature) VALUES ('smoke:delivering');
+    INSERT INTO chains (signature, composition_key, status)
+    VALUES ('smoke:delivering', 'smoke:delivering-composition', 'delivering');
+    INSERT INTO chains (signature, composition_key)
+    VALUES ('smoke:delivering', 'smoke:another-composition');
     RAISE EXCEPTION 'второе предложение с подписью доставляемого обмена прошло';
 EXCEPTION WHEN unique_violation THEN
     RAISE NOTICE 'ok 23: обмен в доставке держит свою подпись';

@@ -388,12 +388,13 @@ type Category struct {
 }
 
 type Chain struct {
-	ID        pgtype.UUID
-	Status    ChainStatus
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
-	ClosedAt  pgtype.Timestamptz
-	Signature string
+	ID             pgtype.UUID
+	Status         ChainStatus
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+	ClosedAt       pgtype.Timestamptz
+	Signature      string
+	CompositionKey string
 }
 
 type ChainMessage struct {
