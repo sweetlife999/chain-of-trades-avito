@@ -4,7 +4,9 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/google/uuid"
@@ -15,6 +17,71 @@ import (
 	exchangerepository "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/repository"
 	exchangeservice "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/service"
 )
+
+func TestExchangeCompositionUniquenessIntegration(t *testing.T) {
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("DATABASE_URL is not set")
+	}
+
+	ctx := context.Background()
+	pool, err := pgxpool.New(ctx, databaseURL)
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	users, items := seedExchangeGraph(
+		t,
+		ctx,
+		pool,
+		"composition-race",
+		[]string{"books", "hobby", "sports"},
+		[]string{"hobby", "sports", "books"},
+	)
+
+	forward := exchangemodel.Exchange{Participants: []exchangemodel.Participant{
+		{UserID: users[0], GivesItemID: items[0], ReceivesItemID: items[1], Position: 0},
+		{UserID: users[1], GivesItemID: items[1], ReceivesItemID: items[2], Position: 1},
+		{UserID: users[2], GivesItemID: items[2], ReceivesItemID: items[0], Position: 2},
+	}}
+	reversed := exchangemodel.Exchange{Participants: []exchangemodel.Participant{
+		{UserID: users[0], GivesItemID: items[0], ReceivesItemID: items[2], Position: 0},
+		{UserID: users[2], GivesItemID: items[2], ReceivesItemID: items[1], Position: 1},
+		{UserID: users[1], GivesItemID: items[1], ReceivesItemID: items[0], Position: 2},
+	}}
+
+	repository := exchangerepository.New(pool)
+	errorsCh := make(chan error, 2)
+	var waitGroup sync.WaitGroup
+	for _, exchange := range []exchangemodel.Exchange{forward, reversed} {
+		waitGroup.Add(1)
+		go func(exchange exchangemodel.Exchange) {
+			defer waitGroup.Done()
+			_, saveErr := repository.SaveExchange(ctx, exchange)
+			errorsCh <- saveErr
+		}(exchange)
+	}
+	waitGroup.Wait()
+	close(errorsCh)
+
+	saved := 0
+	duplicates := 0
+	for saveErr := range errorsCh {
+		switch {
+		case saveErr == nil:
+			saved++
+		case errors.Is(saveErr, exchangerepository.ErrDuplicateExchange):
+			duplicates++
+		default:
+			t.Fatalf("save concurrent composition: %v", saveErr)
+		}
+	}
+	if saved != 1 || duplicates != 1 {
+		t.Fatalf("concurrent saves: saved=%d duplicates=%d, want 1 and 1", saved, duplicates)
+	}
+	if found := proposedExchangesWithItems(t, ctx, pool, items...); len(found) != 1 {
+		t.Fatalf("active exchanges with same composition = %d, want 1", len(found))
+	}
+}
 
 func TestExchangeRecoveryIntegration(t *testing.T) {
 	databaseURL := os.Getenv("DATABASE_URL")

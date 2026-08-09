@@ -78,6 +78,8 @@ erDiagram
     chains {
         uuid         id PK
         chain_status status
+        text         signature
+        text         composition_key
         timestamptz  closed_at
     }
     chain_participants {
@@ -167,7 +169,9 @@ erDiagram
 | Колонка | Тип | Почему такой |
 |---|---|---|
 | `id` | `uuid` | Публичный идентификатор цепочки |
-| `status` | `chain_status` | ENUM `proposed / confirmed / completed / cancelled` |
+| `status` | `chain_status` | ENUM `proposed / confirmed / delivering / delivered / completed / cancelled` |
+| `signature` | `text` | Канонический набор направленных передач; одинаков для разных стартовых точек одного обхода |
+| `composition_key` | `text` | Отсортированные ID отдаваемых вещей; одинаков для любых перестановок и направлений одного состава |
 | `closed_at` | `timestamptz` NULL | Заполняется в терминальном состоянии; NULL = цепочка ещё живая |
 
 ### `chain_participants`
@@ -196,6 +200,11 @@ Go-константы (`ChainStatusProposed`), опечатка в статус�
 `reserved`. Второй параллельной цепочке достаётся уже `reserved`, и она отваливается.
 Частичного unique-индекса по `chain_participants` намеренно нет: он не видит статус
 цепочки и залочил бы вещь навсегда после отмены обмена.
+
+Пока обмен только `proposed`, одна вещь может находиться в нескольких разных вариантах:
+пользователь выбирает лучший. Но один и тот же набор вещей не дублируется благодаря
+частичному unique-индексу по `chains.composition_key`. Когда один вариант подтверждён,
+транзакция резервирует вещи и отменяет все конкурирующие предложения.
 
 **Почему «хочу» привязано к вещи, а не к пользователю.** `item_wants(item_id, category_id)`
 делает ребро графа однозначным: эта вещь отдаётся за эту категорию. Если желания привязать

@@ -31,7 +31,7 @@ func TestExchangeDecisionsIntegration(t *testing.T) {
 	}
 
 	users := []uuid.UUID{uuid.New(), uuid.New(), uuid.New()}
-	items := []uuid.UUID{uuid.New(), uuid.New(), uuid.New()}
+	items := []uuid.UUID{uuid.New(), uuid.New(), uuid.New(), uuid.New(), uuid.New()}
 	t.Cleanup(func() {
 		cleanupIntegrationData(context.Background(), pool, users, items)
 		pool.Close()
@@ -48,7 +48,10 @@ func TestExchangeDecisionsIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("create user %d: %v", index, err)
 		}
+	}
 
+	itemOwners := []uuid.UUID{users[0], users[1], users[2], users[1], users[2]}
+	for index, itemID := range items {
 		_, err = pool.Exec(ctx, `
 			INSERT INTO items (id, owner_id, category_id, title, photo_urls)
 			VALUES (
@@ -58,8 +61,8 @@ func TestExchangeDecisionsIntegration(t *testing.T) {
 				$3,
 				ARRAY['https://example.com/decision.jpg']
 			)`,
-			items[index],
-			userID,
+			itemID,
+			itemOwners[index],
 			"Decision integration item",
 		)
 		if err != nil {
@@ -72,10 +75,15 @@ func TestExchangeDecisionsIntegration(t *testing.T) {
 		{UserID: users[1], GivesItemID: items[1], ReceivesItemID: items[2], Position: 1},
 		{UserID: users[2], GivesItemID: items[2], ReceivesItemID: items[0], Position: 2},
 	}
-	competingParticipants := []exchangemodel.Participant{
+	reversedParticipants := []exchangemodel.Participant{
 		{UserID: users[0], GivesItemID: items[0], ReceivesItemID: items[2], Position: 0},
 		{UserID: users[1], GivesItemID: items[1], ReceivesItemID: items[0], Position: 1},
 		{UserID: users[2], GivesItemID: items[2], ReceivesItemID: items[1], Position: 2},
+	}
+	competingParticipants := []exchangemodel.Participant{
+		{UserID: users[0], GivesItemID: items[0], ReceivesItemID: items[3], Position: 0},
+		{UserID: users[1], GivesItemID: items[3], ReceivesItemID: items[4], Position: 1},
+		{UserID: users[2], GivesItemID: items[4], ReceivesItemID: items[0], Position: 2},
 	}
 
 	repository := exchangerepository.New(pool)
@@ -86,6 +94,9 @@ func TestExchangeDecisionsIntegration(t *testing.T) {
 	}
 	if _, err := repository.SaveExchange(ctx, exchangemodel.Exchange{Participants: participants}); !errors.Is(err, exchangerepository.ErrDuplicateExchange) {
 		t.Fatalf("create exact duplicate error = %v, want %v", err, exchangerepository.ErrDuplicateExchange)
+	}
+	if _, err := repository.SaveExchange(ctx, exchangemodel.Exchange{Participants: reversedParticipants}); !errors.Is(err, exchangerepository.ErrDuplicateExchange) {
+		t.Fatalf("create reordered composition error = %v, want %v", err, exchangerepository.ErrDuplicateExchange)
 	}
 	secondExchangeID, err := repository.SaveExchange(ctx, exchangemodel.Exchange{Participants: competingParticipants})
 	if err != nil {
@@ -102,9 +113,13 @@ func TestExchangeDecisionsIntegration(t *testing.T) {
 		t.Fatalf("outsider confirm status = %d, want %d", outsiderResponse.Code, http.StatusForbidden)
 	}
 
-	for _, exchangeID := range []uuid.UUID{firstExchangeID, secondExchangeID} {
-		for index := 0; index < len(participants)-1; index++ {
-			if err := service.ConfirmParticipation(ctx, exchangeID, participants[index].UserID); err != nil {
+	exchangeParticipants := map[uuid.UUID][]exchangemodel.Participant{
+		firstExchangeID:  participants,
+		secondExchangeID: competingParticipants,
+	}
+	for exchangeID, candidateParticipants := range exchangeParticipants {
+		for index := 0; index < len(candidateParticipants)-1; index++ {
+			if err := service.ConfirmParticipation(ctx, exchangeID, candidateParticipants[index].UserID); err != nil {
 				t.Fatalf("confirm exchange %s participant %d: %v", exchangeID, index, err)
 			}
 		}
@@ -120,12 +135,13 @@ func TestExchangeDecisionsIntegration(t *testing.T) {
 		waitGroup.Add(1)
 		go func(exchangeID uuid.UUID) {
 			defer waitGroup.Done()
+			candidateParticipants := exchangeParticipants[exchangeID]
 			results <- result{
 				exchangeID: exchangeID,
 				err: service.ConfirmParticipation(
 					ctx,
 					exchangeID,
-					participants[len(participants)-1].UserID,
+					candidateParticipants[len(candidateParticipants)-1].UserID,
 				),
 			}
 		}(exchangeID)
@@ -191,10 +207,16 @@ func TestExchangeDecisionsIntegration(t *testing.T) {
 		t.Fatal("competing exchange closed_at is nil")
 	}
 	for _, participant := range cancelled.Participants {
-		if participant.GivesItem.Status != "reserved" {
+		wantStatus := "available"
+		if participant.GivesItem.ID == items[0] {
+			wantStatus = "reserved"
+		}
+		if participant.GivesItem.Status != wantStatus {
 			t.Fatalf(
-				"cancelled competing exchange released an item from confirmed exchange: status = %q",
+				"cancelled competing item %s status = %q, want %q",
+				participant.GivesItem.ID,
 				participant.GivesItem.Status,
+				wantStatus,
 			)
 		}
 	}

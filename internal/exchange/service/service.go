@@ -75,7 +75,7 @@ func (s *Service) FindCycle(ctx context.Context, start exchangemodel.Node) ([]ex
 func (s *Service) findCycle(
 	ctx context.Context,
 	start exchangemodel.Node,
-	excludedCycles map[string]struct{},
+	excludedCompositions map[string]struct{},
 ) ([]exchangemodel.Node, error) {
 	path := []exchangemodel.Node{start}
 	visitedItems := map[uuid.UUID]struct{}{start.ItemID: {}}
@@ -99,7 +99,7 @@ func (s *Service) findCycle(
 			if next.ItemID == start.ItemID {
 				if len(path) >= 2 {
 					candidate := append([]exchangemodel.Node(nil), path...)
-					if _, excluded := excludedCycles[cycleKey(candidate)]; excluded {
+					if _, excluded := excludedCompositions[compositionKey(candidate)]; excluded {
 						continue
 					}
 
@@ -200,10 +200,10 @@ func (s *Service) FindAndSave(
 	ctx context.Context,
 	start exchangemodel.Node,
 ) (exchangemodel.SearchResult, error) {
-	excludedCycles := make(map[string]struct{})
+	excludedCompositions := make(map[string]struct{})
 
 	for {
-		cycle, err := s.findCycle(ctx, start, excludedCycles)
+		cycle, err := s.findCycle(ctx, start, excludedCompositions)
 		if err != nil {
 			return exchangemodel.SearchResult{}, fmt.Errorf("search exchange: %w", err)
 		}
@@ -213,9 +213,9 @@ func (s *Service) FindAndSave(
 
 		exchangeID, err := s.SaveCycle(ctx, cycle)
 		if errors.Is(err, ErrDuplicateExchange) {
-			// Подпись уже могла существовать до запуска поиска или быть сохранена
-			// параллельным DFS. Исключаем этот цикл и ищем следующую альтернативу.
-			excludedCycles[cycleKey(cycle)] = struct{}{}
+			// Этот набор вещей уже мог существовать до запуска поиска или быть сохранён
+			// параллельным DFS. Исключаем состав и ищем следующую альтернативу.
+			excludedCompositions[compositionKey(cycle)] = struct{}{}
 			continue
 		}
 		if err != nil {
@@ -278,7 +278,7 @@ func (s *Service) DeclineParticipation(
 	exchangeID uuid.UUID,
 	userID uuid.UUID,
 ) error {
-	recoveryNodes, cancelledSignature, err := s.repository.DeclineParticipation(ctx, exchangeID, userID)
+	recoveryNodes, cancelledComposition, err := s.repository.DeclineParticipation(ctx, exchangeID, userID)
 	if err != nil {
 		return fmt.Errorf("decline exchange participation: %w", err)
 	}
@@ -286,7 +286,7 @@ func (s *Service) DeclineParticipation(
 	// Отмена уже зафиксирована в БД. Ошибка дополнительного поиска не должна
 	// превращать успешный decline в HTTP 500: клиент иначе повторит запрос к уже
 	// закрытому обмену. Поэтому поиск выполняется best effort и только логируется.
-	s.recoverExchanges(ctx, recoveryNodes, cancelledSignature)
+	s.recoverExchanges(ctx, recoveryNodes, cancelledComposition)
 
 	return nil
 }
@@ -295,14 +295,14 @@ func (s *Service) DeclineParticipation(
 // участника, административная отмена не помечает никого виновным и не меняет
 // пользовательскую статистику. Освободившиеся объявления сразу возвращаются в поиск.
 func (s *Service) CancelByAdmin(ctx context.Context, exchangeID, adminID uuid.UUID) error {
-	recoveryNodes, cancelledSignature, err := s.repository.CancelByAdmin(ctx, exchangeID, adminID)
+	recoveryNodes, cancelledComposition, err := s.repository.CancelByAdmin(ctx, exchangeID, adminID)
 	if err != nil {
 		return fmt.Errorf("cancel exchange by admin: %w", err)
 	}
 
 	// Сама отмена уже зафиксирована транзакцией. Повторный поиск — best effort:
 	// его сбой не должен превращать успешный административный запрос в HTTP 500.
-	s.recoverExchanges(ctx, recoveryNodes, cancelledSignature)
+	s.recoverExchanges(ctx, recoveryNodes, cancelledComposition)
 
 	return nil
 }
@@ -319,21 +319,19 @@ func (s *Service) MarkDeliveredByAdmin(ctx context.Context, exchangeID, adminID 
 func (s *Service) recoverExchanges(
 	ctx context.Context,
 	nodes []exchangemodel.Node,
-	cancelledSignature string,
+	cancelledComposition string,
 ) {
 	if len(nodes) < 2 {
 		return
 	}
 
-	// Узлы освобождённых объявлений приходят из БД в порядке UUID, а не в порядке
-	// передачи, поэтому подпись отменённого цикла берётся из БД, а не строится из них.
-	// Без неё DFS предложил бы только что сорванный состав обратно: среди закрытых
-	// обменов подпись не уникальна.
-	excludedCycles := map[string]struct{}{cancelledSignature: {}}
+	// Ключ берётся из БД: он описывает набор вещей без привязки к направлению DFS.
+	// Поэтому отменённый состав нельзя тут же пересобрать другой перестановкой.
+	excludedCompositions := map[string]struct{}{cancelledComposition: {}}
 
 	for _, start := range nodes {
 		for {
-			cycle, err := s.findCycle(ctx, start, excludedCycles)
+			cycle, err := s.findCycle(ctx, start, excludedCompositions)
 			if err != nil {
 				s.logger.Printf("recover exchange search for item %s: %v", start.ItemID, err)
 				break
@@ -342,31 +340,30 @@ func (s *Service) recoverExchanges(
 				break
 			}
 
-			signature := cycleKey(cycle)
+			composition := compositionKey(cycle)
 			if _, err := s.SaveCycle(ctx, cycle); errors.Is(err, ErrDuplicateExchange) {
-				excludedCycles[signature] = struct{}{}
+				excludedCompositions[composition] = struct{}{}
 				continue
 			} else if err != nil {
 				s.logger.Printf("save recovered exchange for item %s: %v", start.ItemID, err)
 				break
 			}
 
-			// Один и тот же цикл можно обойти с каждого объявления. Каноническая
-			// подпись не даёт сохранить его несколько раз за один recovery.
-			excludedCycles[signature] = struct{}{}
-			break
+			// Один и тот же набор можно обойти с каждого объявления. Канонический
+			// ключ состава не даёт сохранить его несколько раз за один recovery.
+			excludedCompositions[composition] = struct{}{}
+			return
 		}
 	}
 }
 
-func cycleKey(cycle []exchangemodel.Node) string {
-	transfers := make([]string, len(cycle))
+func compositionKey(cycle []exchangemodel.Node) string {
+	items := make([]string, len(cycle))
 	for index, node := range cycle {
-		next := cycle[(index+1)%len(cycle)]
-		transfers[index] = node.ItemID.String() + ">" + next.ItemID.String()
+		items[index] = node.ItemID.String()
 	}
-	sort.Strings(transfers)
-	return strings.Join(transfers, "|")
+	sort.Strings(items)
+	return strings.Join(items, "|")
 }
 
 func (s *Service) CompleteParticipation(

@@ -1,10 +1,10 @@
--- Подпись уникальна только среди открытых обменов, поэтому арбитром выступает
--- частичный индекс. Без повторения его предиката Postgres не выводит индекс как
--- арбитра и падает на ON CONFLICT.
+-- Направленная подпись сохраняется для диагностики, а composition_key защищает
+-- фактический набор объявлений. Безымянный ON CONFLICT учитывает оба частичных
+-- уникальных индекса и атомарно гасит гонку параллельных DFS.
 -- name: CreateExchange :one
-INSERT INTO chains (signature)
-VALUES (sqlc.arg(signature))
-ON CONFLICT (signature) WHERE status IN ('proposed', 'confirmed', 'delivering', 'delivered') DO NOTHING
+INSERT INTO chains (signature, composition_key)
+VALUES (sqlc.arg(signature), sqlc.arg(composition_key))
+ON CONFLICT DO NOTHING
 RETURNING id;
 
 -- name: CreateExchangeParticipant :exec

@@ -149,15 +149,15 @@ func TestAdminCancelProposedExchange(t *testing.T) {
 	repository := newRepository(&fakeNeighborQueries{}, transactions)
 
 	adminID := uuid.New()
-	nodes, signature, err := repository.CancelByAdmin(context.Background(), uuid.New(), adminID)
+	nodes, composition, err := repository.CancelByAdmin(context.Background(), uuid.New(), adminID)
 	if err != nil {
 		t.Fatalf("CancelByAdmin() error = %v", err)
 	}
 	if len(nodes) != 1 || nodes[0].ItemID != itemID || nodes[0].OwnerID != ownerID {
 		t.Fatalf("recovery nodes = %+v, want item %s owned by %s", nodes, itemID, ownerID)
 	}
-	if signature != queries.chainSignature {
-		t.Fatalf("cancelled signature = %q, want %q", signature, queries.chainSignature)
+	if composition != queries.chainComposition {
+		t.Fatalf("cancelled composition = %q, want %q", composition, queries.chainComposition)
 	}
 	if !queries.decisionItemsLocked || !queries.cancelled || queries.releaseCalled {
 		t.Fatalf(

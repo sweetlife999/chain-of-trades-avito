@@ -679,9 +679,9 @@ func TestDeclineParticipationDoesNotRecreateSameCycle(t *testing.T) {
 	// больше не отклоняет. Не переподставить его — задача самого перепоиска.
 	nodes := makeNodes(3)
 	repository := &fakeRepository{
-		declineRecovery:  nodes,
-		declineSignature: cycleKey(nodes),
-		neighbors:        cycleGraph(nodes),
+		declineRecovery:    nodes,
+		declineComposition: compositionKey(nodes),
+		neighbors:          cycleGraph(nodes),
 	}
 
 	if err := New(repository).DeclineParticipation(context.Background(), uuid.New(), nodes[0].OwnerID); err != nil {
@@ -1025,7 +1025,7 @@ type fakeRepository struct {
 	declinedExchangeID  uuid.UUID
 	declinedUserID      uuid.UUID
 	declineRecovery     []exchangemodel.Node
-	declineSignature    string
+	declineComposition  string
 	declineErr          error
 	adminCancel         fakeAdminCancellation
 	adminDelivery       fakeAdminDelivery
@@ -1185,7 +1185,7 @@ func (f *fakeRepository) DeclineParticipation(
 ) ([]exchangemodel.Node, string, error) {
 	f.declinedExchangeID = exchangeID
 	f.declinedUserID = userID
-	return append([]exchangemodel.Node(nil), f.declineRecovery...), f.declineSignature, f.declineErr
+	return append([]exchangemodel.Node(nil), f.declineRecovery...), f.declineComposition, f.declineErr
 }
 
 func (f *fakeRepository) CancelByAdmin(
@@ -1196,7 +1196,7 @@ func (f *fakeRepository) CancelByAdmin(
 	f.adminCancel.exchangeID = exchangeID
 	f.adminCancel.adminID = adminID
 	return append([]exchangemodel.Node(nil), f.adminCancel.recovery...),
-		f.adminCancel.signature,
+		f.adminCancel.composition,
 		f.adminCancel.err
 }
 
@@ -1211,11 +1211,11 @@ func (f *fakeRepository) MarkDeliveredByAdmin(
 }
 
 type fakeAdminCancellation struct {
-	exchangeID uuid.UUID
-	adminID    uuid.UUID
-	recovery   []exchangemodel.Node
-	signature  string
-	err        error
+	exchangeID  uuid.UUID
+	adminID     uuid.UUID
+	recovery    []exchangemodel.Node
+	composition string
+	err         error
 }
 
 type fakeAdminDelivery struct {

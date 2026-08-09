@@ -97,8 +97,8 @@ func (r *Repository) CancelByAdmin(
 	adminID uuid.UUID,
 ) ([]exchangemodel.Node, string, error) {
 	var (
-		recoveryNodes []exchangemodel.Node
-		signature     string
+		recoveryNodes  []exchangemodel.Node
+		compositionKey string
 	)
 
 	err := r.transactions.WithinTransaction(ctx, func(queries exchangeWriteQueries) error {
@@ -123,7 +123,7 @@ func (r *Repository) CancelByAdmin(
 		default:
 			return ErrConflict
 		}
-		signature = exchange.Signature
+		compositionKey = exchange.CompositionKey
 
 		items, err := queries.LockExchangeItems(ctx, pgUUID(exchangeID))
 		if err != nil {
@@ -184,5 +184,5 @@ func (r *Repository) CancelByAdmin(
 		return nil, "", fmt.Errorf("admin cancel exchange: %w", err)
 	}
 
-	return recoveryNodes, signature, nil
+	return recoveryNodes, compositionKey, nil
 }

@@ -34,3 +34,15 @@ func (e Exchange) Signature() string {
 	sort.Strings(transfers)
 	return strings.Join(transfers, "|")
 }
+
+// CompositionKey identifies the set of items independently of traversal start
+// and transfer direction. Signature still describes the exact directed cycle.
+func (e Exchange) CompositionKey() string {
+	items := make([]string, len(e.Participants))
+	for index, participant := range e.Participants {
+		items[index] = participant.GivesItemID.String()
+	}
+
+	sort.Strings(items)
+	return strings.Join(items, "|")
+}

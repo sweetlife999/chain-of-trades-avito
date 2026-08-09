@@ -12,17 +12,22 @@ import (
 )
 
 const createExchange = `-- name: CreateExchange :one
-INSERT INTO chains (signature)
-VALUES ($1)
-ON CONFLICT (signature) WHERE status IN ('proposed', 'confirmed', 'delivering', 'delivered') DO NOTHING
+INSERT INTO chains (signature, composition_key)
+VALUES ($1, $2)
+ON CONFLICT DO NOTHING
 RETURNING id
 `
 
-// Подпись уникальна только среди открытых обменов, поэтому арбитром выступает
-// частичный индекс. Без повторения его предиката Postgres не выводит индекс как
-// арбитра и падает на ON CONFLICT.
-func (q *Queries) CreateExchange(ctx context.Context, signature string) (pgtype.UUID, error) {
-	row := q.db.QueryRow(ctx, createExchange, signature)
+type CreateExchangeParams struct {
+	Signature      string
+	CompositionKey string
+}
+
+// Направленная подпись сохраняется для диагностики, а composition_key защищает
+// фактический набор объявлений. Безымянный ON CONFLICT учитывает оба частичных
+// уникальных индекса и атомарно гасит гонку параллельных DFS.
+func (q *Queries) CreateExchange(ctx context.Context, arg CreateExchangeParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, createExchange, arg.Signature, arg.CompositionKey)
 	var id pgtype.UUID
 	err := row.Scan(&id)
 	return id, err

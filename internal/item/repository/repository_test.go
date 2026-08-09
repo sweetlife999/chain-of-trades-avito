@@ -177,7 +177,7 @@ func TestRepositoryAgainstDatabase(t *testing.T) {
 	var chainID uuid.UUID
 	if err := pool.QueryRow(
 		ctx,
-		`INSERT INTO chains (signature) VALUES ($1) RETURNING id`,
+		`INSERT INTO chains (signature, composition_key) VALUES ($1, $1) RETURNING id`,
 		"item-delete-test:"+uuid.NewString(),
 	).Scan(&chainID); err != nil {
 		t.Fatalf("create chain: %v", err)
