@@ -18,6 +18,7 @@ import type {
 import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
 import { Button } from "../../UI/Button/Button";
 import { Input } from "../../UI/Input/Input";
+import { PhotoGallery } from "../../UI/PhotoGallery/PhotoGallery";
 import {
   createChainFormSchema,
   type TCreateChainForm,
@@ -76,9 +77,9 @@ const ItemEditForm = ({ item }: TFormProps) => {
     name: "photo_urls",
   });
 
-  const previewUrl = photoValues?.find(
-    (photo) => photo.url.trim().length > 0,
-  )?.url;
+  const previewUrls = (photoValues ?? [])
+    .map((photo) => photo.url.trim())
+    .filter(Boolean);
 
   const updateMutation = useMutation({
     mutationFn: (request: TUpdateItemRequest) => updateItem(item.id, request),
@@ -132,14 +133,10 @@ const ItemEditForm = ({ item }: TFormProps) => {
       >
         <div className={styles.editItem__content}>
           <div className={styles.editItem__photosColumn}>
-            <div className={styles.editItem__photoPreview}>
-              {previewUrl ? (
-                <img
-                  className={styles.editItem__photoImage}
-                  src={previewUrl}
-                  alt="Предпросмотр товара"
-                />
-              ) : (
+            <PhotoGallery
+              urls={previewUrls}
+              alt="Предпросмотр товара"
+              empty={
                 <div className={styles.editItem__photoPlaceholder}>
                   <span className={styles.editItem__photoPlus}>+</span>
                   <strong className={styles.editItem__photoTitle}>
@@ -149,8 +146,8 @@ const ItemEditForm = ({ item }: TFormProps) => {
                     Вставьте ссылки, до 10 фотографий
                   </small>
                 </div>
-              )}
-            </div>
+              }
+            />
 
             <div className={styles.editItem__photoFields}>
               {photoFields.map((field, index) => (

@@ -14,6 +14,7 @@ import {
 import type { TCreateItemRequest } from "../../../../Api/items/items.types";
 import { Input } from "../../../UI/Input/Input";
 import { Button } from "../../../UI/Button/Button";
+import { PhotoGallery } from "../../../UI/PhotoGallery/PhotoGallery";
 
 const getRequestErrorMessage = (error: unknown) => {
   if (axios.isAxiosError<{ error?: string }>(error)) {
@@ -64,9 +65,9 @@ const CreateChainComponent = () => {
     name: "photo_urls",
   });
 
-  const previewUrl = photoValues?.find(
-    (photo) => photo.url.trim().length > 0,
-  )?.url;
+  const previewUrls = (photoValues ?? [])
+    .map((photo) => photo.url.trim())
+    .filter(Boolean);
 
   const createItemMutation = useMutation({
     mutationFn: (request: TCreateItemRequest) => createItem(request),
@@ -121,14 +122,10 @@ const CreateChainComponent = () => {
         >
           <div className={styles.createChain__content}>
             <div className={styles.createChain__photosColumn}>
-              <div className={styles.createChain__photoPreview}>
-                {previewUrl ? (
-                  <img
-                    className={styles.createChain__photoImage}
-                    src={previewUrl}
-                    alt="Предпросмотр товара"
-                  />
-                ) : (
+              <PhotoGallery
+                urls={previewUrls}
+                alt="Предпросмотр товара"
+                empty={
                   <div className={styles.createChain__photoPlaceholder}>
                     <span className={styles.createChain__photoPlus}>+</span>
 
@@ -140,8 +137,8 @@ const CreateChainComponent = () => {
                       Вставьте ссылки, до 10 фотографий
                     </small>
                   </div>
-                )}
-              </div>
+                }
+              />
 
               <div className={styles.createChain__photoFields}>
                 {photoFields.map((field, index) => (

@@ -19,17 +19,9 @@
   }
 
   &__photos {
-    display: grid;
-    align-content: start;
     min-width: 0;
-    gap: 12px;
-  }
-
-  &__photo {
     width: 100%;
-    max-height: min(60vh, 540px);
-    object-fit: cover;
-    border-radius: $border-radius;
+    max-width: 760px;
   }
 
   &__info {

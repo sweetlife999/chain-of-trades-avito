@@ -14,6 +14,7 @@ import type { TItemStatus } from "../../../Api/items/items.types";
 import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
 import { Button } from "../../UI/Button/Button";
 import { ConfirmationPopup } from "../../UI/ConfirmationPopup/ConfirmationPopup";
+import { PhotoGallery } from "../../UI/PhotoGallery/PhotoGallery";
 
 const labels: Record<TItemStatus, string> = {
   available: "Доступно для обмена",
@@ -106,14 +107,7 @@ const ItemDetailsComponent = () => {
 
         <div className={styles.item__grid}>
           <div className={styles.item__photos}>
-            {item.photo_urls.map((url) => (
-              <img
-                className={styles.item__photo}
-                key={url}
-                src={url}
-                alt={item.title}
-              />
-            ))}
+            <PhotoGallery urls={item.photo_urls} alt={item.title} />
           </div>
 
           <div className={styles.item__info}>
