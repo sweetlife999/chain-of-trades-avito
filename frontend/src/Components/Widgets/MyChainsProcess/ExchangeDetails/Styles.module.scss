@@ -61,6 +61,14 @@
       color: #155b89;
       background: #e3f2ff;
     }
+    &_delivering {
+      color: #78570f;
+      background: #fff4d6;
+    }
+    &_delivered {
+      color: #075985;
+      background: #e0f2fe;
+    }
     &_completed {
       color: #166534;
       background: #e4f7ea;
@@ -82,7 +90,6 @@
   }
   &__scheme,
   &__actions,
-  &__pvz,
   &__receipt {
     min-width: 0;
     padding: clamp(18px, 3vw, 24px);
@@ -204,8 +211,7 @@
     align-content: start;
     gap: 18px;
   }
-  &__notice,
-  &__address {
+  &__notice {
     display: grid;
     gap: 8px;
     padding: 18px;
@@ -215,16 +221,6 @@
   }
   &__notice {
     background: #e7f2ff;
-  }
-  &__address {
-    margin-bottom: 24px;
-    background: #e7f2ff;
-  }
-  &__addressTitle {
-    overflow-wrap: anywhere;
-  }
-  &__addressLine {
-    color: #555;
   }
   &__buttons {
     display: flex;
@@ -269,60 +265,23 @@
     font-size: 12px;
     line-height: 1.4;
   }
-  &__pvz,
   &__receipt {
     max-width: 660px;
     margin-inline: auto;
   }
-  &__pvzDescription,
   &__receiptDescription,
-  &__qrDescription,
   &__resultDescription {
     color: #555;
     line-height: 1.5;
   }
-  &__pvzDescription {
-    margin: 10px 0 20px;
-  }
-  &__qrRow {
-    display: grid;
-    grid-template-columns: minmax(110px, 150px) minmax(0, 1fr);
-    align-items: center;
-    gap: 24px;
-  }
-  &__qr {
-    display: grid;
-    width: 100%;
-    aspect-ratio: 1;
-    place-items: center;
-    font-size: clamp(28px, 5vw, 38px);
-    font-weight: 700;
-    letter-spacing: 4px;
-    background: repeating-conic-gradient(#111 0 25%, #fff 0 50%) 0 / 28px 28px;
-    border: 10px solid #fff;
-    outline: 1px solid #ddd;
-  }
-  &__qrContent,
   &__receiptHeading {
     display: grid;
     gap: 8px;
     min-width: 0;
   }
-  &__qrTitle {
-    margin: 0;
-    font-size: 16px;
-  }
-  &__qrDescription,
   &__receiptDescription {
     margin: 0;
     font-size: 13px;
-  }
-  &__qrHint {
-    display: block;
-    padding: 12px;
-    background: #e7f7ef;
-    border-radius: 10px;
-    font-size: 12px;
   }
   &__receipt {
     display: grid;
@@ -334,6 +293,25 @@
     font-size: 12px;
     font-weight: 600;
     text-transform: uppercase;
+  }
+  &__receiptPoint {
+    display: grid;
+    gap: 5px;
+    margin-top: 8px;
+    padding: 14px;
+    color: #24445f;
+    background: #eef6ff;
+    border: 1px solid #d4e5f5;
+    border-radius: 11px;
+  }
+  &__receiptPointLabel,
+  &__receiptPointAddress {
+    color: #5e7489;
+    font-size: 12px;
+  }
+  &__receiptPointName,
+  &__receiptPointAddress {
+    overflow-wrap: anywhere;
   }
   &__participantProgress {
     display: grid;
@@ -417,13 +395,8 @@
     &__resultAction {
       width: 100%;
     }
-    &__columns,
-    &__qrRow {
+    &__columns {
       grid-template-columns: minmax(0, 1fr);
-    }
-    &__qr {
-      width: min(150px, 100%);
-      justify-self: center;
     }
   }
 }

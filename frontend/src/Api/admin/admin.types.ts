@@ -1,6 +1,9 @@
 import { z } from "zod";
 
-import { ExchangeParticipantSchema } from "../exchanges/exchanges.types";
+import {
+  ExchangeMessagesSchema,
+  ExchangeParticipantSchema,
+} from "../exchanges/exchanges.types";
 
 const StatisticsNumberSchema = z.number().int().nonnegative();
 
@@ -9,6 +12,8 @@ export const DashboardSchema = z.object({
     cancelled: StatisticsNumberSchema,
     completed: StatisticsNumberSchema,
     confirmed: StatisticsNumberSchema,
+    delivered: StatisticsNumberSchema,
+    delivering: StatisticsNumberSchema,
     proposed: StatisticsNumberSchema,
     total: StatisticsNumberSchema,
   }),
@@ -57,6 +62,72 @@ export const AdminUserExchangesParamsSchema = z.object({
   offset: z.number().int().nonnegative().default(0),
 });
 
+export const AdminReportStatusSchema = z.enum([
+  "open",
+  "resolved",
+  "rejected",
+]);
+
+export const AdminReportReasonSchema = z.enum(["spam", "abuse", "other"]);
+
+export const AdminReportUserSchema = z.object({
+  id: z.string(),
+  nickname: z.string(),
+  photo_url: z.string().nullable().optional(),
+});
+
+export const AdminReportSchema = z.object({
+  assigned_at: z.string().nullable().optional(),
+  assignee: AdminReportUserSchema.nullable().optional(),
+  closed_at: z.string().nullable().optional(),
+  comment: z.string().nullable().optional(),
+  created_at: z.string(),
+  exchange: z.object({
+    id: z.string(),
+    status: z.string(),
+  }),
+  id: z.string(),
+  message: z.object({
+    body: z.string(),
+    created_at: z.string(),
+    id: z.string(),
+  }),
+  offender: AdminReportUserSchema,
+  reason: AdminReportReasonSchema,
+  reporter: AdminReportUserSchema,
+  resolution_comment: z.string().nullable().optional(),
+  status: AdminReportStatusSchema,
+});
+
+export const AdminReportsPaginationSchema = z.object({
+  limit: z.number().int().min(1).max(100),
+  offset: z.number().int().nonnegative(),
+  total: z.number().int().nonnegative(),
+});
+
+export const AdminReportsSchema = z.object({
+  pagination: AdminReportsPaginationSchema,
+  reports: z.array(AdminReportSchema),
+});
+
+export const AdminReportsParamsSchema = z.object({
+  assignee_id: z.string().min(1).optional(),
+  limit: z.number().int().min(1).max(100).default(20),
+  offset: z.number().int().nonnegative().default(0),
+  reason: AdminReportReasonSchema.optional(),
+  status: AdminReportStatusSchema.optional(),
+});
+
+export const AdminReportDecisionSchema = z.object({
+  comment: z.string().trim(),
+});
+
+export const AdminReportMessagesSchema = z.object({
+  exchange_id: z.string(),
+  messages: ExchangeMessagesSchema,
+  report_id: z.string(),
+});
+
 export const CreatePickupPointSchema = z.object({
   name: z.string().trim().min(1, "Укажите название ПВЗ"),
   address: z.string().trim().min(1, "Укажите адрес ПВЗ"),
@@ -75,4 +146,15 @@ export type TAdminExchange = z.infer<typeof AdminExchangeSchema>;
 export type TAdminUserExchanges = z.infer<typeof AdminUserExchangesSchema>;
 export type TAdminUserExchangesParams = z.input<
   typeof AdminUserExchangesParamsSchema
+>;
+export type TAdminReportStatus = z.infer<typeof AdminReportStatusSchema>;
+export type TAdminReportReason = z.infer<typeof AdminReportReasonSchema>;
+export type TAdminReport = z.infer<typeof AdminReportSchema>;
+export type TAdminReports = z.infer<typeof AdminReportsSchema>;
+export type TAdminReportsParams = z.input<typeof AdminReportsParamsSchema>;
+export type TAdminReportDecision = z.infer<
+  typeof AdminReportDecisionSchema
+>;
+export type TAdminReportMessages = z.infer<
+  typeof AdminReportMessagesSchema
 >;

@@ -27,6 +27,16 @@ export const UpdateItemRequestSchema = CreateItemRequestSchema.partial().refine(
   { message: "Передайте хотя бы одно поле для изменения" },
 );
 
+export const ItemPickupPointSchema = z.object({
+  address: z.string(),
+  id: z.string(),
+  name: z.string(),
+});
+
+export const SetPickupPointRequestSchema = z.object({
+  pickup_point_id: z.string().min(1),
+});
+
 export const ItemSchema = z.object({
   id: z.string(),
   owner_id: z.string(),
@@ -34,6 +44,7 @@ export const ItemSchema = z.object({
   description: z.string(),
   category: z.string(),
   photo_urls: z.array(z.string()),
+  pickup_point: ItemPickupPointSchema.nullable().optional().default(null),
   wants: z.array(z.string()),
   status: ItemStatusSchema,
   created_at: z.string(),
@@ -47,5 +58,9 @@ export type TCategory = z.infer<typeof CategorySchema>;
 export type TCategories = z.infer<typeof CategoriesArraySchema>;
 export type TCreateItemRequest = z.infer<typeof CreateItemRequestSchema>;
 export type TUpdateItemRequest = z.infer<typeof UpdateItemRequestSchema>;
+export type TSetPickupPointRequest = z.infer<
+  typeof SetPickupPointRequestSchema
+>;
+export type TItemPickupPoint = z.infer<typeof ItemPickupPointSchema>;
 export type TItem = z.infer<typeof ItemSchema>;
 export type TGetItems = z.infer<typeof ItemsArraySchema>;

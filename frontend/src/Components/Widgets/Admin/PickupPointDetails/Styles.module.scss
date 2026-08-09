@@ -1,0 +1,138 @@
+.pointDetails {
+  width: min(100%, 560px);
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .24);
+
+  &__overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    display: grid;
+    place-items: center;
+    padding: 12px;
+    background: rgba(13, 18, 25, .55);
+    backdrop-filter: blur(3px);
+  }
+
+  &__header {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: clamp(17px, 3vw, 22px);
+    border-bottom: 1px solid #eceef1;
+  }
+
+  &__icon {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    color: #08783f;
+    background: #ecfdf3;
+    border-radius: 12px;
+  }
+
+  &__iconImage { width: 21px; height: 21px; }
+  &__heading { min-width: 0; }
+
+  &__eyebrow,
+  &__label {
+    color: #7b8189;
+    font-size: 11px;
+  }
+
+  &__eyebrow {
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+
+  &__title {
+    margin-top: 3px;
+    overflow-wrap: anywhere;
+    color: #202124;
+    font-size: clamp(18px, 3vw, 21px);
+  }
+
+  &__close {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    place-items: center;
+    color: #6f757d;
+    background: #f3f4f5;
+    border-radius: 9px;
+    transition: color .2s ease, background-color .2s ease, transform .16s ease;
+
+    &:hover { color: #202124; background: #e9ebee; transform: rotate(4deg); }
+    &:focus-visible { outline: 3px solid rgba($green-button, .2); outline-offset: 2px; }
+  }
+
+  &__closeIcon { width: 18px; height: 18px; }
+
+  &__state {
+    display: grid;
+    min-height: 230px;
+    place-items: center;
+    align-content: center;
+    gap: 10px;
+    padding: 28px;
+    color: #747a83;
+    text-align: center;
+  }
+
+  &__stateTitle { color: #292c31; font-size: 17px; }
+  &__stateDescription { max-width: 390px; line-height: 1.5; }
+
+  &__content {
+    display: grid;
+    gap: 12px;
+    padding: clamp(18px, 3vw, 24px);
+  }
+
+  &__address,
+  &__dates,
+  &__identifier {
+    min-width: 0;
+    padding: 16px;
+    background: #f8f9fa;
+    border: 1px solid #eceef1;
+    border-radius: 12px;
+  }
+
+  &__address,
+  &__dates {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  &__contentIcon { width: 19px; height: 19px; color: $green-button; }
+  &__contentText { display: grid; gap: 5px; min-width: 0; }
+  &__value { overflow-wrap: anywhere; color: #24272b; line-height: 1.45; }
+  &__date { color: #565c64; font-size: 12px; line-height: 1.4; }
+  &__identifier { display: grid; gap: 7px; }
+  &__id { overflow-wrap: anywhere; color: #4f5660; font-size: 11px; }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 0 clamp(18px, 3vw, 24px) clamp(18px, 3vw, 24px);
+  }
+}
+
+@media (max-width: 520px) {
+  .pointDetails {
+    &__actions { flex-direction: column; }
+    &__action { width: 100%; }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pointDetails__close { transition: none; }
+}

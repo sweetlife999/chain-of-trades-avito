@@ -22,10 +22,13 @@ import { ExchangeChat } from "../ExchangeChat/ExchangeChat";
 import { ExchangeProgress } from "../ExchangeProgress/ExchangeProgress";
 import { ConfirmationPopup } from "../../../UI/ConfirmationPopup/ConfirmationPopup";
 import { CancelExchangeButton } from "../../Admin/CancelExchangeButton/CancelExchangeButton";
+import { ExchangePickupStage } from "../ExchangePickupStage/ExchangePickupStage";
 
 const statusLabels: Record<TExchangeStatus, string> = {
   proposed: "Ждём подтверждения",
   confirmed: "Передача вещи в ПВЗ",
+  delivering: "Доставка между ПВЗ",
+  delivered: "Вещь ожидает получения",
   completed: "Обмен завершён",
   cancelled: "Цепочка распалась",
 };
@@ -48,7 +51,11 @@ const isCurrentStageConfirmed = (
     return isParticipationConfirmed(participant.status);
   }
 
-  if (exchangeStatus === "confirmed") {
+  if (["confirmed", "delivering"].includes(exchangeStatus)) {
+    return Boolean(participant.gives_item.pickup_point);
+  }
+
+  if (exchangeStatus === "delivered") {
     return Boolean(participant.completion_confirmed_at);
   }
 
@@ -68,6 +75,18 @@ const getParticipantStatus = (
   }
 
   if (exchangeStatus === "confirmed") {
+    return participant.gives_item.pickup_point
+      ? "Передал в ПВЗ"
+      : "Ожидает передачи";
+  }
+
+  if (exchangeStatus === "delivering") {
+    return participant.gives_item.pickup_point
+      ? "Вещь в пути"
+      : "Ожидает передачи";
+  }
+
+  if (exchangeStatus === "delivered") {
     return participant.completion_confirmed_at
       ? "Получил"
       : "Ожидает получения";
@@ -366,42 +385,18 @@ const ExchangeDetailsComponent = () => {
         </div>
       )}
 
-      {exchange.status === "confirmed" && (
-        <>
-          <section className={styles.details__pvz}>
-            <h2 className={styles.details__sectionTitle}>
-              Сдайте вещь в пункт выдачи
-            </h2>
-            <p className={styles.details__pvzDescription}>
-              ПВЗ проверит товар и зафиксирует его состояние.
-            </p>
-            <div className={styles.details__address}>
-              <strong className={styles.details__addressTitle}>
-                ПВЗ на Невском проспекте
-              </strong>
-              <span className={styles.details__addressLine}>
-                Санкт-Петербург, Невский проспект, 88
-              </span>
-              <span className={styles.details__addressLine}>
-                Сегодня до 22:00 · 1,2 км от вас
-              </span>
-            </div>
-            <div className={styles.details__qrRow}>
-              <div className={styles.details__qr}>QR</div>
-              <div className={styles.details__qrContent}>
-                <h3 className={styles.details__qrTitle}>
-                  Покажите QR-код сотруднику
-                </h3>
-                <p className={styles.details__qrDescription}>
-                  Сотрудник примет вещь, сверит описание и отметит передачу.
-                </p>
-                <span className={styles.details__qrHint}>
-                  После сдачи статус обновится автоматически
-                </span>
-              </div>
-            </div>
-          </section>
+      {["confirmed", "delivering"].includes(exchange.status) && (
+        current && user?.id && (
+          <ExchangePickupStage
+            currentUserId={user.id}
+            exchangeStatus={exchange.status as "confirmed" | "delivering"}
+            participants={exchange.participants}
+          />
+        )
+      )}
 
+      {exchange.status === "delivered" && (
+        <>
           {isParticipant && (
             <section className={styles.details__receipt}>
               <div className={styles.details__receiptHeading}>
@@ -418,6 +413,19 @@ const ExchangeDetailsComponent = () => {
                     ? "Ожидаем подтверждения остальных участников."
                     : "Подтвердите получение только после проверки вещи."}
                 </p>
+                {current?.receives_item.pickup_point && (
+                  <div className={styles.details__receiptPoint}>
+                    <span className={styles.details__receiptPointLabel}>
+                      Заберите вещь в ПВЗ
+                    </span>
+                    <strong className={styles.details__receiptPointName}>
+                      {current.receives_item.pickup_point.name}
+                    </strong>
+                    <span className={styles.details__receiptPointAddress}>
+                      {current.receives_item.pickup_point.address}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className={styles.details__participantProgress}>
@@ -528,7 +536,9 @@ const ExchangeDetailsComponent = () => {
           <ConfirmationPopup
             confirmLabel="Да, отказаться"
             description={
-              exchange.status === "confirmed"
+              ["confirmed", "delivering", "delivered"].includes(
+                exchange.status,
+              )
                 ? "Подтверждённый обмен будет отменён. Отказ может увеличить счётчик сорванных обменов."
                 : "После отказа эта цепочка будет отменена. Подтвердите действие, если точно не хотите участвовать."
             }

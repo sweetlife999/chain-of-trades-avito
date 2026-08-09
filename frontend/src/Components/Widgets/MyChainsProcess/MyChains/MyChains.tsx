@@ -24,6 +24,8 @@ const tabs: { value: TTab; label: string }[] = [
 const statusData: Record<TExchangeStatus, { label: string; tab: TTab }> = {
   proposed: { label: "Ждём вашего подтверждения", tab: "active" },
   confirmed: { label: "Передача вещи в ПВЗ", tab: "active" },
+  delivering: { label: "Вещи доставляются между ПВЗ", tab: "active" },
+  delivered: { label: "Вещь ожидает вас в ПВЗ", tab: "active" },
   completed: { label: "Обмен завершён", tab: "completed" },
   cancelled: { label: "Цепочка распалась", tab: "cancelled" },
 };
@@ -65,7 +67,12 @@ const MyChainsComponent = () => {
   return (
     <section className={styles.chains}>
       <header className={styles.chains__header}>
-        <h1>Мои цепочки</h1>
+        <div className={styles.chains__heading}>
+          <h1 className={styles.chains__title}>Мои цепочки</h1>
+          <p className={styles.chains__description}>
+            Следите за подтверждением, передачей в ПВЗ и доставкой вещей.
+          </p>
+        </div>
         <Button
           className={styles.chains__create}
           onClick={() =>
@@ -98,7 +105,9 @@ const MyChainsComponent = () => {
 
       {isPending && <p className={styles.chains__message}>Загрузка...</p>}
       {isError && (
-        <p className={styles.chains__message}>Не удалось загрузить цепочки</p>
+        <p className={styles.chains__message_error}>
+          Не удалось загрузить цепочки
+        </p>
       )}
 
       {!isPending && !isError && (
@@ -111,11 +120,20 @@ const MyChainsComponent = () => {
                 to={`/exchanges/${exchange.id}`}
               >
                 <div className={styles.chains__info}>
-                  <h2>{getTitle(exchange, user?.id)}</h2>
-                  <span className={styles[`status_${exchange.status}`]}>
+                  <h2 className={styles.chains__cardTitle}>
+                    {getTitle(exchange, user?.id)}
+                  </h2>
+                  <span
+                    className={`${styles.chains__status} ${
+                      styles[`chains__status_${exchange.status}`]
+                    }`}
+                  >
                     {statusData[exchange.status].label}
                   </span>
-                  <time dateTime={exchange.created_at}>
+                  <time
+                    className={styles.chains__date}
+                    dateTime={exchange.created_at}
+                  >
                     {formatDate(exchange.created_at)}
                   </time>
                 </div>

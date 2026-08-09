@@ -1,14 +1,18 @@
+import axios from "axios";
+
 import api from "../client";
 import {
   CategoriesArraySchema,
   CreateItemRequestSchema,
   ItemsArraySchema,
   ItemSchema,
+  SetPickupPointRequestSchema,
   UpdateItemRequestSchema,
   type TCategories,
   type TCreateItemRequest,
   type TGetItems,
   type TItem,
+  type TSetPickupPointRequest,
   type TUpdateItemRequest,
 } from "./items.types";
 
@@ -44,4 +48,28 @@ export const updateItem = async (
 
 export const deleteItem = async (id: string): Promise<void> => {
   await api.delete(`/items/${id}`);
+};
+
+export const setItemPickupPoint = async (
+  id: string,
+  request: TSetPickupPointRequest,
+): Promise<void> => {
+  const payload = SetPickupPointRequestSchema.parse(request);
+
+  await api.post(`/items/${id}/pickup`, payload);
+};
+
+export const removeItemFromPickupPoint = async (id: string): Promise<void> => {
+  await api.delete(`/items/${id}/pickup`);
+};
+
+export const getItemErrorMessage = (
+  error: unknown,
+  fallback: string,
+): string => {
+  if (axios.isAxiosError<{ error?: string }>(error)) {
+    return error.response?.data?.error ?? fallback;
+  }
+
+  return fallback;
 };

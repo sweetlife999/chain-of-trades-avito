@@ -3,6 +3,8 @@ import { z } from "zod";
 export const ExchangeStatusSchema = z.enum([
   "proposed",
   "confirmed",
+  "delivering",
+  "delivered",
   "completed",
   "cancelled",
 ]);
@@ -20,6 +22,15 @@ export const ExchangeItemSchema = z.object({
   }),
   description: z.string(),
   id: z.string(),
+  pickup_point: z
+    .object({
+      address: z.string(),
+      id: z.string(),
+      name: z.string(),
+    })
+    .nullable()
+    .optional()
+    .default(null),
   status: z.string(),
   title: z.string(),
 });
@@ -59,7 +70,10 @@ export const ExchangeMessageKindSchema = z.enum([
   "participant_accepted",
   "participant_declined",
   "participant_completed",
+  "participant_delivered_item",
   "exchange_confirmed",
+  "exchange_delivering",
+  "exchange_delivered",
   "exchange_completed",
   "exchange_superseded",
 ]);

@@ -132,9 +132,13 @@ const CreateChainComponent = () => {
                   <div className={styles.createChain__photoPlaceholder}>
                     <span className={styles.createChain__photoPlus}>+</span>
 
-                    <strong>Добавить фотографии</strong>
+                    <strong className={styles.createChain__photoTitle}>
+                      Добавить фотографии
+                    </strong>
 
-                    <small>Вставьте ссылки, до 10 фотографий</small>
+                    <small className={styles.createChain__photoHint}>
+                      Вставьте ссылки, до 10 фотографий
+                    </small>
                   </div>
                 )}
               </div>
@@ -192,7 +196,7 @@ const CreateChainComponent = () => {
 
               <label className={styles.createChain__field}>
                 <span className={styles.createChain__label}>
-                  Категория <b>*</b>
+                  Категория <b className={styles.createChain__required}>*</b>
                 </span>
 
                 <select
@@ -234,7 +238,8 @@ const CreateChainComponent = () => {
 
               <fieldset className={styles.createChain__wants}>
                 <legend className={styles.createChain__label}>
-                  Что хотите получить взамен <b>*</b>
+                  Что хотите получить взамен{" "}
+                  <b className={styles.createChain__required}>*</b>
                 </legend>
 
                 {categoriesQuery.isError ? (
@@ -245,17 +250,19 @@ const CreateChainComponent = () => {
                   <div className={styles.createChain__categories}>
                     {categories.map((category) => (
                       <label
-                        className={`${styles.createChain__category} ${styles.createChain__categoryLabel}`}
+                        className={styles.createChain__category}
                         key={category.slug}
                       >
                         <input
-                        className={styles.createChain__category}
+                          className={styles.createChain__categoryInput}
                           type="checkbox"
                           value={category.slug}
                           {...register("wants")}
                         />
 
-                        <span>{category.name}</span>
+                        <span className={styles.createChain__categoryLabel}>
+                          {category.name}
+                        </span>
                       </label>
                     ))}
                   </div>
@@ -271,7 +278,7 @@ const CreateChainComponent = () => {
           </div>
 
           {errors.root?.server && (
-            <p className={styles.createChain__serverError}>
+            <p className={styles.createChain__serverError} role="alert">
               {errors.root.server.message}
             </p>
           )}
@@ -279,7 +286,7 @@ const CreateChainComponent = () => {
           <div className={styles.createChain__actions}>
             <Button
               className={styles.createChain__action}
-              color="green"
+              color="transparent"
               type="button"
               disabled={createItemMutation.isPending}
               onClick={() => navigate(-1)}
