@@ -67,7 +67,7 @@
 
   &__grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(0, 360px));
     gap: clamp(14px, 2vw, 22px);
   }
 
