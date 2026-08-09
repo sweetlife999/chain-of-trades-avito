@@ -57,7 +57,7 @@ smoke:
 # Живые сценарии: поиск обмена и конкурентное подтверждение/отказ с резервированием.
 test-exchange-integration:
 	go test -tags=integration ./internal/exchange/handler \
-		-run 'Test(ThreeUserExchange|ExchangeDecisions)Integration' -count=1
+		-run 'Test(ThreeUserExchange|ExchangeDecisions|AsyncExchangeSearch)Integration' -count=1
 
 # Живой сценарий треда: переписка, события сделки и счётчик непрочитанного.
 test-exchange-messages-integration:

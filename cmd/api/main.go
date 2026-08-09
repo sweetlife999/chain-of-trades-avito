@@ -4,6 +4,8 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -29,6 +31,7 @@ import (
 	db "github.com/sweetlife999/chain-of-trades-avito/internal/db"
 	exchangehandler "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/handler"
 	exchangerepository "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/repository"
+	exchangesearch "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/search"
 	exchangeservice "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/service"
 	itemhandler "github.com/sweetlife999/chain-of-trades-avito/internal/item/handler"
 	itemrepository "github.com/sweetlife999/chain-of-trades-avito/internal/item/repository"
@@ -44,7 +47,12 @@ import (
 	userservice "github.com/sweetlife999/chain-of-trades-avito/internal/user/service"
 )
 
-const authTokenTTL = 12 * time.Hour
+const (
+	authTokenTTL          = 12 * time.Hour
+	searchQueueCapacity   = 256
+	serverShutdownTimeout = 10 * time.Second
+	workerShutdownTimeout = 35 * time.Second
+)
 
 // @title       Цепочка обмена — API
 // @version     0.1.0
@@ -83,7 +91,18 @@ func main() {
 	usersRepository := userrepository.New(queries)
 	users := userservice.New(usersRepository)
 	exchangesRepository := exchangerepository.New(pool)
-	exchanges := exchangeservice.New(exchangesRepository)
+	searchQueue, err := exchangesearch.NewQueue(searchQueueCapacity)
+	if err != nil {
+		log.Fatal(err)
+	}
+	exchanges := exchangeservice.New(exchangesRepository, searchQueue)
+	searchWorker := exchangesearch.NewWorker(searchQueue, exchanges)
+	workerCtx, stopWorker := context.WithCancel(context.Background())
+	workerDone := make(chan struct{})
+	go func() {
+		searchWorker.Run(workerCtx)
+		close(workerDone)
+	}()
 	exchangesHandler := exchangehandler.New(exchanges)
 	items := itemservice.New(itemrepository.New(pool), exchanges)
 	pickupPoints := pickuppointservice.New(pickuppointrepository.New(queries))
@@ -138,8 +157,44 @@ func main() {
 
 	log.Printf("HTTP server started on %s", cfg.HTTPAddress)
 
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Fatal(err)
+	serverErrors := make(chan error, 1)
+	go func() {
+		err := server.ListenAndServe()
+		if err == http.ErrServerClosed {
+			err = nil
+		}
+		serverErrors <- err
+	}()
+
+	signalCtx, stopSignals := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	var serverErr error
+	select {
+	case <-signalCtx.Done():
+		log.Print("shutdown signal received")
+	case serverErr = <-serverErrors:
+	}
+	stopSignals()
+
+	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), serverShutdownTimeout)
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Printf("graceful HTTP shutdown failed: %v", err)
+		_ = server.Close()
+	}
+	cancelShutdown()
+
+	// Новые HTTP-задачи уже не появятся. Закрытие канала даёт worker дочитать буфер.
+	searchQueue.Close()
+	select {
+	case <-workerDone:
+	case <-time.After(workerShutdownTimeout):
+		log.Print("search worker drain timed out, forcing shutdown")
+		stopWorker()
+		<-workerDone
+	}
+	stopWorker()
+
+	if serverErr != nil {
+		log.Printf("HTTP server stopped with error: %v", serverErr)
 	}
 }
 
