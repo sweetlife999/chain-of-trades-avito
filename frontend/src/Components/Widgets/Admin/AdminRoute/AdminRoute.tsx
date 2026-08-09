@@ -11,7 +11,7 @@ export const AdminRoute = () => {
   }
 
   if (!isAdmin) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/feed" replace />;
   }
 
   return <Admin />;

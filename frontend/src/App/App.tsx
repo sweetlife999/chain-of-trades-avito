@@ -7,6 +7,8 @@ import Layout from "../Components/Pages/Layout/Layout";
 import { lazy, Suspense } from "react";
 import { Loader } from "../Components/UI/Loader/Loader";
 import { AuthInitializer } from "../Components/Widgets/AuthInitializer/AuthInitializer";
+// Не lazy: это точка входа на сайт, отдельный чанк здесь стоит лишнего round-trip.
+import { Landing } from "../Components/Pages/Landing/Landing";
 
 const Main = lazy(() =>
   import("../Components/Pages/Main/Main").then((module) => ({
@@ -98,20 +100,21 @@ function App() {
               fallback={<Loader fullScreen text="Загружаем страницу..." />}
             >
               <Routes>
-                <Route path="/" element={<Layout />}>
-                  <Route index element={<Main />} />
-                  <Route path="login" element={<Login />} />
-                  <Route path="register" element={<Register />} />
-                  <Route path="profile" element={<Profile />} />
-                  <Route path="profile/edit" element={<ProfileEdit />} />
-                  <Route path="profile/:id" element={<Profile />} />
-                  <Route path="myItems" element={<MyItems />} />
-                  <Route path="items/:id" element={<ItemDetails />} />
-                  <Route path="items/:id/edit" element={<ItemEdit />} />
-                  <Route path="exchanges" element={<MyChains />} />
-                  <Route path="exchanges/create" element={<CreateChain />} />
-                  <Route path="exchanges/:id" element={<ExchangeDetails />} />
-                  <Route path="admin" element={<AdminRoute />} />
+                <Route path="/" element={<Landing />} />
+                <Route element={<Layout />}>
+                  <Route path="/feed" element={<Main />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/profile/edit" element={<ProfileEdit />} />
+                  <Route path="/profile/:id" element={<Profile />} />
+                  <Route path="/myItems" element={<MyItems />} />
+                  <Route path="/items/:id" element={<ItemDetails />} />
+                  <Route path="/items/:id/edit" element={<ItemEdit />} />
+                  <Route path="/exchanges" element={<MyChains />} />
+                  <Route path="/exchanges/create" element={<CreateChain />} />
+                  <Route path="/exchanges/:id" element={<ExchangeDetails />} />
+                  <Route path="/admin" element={<AdminRoute />} />
                 </Route>
               </Routes>
             </Suspense>

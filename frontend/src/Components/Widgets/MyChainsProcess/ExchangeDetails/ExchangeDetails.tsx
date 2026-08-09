@@ -247,7 +247,7 @@ const ExchangeDetailsComponent = () => {
   const isAdmin = Boolean(user?.is_admin);
   const adminCanCancel =
     isAdmin && ["proposed", "confirmed"].includes(exchange.status);
-  const returnTo = isParticipant ? "/exchanges" : "/";
+  const returnTo = isParticipant ? "/exchanges" : "/feed";
   const returnLabel = isParticipant ? "Мои цепочки" : "Обмены";
 
   return (
@@ -509,7 +509,7 @@ const ExchangeDetailsComponent = () => {
               : "Ваша вещь не передана и остаётся доступной."}
           </p>
           <div className={styles.details__resultButtons}>
-            <Link className={styles.details__resultAction} to="/">
+            <Link className={styles.details__resultAction} to="/feed">
               Искать новую цепочку
             </Link>
             <Link
