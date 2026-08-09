@@ -16,9 +16,11 @@ type ItemStatistics struct {
 }
 
 type ExchangeStatistics struct {
-	Total     int64
-	Proposed  int64
-	Confirmed int64
-	Completed int64
-	Cancelled int64
+	Total      int64
+	Proposed   int64
+	Confirmed  int64
+	Delivering int64
+	Delivered  int64
+	Completed  int64
+	Cancelled  int64
 }

@@ -35,7 +35,7 @@ func (q *Queries) DeleteItemWants(ctx context.Context, itemID pgtype.UUID) error
 
 const getItemByID = `-- name: GetItemByID :one
 SELECT
-    i.id, i.owner_id, i.category_id, i.title, i.description, i.status, i.created_at, i.updated_at, i.photo_urls,
+    i.id, i.owner_id, i.category_id, i.title, i.description, i.status, i.created_at, i.updated_at, i.photo_urls, i.pickup_point_id,
     c.slug AS category,
     COALESCE(
         (SELECT array_agg(want_category.slug ORDER BY want_category.slug)
@@ -43,26 +43,34 @@ SELECT
          JOIN categories want_category ON want_category.id = w.category_id
          WHERE w.item_id = i.id),
         '{}'
-    )::text[] AS wants
+    )::text[] AS wants,
+    pickup_point.name    AS pickup_point_name,
+    pickup_point.address AS pickup_point_address
 FROM items i
 JOIN categories c ON c.id = i.category_id
+LEFT JOIN pickup_points AS pickup_point ON pickup_point.id = i.pickup_point_id
 WHERE i.id = $1
 `
 
 type GetItemByIDRow struct {
-	ID          pgtype.UUID
-	OwnerID     pgtype.UUID
-	CategoryID  int16
-	Title       string
-	Description string
-	Status      ItemStatus
-	CreatedAt   pgtype.Timestamptz
-	UpdatedAt   pgtype.Timestamptz
-	PhotoUrls   []string
-	Category    string
-	Wants       []string
+	ID                 pgtype.UUID
+	OwnerID            pgtype.UUID
+	CategoryID         int16
+	Title              string
+	Description        string
+	Status             ItemStatus
+	CreatedAt          pgtype.Timestamptz
+	UpdatedAt          pgtype.Timestamptz
+	PhotoUrls          []string
+	PickupPointID      pgtype.UUID
+	Category           string
+	Wants              []string
+	PickupPointName    pgtype.Text
+	PickupPointAddress pgtype.Text
 }
 
+// Пункт выдачи джойнится LEFT: у вещи дома его нет, и INNER молча выбросил бы её из
+// карточки. Сам pickup_point_id приезжает в i.*, здесь добираются только имя и адрес.
 func (q *Queries) GetItemByID(ctx context.Context, id pgtype.UUID) (GetItemByIDRow, error) {
 	row := q.db.QueryRow(ctx, getItemByID, id)
 	var i GetItemByIDRow
@@ -76,8 +84,11 @@ func (q *Queries) GetItemByID(ctx context.Context, id pgtype.UUID) (GetItemByIDR
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PhotoUrls,
+		&i.PickupPointID,
 		&i.Category,
 		&i.Wants,
+		&i.PickupPointName,
+		&i.PickupPointAddress,
 	)
 	return i, err
 }
@@ -145,7 +156,7 @@ SELECT EXISTS (
     JOIN chains AS exchange ON exchange.id = participant.chain_id
     WHERE (participant.gives_item_id = $1
            OR participant.receives_item_id = $1)
-      AND exchange.status IN ('proposed', 'confirmed')
+      AND exchange.status IN ('proposed', 'confirmed', 'delivering', 'delivered')
 )
 `
 
@@ -158,7 +169,7 @@ func (q *Queries) ItemHasOpenExchange(ctx context.Context, itemID pgtype.UUID) (
 
 const listItemsByOwner = `-- name: ListItemsByOwner :many
 SELECT
-    i.id, i.owner_id, i.category_id, i.title, i.description, i.status, i.created_at, i.updated_at, i.photo_urls,
+    i.id, i.owner_id, i.category_id, i.title, i.description, i.status, i.created_at, i.updated_at, i.photo_urls, i.pickup_point_id,
     c.slug AS category,
     COALESCE(
         (SELECT array_agg(want_category.slug ORDER BY want_category.slug)
@@ -166,25 +177,31 @@ SELECT
          JOIN categories want_category ON want_category.id = w.category_id
          WHERE w.item_id = i.id),
         '{}'
-    )::text[] AS wants
+    )::text[] AS wants,
+    pickup_point.name    AS pickup_point_name,
+    pickup_point.address AS pickup_point_address
 FROM items i
 JOIN categories c ON c.id = i.category_id
+LEFT JOIN pickup_points AS pickup_point ON pickup_point.id = i.pickup_point_id
 WHERE i.owner_id = $1
 ORDER BY i.created_at DESC, i.id
 `
 
 type ListItemsByOwnerRow struct {
-	ID          pgtype.UUID
-	OwnerID     pgtype.UUID
-	CategoryID  int16
-	Title       string
-	Description string
-	Status      ItemStatus
-	CreatedAt   pgtype.Timestamptz
-	UpdatedAt   pgtype.Timestamptz
-	PhotoUrls   []string
-	Category    string
-	Wants       []string
+	ID                 pgtype.UUID
+	OwnerID            pgtype.UUID
+	CategoryID         int16
+	Title              string
+	Description        string
+	Status             ItemStatus
+	CreatedAt          pgtype.Timestamptz
+	UpdatedAt          pgtype.Timestamptz
+	PhotoUrls          []string
+	PickupPointID      pgtype.UUID
+	Category           string
+	Wants              []string
+	PickupPointName    pgtype.Text
+	PickupPointAddress pgtype.Text
 }
 
 // Колонки те же и в том же порядке, что у GetItemByID: sqlc генерит идентичную
@@ -208,8 +225,11 @@ func (q *Queries) ListItemsByOwner(ctx context.Context, ownerID pgtype.UUID) ([]
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.PhotoUrls,
+			&i.PickupPointID,
 			&i.Category,
 			&i.Wants,
+			&i.PickupPointName,
+			&i.PickupPointAddress,
 		); err != nil {
 			return nil, err
 		}

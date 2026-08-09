@@ -126,6 +126,24 @@ func (q *Queries) DeclineExchangeParticipant(ctx context.Context, arg DeclineExc
 	return err
 }
 
+const findConfirmedExchangeForItem = `-- name: FindConfirmedExchangeForItem :one
+SELECT exchange.id
+FROM chains AS exchange
+JOIN chain_participants AS participant ON participant.chain_id = exchange.id
+WHERE participant.gives_item_id = $1
+  AND exchange.status = 'confirmed'
+`
+
+// Вещь может лежать в нескольких предложенных обменах, но подтверждённый у неё ровно
+// один: подтверждение резервирует её вещи и гасит конкурентов. Поэтому :one, а pgx.ErrNoRows
+// здесь — нормальный ответ «вещь ни в каком подтверждённом обмене не участвует».
+func (q *Queries) FindConfirmedExchangeForItem(ctx context.Context, itemID pgtype.UUID) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, findConfirmedExchangeForItem, itemID)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const incrementUserDealsBroken = `-- name: IncrementUserDealsBroken :execrows
 UPDATE users
 SET deals_broken = deals_broken + 1
@@ -247,6 +265,32 @@ func (q *Queries) LockExchangeParticipant(ctx context.Context, arg LockExchangeP
 	var i LockExchangeParticipantRow
 	err := row.Scan(&i.Status, &i.CompletionConfirmedAt)
 	return i, err
+}
+
+const promoteExchangeToDelivering = `-- name: PromoteExchangeToDelivering :execrows
+UPDATE chains
+SET status = 'delivering'
+WHERE chains.id = $1
+  AND chains.status = 'confirmed'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM chain_participants AS participant
+      JOIN items AS item ON item.id = participant.gives_item_id
+      WHERE participant.chain_id = $1
+        AND item.pickup_point_id IS NULL
+  )
+`
+
+// Переход в доставку — одно выражение, а не «прочитать вещи в Go и потом записать статус»:
+// иначе проверка гонялась бы с параллельной сдачей вещи соседом. Условие status = 'confirmed'
+// делает вызов идемпотентным, поэтому его безопасно дёргать и из сдачи вещи, и из последнего
+// подтверждения участия. closed_at не трогаем: обмен не закрыт, он едет.
+func (q *Queries) PromoteExchangeToDelivering(ctx context.Context, exchangeID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, promoteExchangeToDelivering, exchangeID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const recordItemRefusal = `-- name: RecordItemRefusal :exec

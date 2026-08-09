@@ -334,4 +334,33 @@ EXCEPTION WHEN check_violation THEN
     RAISE NOTICE 'ok 22: комментарий к жалобе ограничен 2000 символами';
 END $$;
 
+-- 23. подпись занята и на этапе доставки. Обмен со своей подписью, чтобы не зависеть от
+-- цепочки выше: она к этому моменту уже отменена кейсом 20.
+DO $$
+BEGIN
+    INSERT INTO chains (signature, status) VALUES ('smoke:delivering', 'delivering');
+    INSERT INTO chains (signature) VALUES ('smoke:delivering');
+    RAISE EXCEPTION 'второе предложение с подписью доставляемого обмена прошло';
+EXCEPTION WHEN unique_violation THEN
+    RAISE NOTICE 'ok 23: обмен в доставке держит свою подпись';
+END $$;
+
+-- 24. ПВЗ, в котором лежит вещь, удалить нельзя: иначе вещь потеряла бы адрес хранения
+DO $$
+DECLARE point_id uuid;
+BEGIN
+    INSERT INTO pickup_points (name, address) VALUES ('ПВЗ Смоук', 'ул. Тестовая, 1')
+    RETURNING id INTO point_id;
+
+    INSERT INTO items (owner_id, category_id, title, photo_urls, pickup_point_id)
+    VALUES ('11111111-1111-1111-1111-111111111111',
+            (SELECT id FROM categories WHERE slug = 'tools'), 'Дрель',
+            ARRAY['https://example.com/drill.jpg'], point_id);
+
+    DELETE FROM pickup_points WHERE id = point_id;
+    RAISE EXCEPTION 'удаление ПВЗ с лежащей в нём вещью прошло';
+EXCEPTION WHEN foreign_key_violation THEN
+    RAISE NOTICE 'ok 24: ПВЗ с вещью защищён ON DELETE RESTRICT';
+END $$;
+
 ROLLBACK;

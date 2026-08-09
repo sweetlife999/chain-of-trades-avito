@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 
 	exchangemodel "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/model"
+	exchangeservice "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/service"
 	itemmodel "github.com/sweetlife999/chain-of-trades-avito/internal/item/model"
 	itemrepository "github.com/sweetlife999/chain-of-trades-avito/internal/item/repository"
 )
@@ -28,6 +29,10 @@ var (
 	ErrNotFound        = itemrepository.ErrNotFound
 	ErrUnknownCategory = itemrepository.ErrUnknownCategory
 	ErrItemInChain     = itemrepository.ErrItemInChain
+	// Обе приходят из обмена: пункт вещи пишет его транзакция, она же и решает, что
+	// пункта нет или вещь уже вне оборота.
+	ErrUnknownPickupPoint = exchangeservice.ErrUnknownPickupPoint
+	ErrConflict           = exchangeservice.ErrConflict
 )
 
 type Repository interface {
@@ -38,10 +43,12 @@ type Repository interface {
 	Delete(context.Context, uuid.UUID) error
 	ListCategories(context.Context) ([]itemmodel.Category, error)
 	HasOpenExchange(context.Context, uuid.UUID) (bool, error)
+	ClearPickupPoint(context.Context, uuid.UUID, uuid.UUID) error
 }
 
 type ExchangeFinder interface {
 	FindAndSave(context.Context, exchangemodel.Node) (exchangemodel.SearchResult, error)
+	RecordItemPickup(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) error
 }
 
 type errorLogger interface {
@@ -234,6 +241,40 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) er
 	}
 
 	return s.repository.Delete(ctx, id)
+}
+
+// SetPickupPoint отмечает, что владелец отнёс вещь в пункт выдачи. Отнести можно и вещь,
+// которая ни в каком обмене не участвует: к моменту сборки цепочки она уже будет на месте.
+// Саму запись делает exchange — там же, где живёт переход обмена в доставку.
+func (s *Service) SetPickupPoint(
+	ctx context.Context,
+	id uuid.UUID,
+	userID uuid.UUID,
+	pickupPointID uuid.UUID,
+) error {
+	if err := s.requireOwner(ctx, id, userID); err != nil {
+		return err
+	}
+
+	return s.exchanges.RecordItemPickup(ctx, id, userID, pickupPointID)
+}
+
+// ClearPickupPoint забирает вещь из пункта домой. Пока вещь занята в обмене, забирать её
+// нельзя: остальные участники уже рассчитывают на то, что она лежит на месте.
+func (s *Service) ClearPickupPoint(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
+	if err := s.requireOwner(ctx, id, userID); err != nil {
+		return err
+	}
+
+	hasOpenExchange, err := s.repository.HasOpenExchange(ctx, id)
+	if err != nil {
+		return fmt.Errorf("check item before pickup point reset: %w", err)
+	}
+	if hasOpenExchange {
+		return ErrItemInChain
+	}
+
+	return s.repository.ClearPickupPoint(ctx, id, userID)
 }
 
 func (s *Service) ListCategories(ctx context.Context) ([]itemmodel.Category, error) {

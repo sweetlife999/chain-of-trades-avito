@@ -17,7 +17,7 @@ FROM chains AS exchange
 JOIN chain_participants AS participant
     ON participant.chain_id = exchange.id
    AND participant.user_id = $1
-WHERE exchange.status IN ('proposed', 'confirmed')
+WHERE exchange.status IN ('proposed', 'confirmed', 'delivering', 'delivered')
 `
 
 func (q *Queries) CountActiveExchangesByUserForAdmin(ctx context.Context, userID pgtype.UUID) (int64, error) {
@@ -47,12 +47,18 @@ SELECT
     gives_item.status      AS gives_item_status,
     gives_category.slug    AS gives_category_slug,
     gives_category.name    AS gives_category_name,
+    gives_pickup.id        AS gives_pickup_point_id,
+    gives_pickup.name      AS gives_pickup_point_name,
+    gives_pickup.address   AS gives_pickup_point_address,
     receives_item.id          AS receives_item_id,
     receives_item.title       AS receives_item_title,
     receives_item.description AS receives_item_description,
     receives_item.status      AS receives_item_status,
     receives_category.slug    AS receives_category_slug,
     receives_category.name    AS receives_category_name,
+    receives_pickup.id        AS receives_pickup_point_id,
+    receives_pickup.name      AS receives_pickup_point_name,
+    receives_pickup.address   AS receives_pickup_point_address,
     (
         SELECT count(*)
         FROM chain_messages AS unread
@@ -72,10 +78,14 @@ JOIN items AS gives_item
     ON gives_item.id = participant.gives_item_id
 JOIN categories AS gives_category
     ON gives_category.id = gives_item.category_id
+LEFT JOIN pickup_points AS gives_pickup
+    ON gives_pickup.id = gives_item.pickup_point_id
 JOIN items AS receives_item
     ON receives_item.id = participant.receives_item_id
 JOIN categories AS receives_category
     ON receives_category.id = receives_item.category_id
+LEFT JOIN pickup_points AS receives_pickup
+    ON receives_pickup.id = receives_item.pickup_point_id
 WHERE exchange.id = $2
 ORDER BY participant.position
 `
@@ -86,35 +96,42 @@ type GetExchangeByIDParams struct {
 }
 
 type GetExchangeByIDRow struct {
-	ExchangeID              pgtype.UUID
-	ExchangeStatus          ChainStatus
-	ExchangeCreatedAt       pgtype.Timestamptz
-	ExchangeUpdatedAt       pgtype.Timestamptz
-	ExchangeClosedAt        pgtype.Timestamptz
-	UserID                  pgtype.UUID
-	Position                int32
-	ParticipantStatus       ParticipantStatus
-	DecidedAt               pgtype.Timestamptz
-	CompletionConfirmedAt   pgtype.Timestamptz
-	Nickname                string
-	UserPhotoUrl            pgtype.Text
-	GivesItemID             pgtype.UUID
-	GivesItemTitle          string
-	GivesItemDescription    string
-	GivesItemStatus         ItemStatus
-	GivesCategorySlug       string
-	GivesCategoryName       string
-	ReceivesItemID          pgtype.UUID
-	ReceivesItemTitle       string
-	ReceivesItemDescription string
-	ReceivesItemStatus      ItemStatus
-	ReceivesCategorySlug    string
-	ReceivesCategoryName    string
-	UnreadCount             int64
+	ExchangeID                 pgtype.UUID
+	ExchangeStatus             ChainStatus
+	ExchangeCreatedAt          pgtype.Timestamptz
+	ExchangeUpdatedAt          pgtype.Timestamptz
+	ExchangeClosedAt           pgtype.Timestamptz
+	UserID                     pgtype.UUID
+	Position                   int32
+	ParticipantStatus          ParticipantStatus
+	DecidedAt                  pgtype.Timestamptz
+	CompletionConfirmedAt      pgtype.Timestamptz
+	Nickname                   string
+	UserPhotoUrl               pgtype.Text
+	GivesItemID                pgtype.UUID
+	GivesItemTitle             string
+	GivesItemDescription       string
+	GivesItemStatus            ItemStatus
+	GivesCategorySlug          string
+	GivesCategoryName          string
+	GivesPickupPointID         pgtype.UUID
+	GivesPickupPointName       pgtype.Text
+	GivesPickupPointAddress    pgtype.Text
+	ReceivesItemID             pgtype.UUID
+	ReceivesItemTitle          string
+	ReceivesItemDescription    string
+	ReceivesItemStatus         ItemStatus
+	ReceivesCategorySlug       string
+	ReceivesCategoryName       string
+	ReceivesPickupPointID      pgtype.UUID
+	ReceivesPickupPointName    pgtype.Text
+	ReceivesPickupPointAddress pgtype.Text
+	UnreadCount                int64
 }
 
 // LEFT JOIN, в отличие от списка: обмен обязан вернуться и постороннему, иначе сервис
 // ответил бы «не найден» вместо «нельзя смотреть». Счётчик для него всё равно не поедет.
+// LEFT: вещь дома пункта не имеет, INNER выбросил бы её участника из ответа целиком.
 func (q *Queries) GetExchangeByID(ctx context.Context, arg GetExchangeByIDParams) ([]GetExchangeByIDRow, error) {
 	rows, err := q.db.Query(ctx, getExchangeByID, arg.UserID, arg.ExchangeID)
 	if err != nil {
@@ -143,12 +160,18 @@ func (q *Queries) GetExchangeByID(ctx context.Context, arg GetExchangeByIDParams
 			&i.GivesItemStatus,
 			&i.GivesCategorySlug,
 			&i.GivesCategoryName,
+			&i.GivesPickupPointID,
+			&i.GivesPickupPointName,
+			&i.GivesPickupPointAddress,
 			&i.ReceivesItemID,
 			&i.ReceivesItemTitle,
 			&i.ReceivesItemDescription,
 			&i.ReceivesItemStatus,
 			&i.ReceivesCategorySlug,
 			&i.ReceivesCategoryName,
+			&i.ReceivesPickupPointID,
+			&i.ReceivesPickupPointName,
+			&i.ReceivesPickupPointAddress,
 			&i.UnreadCount,
 		); err != nil {
 			return nil, err
@@ -168,7 +191,7 @@ WITH selected_exchanges AS (
     JOIN chain_participants AS selected_participant
         ON selected_participant.chain_id = exchange.id
        AND selected_participant.user_id = $1
-    WHERE exchange.status IN ('proposed', 'confirmed')
+    WHERE exchange.status IN ('proposed', 'confirmed', 'delivering', 'delivered')
     ORDER BY exchange.created_at DESC, exchange.id
     LIMIT $3
     OFFSET $2
@@ -192,12 +215,18 @@ SELECT
     gives_item.status      AS gives_item_status,
     gives_category.slug    AS gives_category_slug,
     gives_category.name    AS gives_category_name,
+    gives_pickup.id        AS gives_pickup_point_id,
+    gives_pickup.name      AS gives_pickup_point_name,
+    gives_pickup.address   AS gives_pickup_point_address,
     receives_item.id          AS receives_item_id,
     receives_item.title       AS receives_item_title,
     receives_item.description AS receives_item_description,
     receives_item.status      AS receives_item_status,
     receives_category.slug    AS receives_category_slug,
     receives_category.name    AS receives_category_name,
+    receives_pickup.id        AS receives_pickup_point_id,
+    receives_pickup.name      AS receives_pickup_point_name,
+    receives_pickup.address   AS receives_pickup_point_address,
     0::bigint AS unread_count
 FROM selected_exchanges AS selected
 JOIN chains AS exchange
@@ -210,10 +239,14 @@ JOIN items AS gives_item
     ON gives_item.id = participant.gives_item_id
 JOIN categories AS gives_category
     ON gives_category.id = gives_item.category_id
+LEFT JOIN pickup_points AS gives_pickup
+    ON gives_pickup.id = gives_item.pickup_point_id
 JOIN items AS receives_item
     ON receives_item.id = participant.receives_item_id
 JOIN categories AS receives_category
     ON receives_category.id = receives_item.category_id
+LEFT JOIN pickup_points AS receives_pickup
+    ON receives_pickup.id = receives_item.pickup_point_id
 ORDER BY exchange.created_at DESC, exchange.id, participant.position
 `
 
@@ -224,33 +257,40 @@ type ListActiveExchangesByUserForAdminParams struct {
 }
 
 type ListActiveExchangesByUserForAdminRow struct {
-	ExchangeID              pgtype.UUID
-	ExchangeStatus          ChainStatus
-	ExchangeCreatedAt       pgtype.Timestamptz
-	ExchangeUpdatedAt       pgtype.Timestamptz
-	ExchangeClosedAt        pgtype.Timestamptz
-	UserID                  pgtype.UUID
-	Position                int32
-	ParticipantStatus       ParticipantStatus
-	DecidedAt               pgtype.Timestamptz
-	CompletionConfirmedAt   pgtype.Timestamptz
-	Nickname                string
-	UserPhotoUrl            pgtype.Text
-	GivesItemID             pgtype.UUID
-	GivesItemTitle          string
-	GivesItemDescription    string
-	GivesItemStatus         ItemStatus
-	GivesCategorySlug       string
-	GivesCategoryName       string
-	ReceivesItemID          pgtype.UUID
-	ReceivesItemTitle       string
-	ReceivesItemDescription string
-	ReceivesItemStatus      ItemStatus
-	ReceivesCategorySlug    string
-	ReceivesCategoryName    string
-	UnreadCount             int64
+	ExchangeID                 pgtype.UUID
+	ExchangeStatus             ChainStatus
+	ExchangeCreatedAt          pgtype.Timestamptz
+	ExchangeUpdatedAt          pgtype.Timestamptz
+	ExchangeClosedAt           pgtype.Timestamptz
+	UserID                     pgtype.UUID
+	Position                   int32
+	ParticipantStatus          ParticipantStatus
+	DecidedAt                  pgtype.Timestamptz
+	CompletionConfirmedAt      pgtype.Timestamptz
+	Nickname                   string
+	UserPhotoUrl               pgtype.Text
+	GivesItemID                pgtype.UUID
+	GivesItemTitle             string
+	GivesItemDescription       string
+	GivesItemStatus            ItemStatus
+	GivesCategorySlug          string
+	GivesCategoryName          string
+	GivesPickupPointID         pgtype.UUID
+	GivesPickupPointName       pgtype.Text
+	GivesPickupPointAddress    pgtype.Text
+	ReceivesItemID             pgtype.UUID
+	ReceivesItemTitle          string
+	ReceivesItemDescription    string
+	ReceivesItemStatus         ItemStatus
+	ReceivesCategorySlug       string
+	ReceivesCategoryName       string
+	ReceivesPickupPointID      pgtype.UUID
+	ReceivesPickupPointName    pgtype.Text
+	ReceivesPickupPointAddress pgtype.Text
+	UnreadCount                int64
 }
 
+// LEFT: вещь дома пункта не имеет, INNER выбросил бы её участника из ответа целиком.
 func (q *Queries) ListActiveExchangesByUserForAdmin(ctx context.Context, arg ListActiveExchangesByUserForAdminParams) ([]ListActiveExchangesByUserForAdminRow, error) {
 	rows, err := q.db.Query(ctx, listActiveExchangesByUserForAdmin, arg.UserID, arg.PageOffset, arg.PageLimit)
 	if err != nil {
@@ -279,12 +319,18 @@ func (q *Queries) ListActiveExchangesByUserForAdmin(ctx context.Context, arg Lis
 			&i.GivesItemStatus,
 			&i.GivesCategorySlug,
 			&i.GivesCategoryName,
+			&i.GivesPickupPointID,
+			&i.GivesPickupPointName,
+			&i.GivesPickupPointAddress,
 			&i.ReceivesItemID,
 			&i.ReceivesItemTitle,
 			&i.ReceivesItemDescription,
 			&i.ReceivesItemStatus,
 			&i.ReceivesCategorySlug,
 			&i.ReceivesCategoryName,
+			&i.ReceivesPickupPointID,
+			&i.ReceivesPickupPointName,
+			&i.ReceivesPickupPointAddress,
 			&i.UnreadCount,
 		); err != nil {
 			return nil, err
@@ -317,12 +363,18 @@ SELECT
     gives_item.status      AS gives_item_status,
     gives_category.slug    AS gives_category_slug,
     gives_category.name    AS gives_category_name,
+    gives_pickup.id        AS gives_pickup_point_id,
+    gives_pickup.name      AS gives_pickup_point_name,
+    gives_pickup.address   AS gives_pickup_point_address,
     receives_item.id          AS receives_item_id,
     receives_item.title       AS receives_item_title,
     receives_item.description AS receives_item_description,
     receives_item.status      AS receives_item_status,
     receives_category.slug    AS receives_category_slug,
     receives_category.name    AS receives_category_name,
+    receives_pickup.id        AS receives_pickup_point_id,
+    receives_pickup.name      AS receives_pickup_point_name,
+    receives_pickup.address   AS receives_pickup_point_address,
     (
         SELECT count(*)
         FROM chain_messages AS unread
@@ -344,45 +396,56 @@ JOIN items AS gives_item
     ON gives_item.id = participant.gives_item_id
 JOIN categories AS gives_category
     ON gives_category.id = gives_item.category_id
+LEFT JOIN pickup_points AS gives_pickup
+    ON gives_pickup.id = gives_item.pickup_point_id
 JOIN items AS receives_item
     ON receives_item.id = participant.receives_item_id
 JOIN categories AS receives_category
     ON receives_category.id = receives_item.category_id
+LEFT JOIN pickup_points AS receives_pickup
+    ON receives_pickup.id = receives_item.pickup_point_id
 ORDER BY exchange.created_at DESC, exchange.id, participant.position
 `
 
 type ListExchangesByUserRow struct {
-	ExchangeID              pgtype.UUID
-	ExchangeStatus          ChainStatus
-	ExchangeCreatedAt       pgtype.Timestamptz
-	ExchangeUpdatedAt       pgtype.Timestamptz
-	ExchangeClosedAt        pgtype.Timestamptz
-	UserID                  pgtype.UUID
-	Position                int32
-	ParticipantStatus       ParticipantStatus
-	DecidedAt               pgtype.Timestamptz
-	CompletionConfirmedAt   pgtype.Timestamptz
-	Nickname                string
-	UserPhotoUrl            pgtype.Text
-	GivesItemID             pgtype.UUID
-	GivesItemTitle          string
-	GivesItemDescription    string
-	GivesItemStatus         ItemStatus
-	GivesCategorySlug       string
-	GivesCategoryName       string
-	ReceivesItemID          pgtype.UUID
-	ReceivesItemTitle       string
-	ReceivesItemDescription string
-	ReceivesItemStatus      ItemStatus
-	ReceivesCategorySlug    string
-	ReceivesCategoryName    string
-	UnreadCount             int64
+	ExchangeID                 pgtype.UUID
+	ExchangeStatus             ChainStatus
+	ExchangeCreatedAt          pgtype.Timestamptz
+	ExchangeUpdatedAt          pgtype.Timestamptz
+	ExchangeClosedAt           pgtype.Timestamptz
+	UserID                     pgtype.UUID
+	Position                   int32
+	ParticipantStatus          ParticipantStatus
+	DecidedAt                  pgtype.Timestamptz
+	CompletionConfirmedAt      pgtype.Timestamptz
+	Nickname                   string
+	UserPhotoUrl               pgtype.Text
+	GivesItemID                pgtype.UUID
+	GivesItemTitle             string
+	GivesItemDescription       string
+	GivesItemStatus            ItemStatus
+	GivesCategorySlug          string
+	GivesCategoryName          string
+	GivesPickupPointID         pgtype.UUID
+	GivesPickupPointName       pgtype.Text
+	GivesPickupPointAddress    pgtype.Text
+	ReceivesItemID             pgtype.UUID
+	ReceivesItemTitle          string
+	ReceivesItemDescription    string
+	ReceivesItemStatus         ItemStatus
+	ReceivesCategorySlug       string
+	ReceivesCategoryName       string
+	ReceivesPickupPointID      pgtype.UUID
+	ReceivesPickupPointName    pgtype.Text
+	ReceivesPickupPointAddress pgtype.Text
+	UnreadCount                int64
 }
 
 // Все участники нужны frontend, поэтому текущего пользователя подмешиваем отдельным
 // JOIN: основной JOIN оставил бы в ответе только его строку. UNIQUE (chain_id, user_id)
 // гарантирует, что этот JOIN даёт ровно одну строку и не размножает участников,
 // а заодно открывает доступ к его отметке о прочтении треда.
+// LEFT: вещь дома пункта не имеет, INNER выбросил бы её участника из ответа целиком.
 func (q *Queries) ListExchangesByUser(ctx context.Context, userID pgtype.UUID) ([]ListExchangesByUserRow, error) {
 	rows, err := q.db.Query(ctx, listExchangesByUser, userID)
 	if err != nil {
@@ -411,12 +474,18 @@ func (q *Queries) ListExchangesByUser(ctx context.Context, userID pgtype.UUID) (
 			&i.GivesItemStatus,
 			&i.GivesCategorySlug,
 			&i.GivesCategoryName,
+			&i.GivesPickupPointID,
+			&i.GivesPickupPointName,
+			&i.GivesPickupPointAddress,
 			&i.ReceivesItemID,
 			&i.ReceivesItemTitle,
 			&i.ReceivesItemDescription,
 			&i.ReceivesItemStatus,
 			&i.ReceivesCategorySlug,
 			&i.ReceivesCategoryName,
+			&i.ReceivesPickupPointID,
+			&i.ReceivesPickupPointName,
+			&i.ReceivesPickupPointAddress,
 			&i.UnreadCount,
 		); err != nil {
 			return nil, err

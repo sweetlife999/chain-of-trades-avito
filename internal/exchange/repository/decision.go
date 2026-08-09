@@ -266,7 +266,9 @@ func confirmParticipation(
 		return fmt.Errorf("cancel competing proposed exchanges: %w", err)
 	}
 
-	return nil
+	// Вещи могли уехать в пункты ещё до того, как обмен собрался: тогда сдавать уже нечего
+	// и подтверждение — единственный момент, когда цепочка может уйти в доставку.
+	return promoteToDelivering(ctx, queries, exchangeID)
 }
 
 func declineParticipation(

@@ -14,7 +14,7 @@ import (
 const createExchange = `-- name: CreateExchange :one
 INSERT INTO chains (signature)
 VALUES ($1)
-ON CONFLICT (signature) WHERE status IN ('proposed', 'confirmed') DO NOTHING
+ON CONFLICT (signature) WHERE status IN ('proposed', 'confirmed', 'delivering', 'delivered') DO NOTHING
 RETURNING id
 `
 

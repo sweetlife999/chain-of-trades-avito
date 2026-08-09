@@ -41,11 +41,13 @@ func toModel(row db.GetAdminDashboardRow) admindashboardmodel.Dashboard {
 			Withdrawn: row.ItemsWithdrawn,
 		},
 		Exchanges: admindashboardmodel.ExchangeStatistics{
-			Total:     row.ExchangesTotal,
-			Proposed:  row.ExchangesProposed,
-			Confirmed: row.ExchangesConfirmed,
-			Completed: row.ExchangesCompleted,
-			Cancelled: row.ExchangesCancelled,
+			Total:      row.ExchangesTotal,
+			Proposed:   row.ExchangesProposed,
+			Confirmed:  row.ExchangesConfirmed,
+			Delivering: row.ExchangesDelivering,
+			Delivered:  row.ExchangesDelivered,
+			Completed:  row.ExchangesCompleted,
+			Cancelled:  row.ExchangesCancelled,
 		},
 	}
 }

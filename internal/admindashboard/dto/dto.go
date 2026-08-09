@@ -18,11 +18,13 @@ type ItemStatisticsResponse struct {
 }
 
 type ExchangeStatisticsResponse struct {
-	Total     int64 `json:"total"`
-	Proposed  int64 `json:"proposed"`
-	Confirmed int64 `json:"confirmed"`
-	Completed int64 `json:"completed"`
-	Cancelled int64 `json:"cancelled"`
+	Total      int64 `json:"total"`
+	Proposed   int64 `json:"proposed"`
+	Confirmed  int64 `json:"confirmed"`
+	Delivering int64 `json:"delivering"`
+	Delivered  int64 `json:"delivered"`
+	Completed  int64 `json:"completed"`
+	Cancelled  int64 `json:"cancelled"`
 }
 
 type DashboardError struct {
@@ -41,11 +43,13 @@ func FromModel(dashboard admindashboardmodel.Dashboard) DashboardResponse {
 			Withdrawn: dashboard.Items.Withdrawn,
 		},
 		Exchanges: ExchangeStatisticsResponse{
-			Total:     dashboard.Exchanges.Total,
-			Proposed:  dashboard.Exchanges.Proposed,
-			Confirmed: dashboard.Exchanges.Confirmed,
-			Completed: dashboard.Exchanges.Completed,
-			Cancelled: dashboard.Exchanges.Cancelled,
+			Total:      dashboard.Exchanges.Total,
+			Proposed:   dashboard.Exchanges.Proposed,
+			Confirmed:  dashboard.Exchanges.Confirmed,
+			Delivering: dashboard.Exchanges.Delivering,
+			Delivered:  dashboard.Exchanges.Delivered,
+			Completed:  dashboard.Exchanges.Completed,
+			Cancelled:  dashboard.Exchanges.Cancelled,
 		},
 	}
 }

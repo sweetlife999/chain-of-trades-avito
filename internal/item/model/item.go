@@ -15,8 +15,18 @@ type Item struct {
 	PhotoURLs   []string
 	Wants       []string
 	Status      string
+	// nil — вещь дома у владельца.
+	PickupPoint *PickupPoint
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+}
+
+// PickupPoint — пункт, в котором лежит вещь. Отдельный тип, а не pickuppoint/model:
+// в карточке вещи нужны три поля, а даты жизни самого пункта к ней отношения не имеют.
+type PickupPoint struct {
+	ID      uuid.UUID
+	Name    string
+	Address string
 }
 
 type NewItem struct {

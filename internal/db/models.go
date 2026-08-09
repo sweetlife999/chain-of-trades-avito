@@ -14,13 +14,16 @@ import (
 type ChainMessageKind string
 
 const (
-	ChainMessageKindText                 ChainMessageKind = "text"
-	ChainMessageKindParticipantAccepted  ChainMessageKind = "participant_accepted"
-	ChainMessageKindParticipantDeclined  ChainMessageKind = "participant_declined"
-	ChainMessageKindParticipantCompleted ChainMessageKind = "participant_completed"
-	ChainMessageKindExchangeConfirmed    ChainMessageKind = "exchange_confirmed"
-	ChainMessageKindExchangeCompleted    ChainMessageKind = "exchange_completed"
-	ChainMessageKindExchangeSuperseded   ChainMessageKind = "exchange_superseded"
+	ChainMessageKindText                     ChainMessageKind = "text"
+	ChainMessageKindParticipantAccepted      ChainMessageKind = "participant_accepted"
+	ChainMessageKindParticipantDeclined      ChainMessageKind = "participant_declined"
+	ChainMessageKindParticipantCompleted     ChainMessageKind = "participant_completed"
+	ChainMessageKindExchangeConfirmed        ChainMessageKind = "exchange_confirmed"
+	ChainMessageKindExchangeCompleted        ChainMessageKind = "exchange_completed"
+	ChainMessageKindExchangeSuperseded       ChainMessageKind = "exchange_superseded"
+	ChainMessageKindParticipantDeliveredItem ChainMessageKind = "participant_delivered_item"
+	ChainMessageKindExchangeDelivering       ChainMessageKind = "exchange_delivering"
+	ChainMessageKindExchangeDelivered        ChainMessageKind = "exchange_delivered"
 )
 
 func (e *ChainMessageKind) Scan(src interface{}) error {
@@ -61,10 +64,12 @@ func (ns NullChainMessageKind) Value() (driver.Value, error) {
 type ChainStatus string
 
 const (
-	ChainStatusProposed  ChainStatus = "proposed"
-	ChainStatusConfirmed ChainStatus = "confirmed"
-	ChainStatusCompleted ChainStatus = "completed"
-	ChainStatusCancelled ChainStatus = "cancelled"
+	ChainStatusProposed   ChainStatus = "proposed"
+	ChainStatusConfirmed  ChainStatus = "confirmed"
+	ChainStatusDelivering ChainStatus = "delivering"
+	ChainStatusDelivered  ChainStatus = "delivered"
+	ChainStatusCompleted  ChainStatus = "completed"
+	ChainStatusCancelled  ChainStatus = "cancelled"
 )
 
 func (e *ChainStatus) Scan(src interface{}) error {
@@ -314,15 +319,16 @@ type ChainParticipant struct {
 }
 
 type Item struct {
-	ID          pgtype.UUID
-	OwnerID     pgtype.UUID
-	CategoryID  int16
-	Title       string
-	Description string
-	Status      ItemStatus
-	CreatedAt   pgtype.Timestamptz
-	UpdatedAt   pgtype.Timestamptz
-	PhotoUrls   []string
+	ID            pgtype.UUID
+	OwnerID       pgtype.UUID
+	CategoryID    int16
+	Title         string
+	Description   string
+	Status        ItemStatus
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	PhotoUrls     []string
+	PickupPointID pgtype.UUID
 }
 
 type ItemRefusal struct {
@@ -345,14 +351,17 @@ type PickupPoint struct {
 }
 
 type Report struct {
-	ID         pgtype.UUID
-	ReporterID pgtype.UUID
-	MessageID  pgtype.UUID
-	Reason     ReportReason
-	Comment    string
-	Status     ReportStatus
-	AssigneeID pgtype.UUID
-	CreatedAt  pgtype.Timestamptz
+	ID                pgtype.UUID
+	ReporterID        pgtype.UUID
+	MessageID         pgtype.UUID
+	Reason            ReportReason
+	Comment           string
+	Status            ReportStatus
+	AssigneeID        pgtype.UUID
+	CreatedAt         pgtype.Timestamptz
+	AssignedAt        pgtype.Timestamptz
+	ClosedAt          pgtype.Timestamptz
+	ResolutionComment string
 }
 
 type User struct {

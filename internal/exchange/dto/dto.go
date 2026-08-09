@@ -38,6 +38,14 @@ type ParticipantItemResponse struct {
 	Description string           `json:"description"`
 	Status      string           `json:"status"`
 	Category    CategoryResponse `json:"category"`
+	// null — вещь ещё дома у владельца. По этому полю видно, кого из участников ждут.
+	PickupPoint *ParticipantPickupPointResponse `json:"pickup_point" extensions:"x-nullable"`
+}
+
+type ParticipantPickupPointResponse struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Address string `json:"address"`
 }
 
 type CategoryResponse struct {
@@ -55,7 +63,7 @@ type ErrorResponse struct {
 // расхождение с enum chain_message_kind уже приводило к пропущенному виду события.
 type MessageResponse struct {
 	ID   string `json:"id"`
-	Kind string `json:"kind" enums:"text,participant_accepted,participant_declined,participant_completed,exchange_confirmed,exchange_completed,exchange_superseded"`
+	Kind string `json:"kind" enums:"text,participant_accepted,participant_declined,participant_completed,participant_delivered_item,exchange_confirmed,exchange_delivering,exchange_delivered,exchange_completed,exchange_superseded"`
 	// Заполнен только у kind = text.
 	Body *string `json:"body" extensions:"x-nullable"`
 	// Пуст у событий, которые принадлежат всему обмену, а не участнику.
@@ -149,5 +157,18 @@ func itemFromModel(item exchangemodel.ParticipantItem) ParticipantItemResponse {
 			Slug: item.Category.Slug,
 			Name: item.Category.Name,
 		},
+		PickupPoint: pickupPointFromModel(item.PickupPoint),
+	}
+}
+
+func pickupPointFromModel(point *exchangemodel.ParticipantPickupPoint) *ParticipantPickupPointResponse {
+	if point == nil {
+		return nil
+	}
+
+	return &ParticipantPickupPointResponse{
+		ID:      point.ID.String(),
+		Name:    point.Name,
+		Address: point.Address,
 	}
 }

@@ -24,8 +24,10 @@ type messageQueries interface {
 // переименование значения в enum ловил компилятор, а не тест на живой БД. Типы из
 // internal/db наружу при этом не протекают.
 const (
-	StatusProposed  = string(db.ChainStatusProposed)
-	StatusConfirmed = string(db.ChainStatusConfirmed)
+	StatusProposed   = string(db.ChainStatusProposed)
+	StatusConfirmed  = string(db.ChainStatusConfirmed)
+	StatusDelivering = string(db.ChainStatusDelivering)
+	StatusDelivered  = string(db.ChainStatusDelivered)
 )
 
 type messageRecord struct {

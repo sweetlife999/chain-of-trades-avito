@@ -22,12 +22,18 @@ SELECT
     gives_item.status      AS gives_item_status,
     gives_category.slug    AS gives_category_slug,
     gives_category.name    AS gives_category_name,
+    gives_pickup.id        AS gives_pickup_point_id,
+    gives_pickup.name      AS gives_pickup_point_name,
+    gives_pickup.address   AS gives_pickup_point_address,
     receives_item.id          AS receives_item_id,
     receives_item.title       AS receives_item_title,
     receives_item.description AS receives_item_description,
     receives_item.status      AS receives_item_status,
     receives_category.slug    AS receives_category_slug,
     receives_category.name    AS receives_category_name,
+    receives_pickup.id        AS receives_pickup_point_id,
+    receives_pickup.name      AS receives_pickup_point_name,
+    receives_pickup.address   AS receives_pickup_point_address,
     (
         SELECT count(*)
         FROM chain_messages AS unread
@@ -49,10 +55,15 @@ JOIN items AS gives_item
     ON gives_item.id = participant.gives_item_id
 JOIN categories AS gives_category
     ON gives_category.id = gives_item.category_id
+-- LEFT: вещь дома пункта не имеет, INNER выбросил бы её участника из ответа целиком.
+LEFT JOIN pickup_points AS gives_pickup
+    ON gives_pickup.id = gives_item.pickup_point_id
 JOIN items AS receives_item
     ON receives_item.id = participant.receives_item_id
 JOIN categories AS receives_category
     ON receives_category.id = receives_item.category_id
+LEFT JOIN pickup_points AS receives_pickup
+    ON receives_pickup.id = receives_item.pickup_point_id
 ORDER BY exchange.created_at DESC, exchange.id, participant.position;
 
 -- name: GetExchangeByID :many
@@ -75,12 +86,18 @@ SELECT
     gives_item.status      AS gives_item_status,
     gives_category.slug    AS gives_category_slug,
     gives_category.name    AS gives_category_name,
+    gives_pickup.id        AS gives_pickup_point_id,
+    gives_pickup.name      AS gives_pickup_point_name,
+    gives_pickup.address   AS gives_pickup_point_address,
     receives_item.id          AS receives_item_id,
     receives_item.title       AS receives_item_title,
     receives_item.description AS receives_item_description,
     receives_item.status      AS receives_item_status,
     receives_category.slug    AS receives_category_slug,
     receives_category.name    AS receives_category_name,
+    receives_pickup.id        AS receives_pickup_point_id,
+    receives_pickup.name      AS receives_pickup_point_name,
+    receives_pickup.address   AS receives_pickup_point_address,
     (
         SELECT count(*)
         FROM chain_messages AS unread
@@ -102,10 +119,15 @@ JOIN items AS gives_item
     ON gives_item.id = participant.gives_item_id
 JOIN categories AS gives_category
     ON gives_category.id = gives_item.category_id
+-- LEFT: вещь дома пункта не имеет, INNER выбросил бы её участника из ответа целиком.
+LEFT JOIN pickup_points AS gives_pickup
+    ON gives_pickup.id = gives_item.pickup_point_id
 JOIN items AS receives_item
     ON receives_item.id = participant.receives_item_id
 JOIN categories AS receives_category
     ON receives_category.id = receives_item.category_id
+LEFT JOIN pickup_points AS receives_pickup
+    ON receives_pickup.id = receives_item.pickup_point_id
 WHERE exchange.id = sqlc.arg(exchange_id)
 ORDER BY participant.position;
 
@@ -116,7 +138,7 @@ WITH selected_exchanges AS (
     JOIN chain_participants AS selected_participant
         ON selected_participant.chain_id = exchange.id
        AND selected_participant.user_id = sqlc.arg(user_id)
-    WHERE exchange.status IN ('proposed', 'confirmed')
+    WHERE exchange.status IN ('proposed', 'confirmed', 'delivering', 'delivered')
     ORDER BY exchange.created_at DESC, exchange.id
     LIMIT sqlc.arg(page_limit)
     OFFSET sqlc.arg(page_offset)
@@ -140,12 +162,18 @@ SELECT
     gives_item.status      AS gives_item_status,
     gives_category.slug    AS gives_category_slug,
     gives_category.name    AS gives_category_name,
+    gives_pickup.id        AS gives_pickup_point_id,
+    gives_pickup.name      AS gives_pickup_point_name,
+    gives_pickup.address   AS gives_pickup_point_address,
     receives_item.id          AS receives_item_id,
     receives_item.title       AS receives_item_title,
     receives_item.description AS receives_item_description,
     receives_item.status      AS receives_item_status,
     receives_category.slug    AS receives_category_slug,
     receives_category.name    AS receives_category_name,
+    receives_pickup.id        AS receives_pickup_point_id,
+    receives_pickup.name      AS receives_pickup_point_name,
+    receives_pickup.address   AS receives_pickup_point_address,
     0::bigint AS unread_count
 FROM selected_exchanges AS selected
 JOIN chains AS exchange
@@ -158,10 +186,15 @@ JOIN items AS gives_item
     ON gives_item.id = participant.gives_item_id
 JOIN categories AS gives_category
     ON gives_category.id = gives_item.category_id
+-- LEFT: вещь дома пункта не имеет, INNER выбросил бы её участника из ответа целиком.
+LEFT JOIN pickup_points AS gives_pickup
+    ON gives_pickup.id = gives_item.pickup_point_id
 JOIN items AS receives_item
     ON receives_item.id = participant.receives_item_id
 JOIN categories AS receives_category
     ON receives_category.id = receives_item.category_id
+LEFT JOIN pickup_points AS receives_pickup
+    ON receives_pickup.id = receives_item.pickup_point_id
 ORDER BY exchange.created_at DESC, exchange.id, participant.position;
 
 -- name: CountActiveExchangesByUserForAdmin :one
@@ -170,4 +203,4 @@ FROM chains AS exchange
 JOIN chain_participants AS participant
     ON participant.chain_id = exchange.id
    AND participant.user_id = sqlc.arg(user_id)
-WHERE exchange.status IN ('proposed', 'confirmed');
+WHERE exchange.status IN ('proposed', 'confirmed', 'delivering', 'delivered');

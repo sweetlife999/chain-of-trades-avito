@@ -1,5 +1,89 @@
 basePath: /
 definitions:
+  dto.AdminDecisionRequest:
+    properties:
+      comment:
+        example: Нарушение подтверждено
+        type: string
+    type: object
+  dto.AdminExchangeResponse:
+    properties:
+      id:
+        type: string
+      status:
+        type: string
+    type: object
+  dto.AdminMessageResponse:
+    properties:
+      body:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+    type: object
+  dto.AdminReportListResponse:
+    properties:
+      pagination:
+        $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_report_dto.PaginationResponse'
+      reports:
+        items:
+          $ref: '#/definitions/dto.AdminReportResponse'
+        type: array
+    type: object
+  dto.AdminReportMessagesResponse:
+    properties:
+      exchange_id:
+        type: string
+      messages:
+        items:
+          $ref: '#/definitions/dto.MessageResponse'
+        type: array
+      report_id:
+        type: string
+    type: object
+  dto.AdminReportResponse:
+    properties:
+      assigned_at:
+        type: string
+        x-nullable: true
+      assignee:
+        allOf:
+        - $ref: '#/definitions/dto.AdminUserResponse'
+        x-nullable: true
+      closed_at:
+        type: string
+        x-nullable: true
+      comment:
+        type: string
+      created_at:
+        type: string
+      exchange:
+        $ref: '#/definitions/dto.AdminExchangeResponse'
+      id:
+        type: string
+      message:
+        $ref: '#/definitions/dto.AdminMessageResponse'
+      offender:
+        $ref: '#/definitions/dto.AdminUserResponse'
+      reason:
+        type: string
+      reporter:
+        $ref: '#/definitions/dto.AdminUserResponse'
+      resolution_comment:
+        type: string
+      status:
+        type: string
+    type: object
+  dto.AdminUserResponse:
+    properties:
+      id:
+        type: string
+      nickname:
+        type: string
+      photo_url:
+        type: string
+    type: object
   dto.AuthenticatedUserResponse:
     properties:
       created_at:
@@ -126,6 +210,10 @@ definitions:
         type: integer
       confirmed:
         type: integer
+      delivered:
+        type: integer
+      delivering:
+        type: integer
       proposed:
         type: integer
       total:
@@ -134,6 +222,15 @@ definitions:
   dto.ItemError:
     properties:
       error:
+        type: string
+    type: object
+  dto.ItemPickupPoint:
+    properties:
+      address:
+        type: string
+      id:
+        type: string
+      name:
         type: string
     type: object
   dto.ItemResponse:
@@ -152,6 +249,11 @@ definitions:
         items:
           type: string
         type: array
+      pickup_point:
+        allOf:
+        - $ref: '#/definitions/dto.ItemPickupPoint'
+        description: null — вещь дома у владельца.
+        x-nullable: true
       status:
         type: string
       title:
@@ -183,7 +285,7 @@ definitions:
           $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ExchangeResponse'
         type: array
       pagination:
-        $ref: '#/definitions/dto.PaginationResponse'
+        $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.PaginationResponse'
     type: object
   dto.LoginRequest:
     properties:
@@ -219,19 +321,13 @@ definitions:
         - participant_accepted
         - participant_declined
         - participant_completed
+        - participant_delivered_item
         - exchange_confirmed
+        - exchange_delivering
+        - exchange_delivered
         - exchange_completed
         - exchange_superseded
         type: string
-    type: object
-  dto.PaginationResponse:
-    properties:
-      limit:
-        type: integer
-      offset:
-        type: integer
-      total:
-        type: integer
     type: object
   dto.ParticipantItemResponse:
     properties:
@@ -241,9 +337,24 @@ definitions:
         type: string
       id:
         type: string
+      pickup_point:
+        allOf:
+        - $ref: '#/definitions/dto.ParticipantPickupPointResponse'
+        description: null — вещь ещё дома у владельца. По этому полю видно, кого из
+          участников ждут.
+        x-nullable: true
       status:
         type: string
       title:
+        type: string
+    type: object
+  dto.ParticipantPickupPointResponse:
+    properties:
+      address:
+        type: string
+      id:
+        type: string
+      name:
         type: string
     type: object
   dto.ParticipantResponse:
@@ -308,6 +419,12 @@ definitions:
       reason:
         type: string
       status:
+        type: string
+    type: object
+  dto.SetPickupPointRequest:
+    properties:
+      pickup_point_id:
+        example: 6f1c1c53-1f0e-4a0a-9d0f-2f0b6c7a1e11
         type: string
     type: object
   dto.UpdateItemRequest:
@@ -397,6 +514,15 @@ definitions:
       updated_at:
         type: string
     type: object
+  github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.PaginationResponse:
+    properties:
+      limit:
+        type: integer
+      offset:
+        type: integer
+      total:
+        type: integer
+    type: object
   github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.CategoryResponse:
     properties:
       name:
@@ -436,6 +562,15 @@ definitions:
       slug:
         example: bikes
         type: string
+    type: object
+  github_com_sweetlife999_chain-of-trades-avito_internal_report_dto.PaginationResponse:
+    properties:
+      limit:
+        type: integer
+      offset:
+        type: integer
+      total:
+        type: integer
     type: object
   github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse:
     properties:
@@ -529,7 +664,10 @@ paths:
       - admin
   /admin/pickup-points:
     get:
-      description: Доступно только администратору. Возвращает ПВЗ от новых к старым.
+      description: |-
+        Возвращает ПВЗ от новых к старым. Читать список может любой авторизованный
+        пользователь: без него не из чего выбирать пункт для POST /items/{id}/pickup.
+        Заводить и править ПВЗ по-прежнему может только администратор.
       produces:
       - application/json
       responses:
@@ -555,7 +693,7 @@ paths:
       - CookieAuth: []
       summary: Получить список ПВЗ
       tags:
-      - admin pickup-points
+      - pickup-points
     post:
       consumes:
       - application/json
@@ -640,7 +778,8 @@ paths:
       tags:
       - admin pickup-points
     get:
-      description: Доступно только администратору.
+      description: Доступно любому авторизованному пользователю — по той же причине,
+        что и список.
       parameters:
       - description: UUID ПВЗ
         in: path
@@ -678,7 +817,7 @@ paths:
       - CookieAuth: []
       summary: Получить ПВЗ по ID
       tags:
-      - admin pickup-points
+      - pickup-points
     patch:
       consumes:
       - application/json
@@ -727,6 +866,309 @@ paths:
       summary: Изменить ПВЗ
       tags:
       - admin pickup-points
+  /admin/reports:
+    get:
+      description: |-
+        Возвращает жалобы для модерации вместе с жалобщиком, нарушителем, сообщением и обменом.
+        Поддерживает пагинацию и фильтры по статусу, причине и назначенному администратору.
+      parameters:
+      - description: Статус жалобы
+        enum:
+        - open
+        - resolved
+        - rejected
+        in: query
+        name: status
+        type: string
+      - description: Причина жалобы
+        enum:
+        - spam
+        - abuse
+        - other
+        in: query
+        name: reason
+        type: string
+      - description: UUID назначенного администратора
+        in: query
+        name: assignee_id
+        type: string
+      - default: 20
+        description: Размер страницы (1-100)
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Смещение
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AdminReportListResponse'
+        "400":
+          description: Некорректный фильтр или пагинация
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "403":
+          description: Пользователь не администратор
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+      security:
+      - CookieAuth: []
+      summary: Очередь жалоб
+      tags:
+      - admin-reports
+  /admin/reports/{id}:
+    get:
+      description: Возвращает жалобу, автора жалобы, автора сообщения, само сообщение
+        и обмен.
+      parameters:
+      - description: UUID жалобы
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AdminReportResponse'
+        "400":
+          description: Некорректный UUID
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "403":
+          description: Пользователь не администратор
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "404":
+          description: Жалоба не найдена
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+      security:
+      - CookieAuth: []
+      summary: Карточка жалобы
+      tags:
+      - admin-reports
+  /admin/reports/{id}/assign:
+    post:
+      description: |-
+        Атомарно назначает открытую жалобу текущему администратору.
+        Если её уже взял другой администратор или она закрыта, возвращает конфликт.
+      parameters:
+      - description: UUID жалобы
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AdminReportResponse'
+        "400":
+          description: Некорректный UUID
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "403":
+          description: Пользователь не администратор
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "404":
+          description: Жалоба не найдена
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "409":
+          description: Жалоба уже назначена или закрыта
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+      security:
+      - CookieAuth: []
+      summary: Взять жалобу в работу
+      tags:
+      - admin-reports
+  /admin/reports/{id}/messages:
+    get:
+      description: Возвращает полный тред обмена, к которому относится жалоба. Доступ
+        только на чтение.
+      parameters:
+      - description: UUID жалобы
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AdminReportMessagesResponse'
+        "400":
+          description: Некорректный UUID
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "403":
+          description: Пользователь не администратор
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "404":
+          description: Жалоба не найдена
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+      security:
+      - CookieAuth: []
+      summary: Переписка по жалобе
+      tags:
+      - admin-reports
+  /admin/reports/{id}/reject:
+    post:
+      consumes:
+      - application/json
+      description: Закрывает назначенную текущему администратору жалобу со статусом
+        rejected.
+      parameters:
+      - description: UUID жалобы
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Комментарий к решению
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AdminDecisionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AdminReportResponse'
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "403":
+          description: Пользователь не администратор
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "404":
+          description: Жалоба не найдена
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "409":
+          description: Жалоба не назначена этому админу или уже закрыта
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+      security:
+      - CookieAuth: []
+      summary: Отклонить жалобу
+      tags:
+      - admin-reports
+  /admin/reports/{id}/resolve:
+    post:
+      consumes:
+      - application/json
+      description: Закрывает назначенную текущему администратору жалобу со статусом
+        resolved.
+      parameters:
+      - description: UUID жалобы
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Комментарий к решению
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AdminDecisionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AdminReportResponse'
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "403":
+          description: Пользователь не администратор
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "404":
+          description: Жалоба не найдена
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "409":
+          description: Жалоба не назначена этому админу или уже закрыта
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+      security:
+      - CookieAuth: []
+      summary: Подтвердить жалобу
+      tags:
+      - admin-reports
   /admin/users/{user_id}/exchanges:
     get:
       description: Доступно только администратору. Возвращает proposed и confirmed
@@ -1431,6 +1873,176 @@ paths:
       summary: Изменить своё объявление
       tags:
       - items
+  /items/{id}/pickup:
+    delete:
+      description: |-
+        Возвращает вещь домой. Пока вещь занята в незавершённом обмене, забрать её
+        нельзя: остальные участники рассчитывают на то, что она лежит на месте.
+        Идемпотентен: у вещи без отметки забирать нечего.
+      parameters:
+      - description: UUID объявления
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: Вещь снова дома
+        "400":
+          description: ID не является UUID
+          schema:
+            $ref: '#/definitions/dto.ItemError'
+        "401":
+          description: Нет или истекла cookie access_token
+          schema:
+            $ref: '#/definitions/dto.ItemError'
+        "403":
+          description: Объявление принадлежит другому пользователю
+          schema:
+            $ref: '#/definitions/dto.ItemError'
+        "404":
+          description: Объявление не найдено
+          schema:
+            $ref: '#/definitions/dto.ItemError'
+        "409":
+          description: Вещь участвует в незавершённом обмене
+          schema:
+            $ref: '#/definitions/dto.ItemError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.ItemError'
+      security:
+      - CookieAuth: []
+      summary: Забрать вещь из пункта выдачи
+      tags:
+      - items
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Отмечает, что вещь лежит в указанном ПВЗ. Отнести можно и вещь, которая ни в
+        каком обмене не участвует — к моменту сборки цепочки она уже будет на месте.
+        Когда в пунктах окажутся все вещи подтверждённого обмена, он переходит в доставку.
+        Список пунктов: GET /pickup-points.
+      parameters:
+      - description: UUID объявления
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Пункт выдачи
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.SetPickupPointRequest'
+      responses:
+        "204":
+          description: Вещь отмечена как сданная в пункт
+        "400":
+          description: ID не UUID, тело не JSON или такого пункта нет
+          schema:
+            $ref: '#/definitions/dto.ItemError'
+        "401":
+          description: Нет или истекла cookie access_token
+          schema:
+            $ref: '#/definitions/dto.ItemError'
+        "403":
+          description: Объявление принадлежит другому пользователю
+          schema:
+            $ref: '#/definitions/dto.ItemError'
+        "404":
+          description: Объявление не найдено
+          schema:
+            $ref: '#/definitions/dto.ItemError'
+        "409":
+          description: Вещь уже обменяна или снята с публикации
+          schema:
+            $ref: '#/definitions/dto.ItemError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.ItemError'
+      security:
+      - CookieAuth: []
+      summary: Отнести вещь в пункт выдачи
+      tags:
+      - items
+  /pickup-points:
+    get:
+      description: |-
+        Возвращает ПВЗ от новых к старым. Читать список может любой авторизованный
+        пользователь: без него не из чего выбирать пункт для POST /items/{id}/pickup.
+        Заводить и править ПВЗ по-прежнему может только администратор.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список ПВЗ
+          schema:
+            items:
+              $ref: '#/definitions/dto.PickupPointResponse'
+            type: array
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/dto.PickupPointError'
+        "403":
+          description: Недостаточно прав
+          schema:
+            $ref: '#/definitions/dto.PickupPointError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.PickupPointError'
+      security:
+      - CookieAuth: []
+      summary: Получить список ПВЗ
+      tags:
+      - pickup-points
+  /pickup-points/{id}:
+    get:
+      description: Доступно любому авторизованному пользователю — по той же причине,
+        что и список.
+      parameters:
+      - description: UUID ПВЗ
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ПВЗ
+          schema:
+            $ref: '#/definitions/dto.PickupPointResponse'
+        "400":
+          description: Некорректный UUID
+          schema:
+            $ref: '#/definitions/dto.PickupPointError'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/dto.PickupPointError'
+        "403":
+          description: Недостаточно прав
+          schema:
+            $ref: '#/definitions/dto.PickupPointError'
+        "404":
+          description: ПВЗ не найден
+          schema:
+            $ref: '#/definitions/dto.PickupPointError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.PickupPointError'
+      security:
+      - CookieAuth: []
+      summary: Получить ПВЗ по ID
+      tags:
+      - pickup-points
   /reports:
     post:
       consumes:

@@ -52,10 +52,12 @@ func (r *Repository) CompleteParticipation(
 		// Повторный запрос уже подтвердившего участника безопасен. Это важно,
 		// например, если клиент не получил первый HTTP-ответ и отправил запрос снова.
 		if participant.CompletionConfirmedAt.Valid &&
-			(exchangeStatus == db.ChainStatusConfirmed || exchangeStatus == db.ChainStatusCompleted) {
+			(exchangeStatus == db.ChainStatusDelivered || exchangeStatus == db.ChainStatusCompleted) {
 			return nil
 		}
-		if exchangeStatus != db.ChainStatusConfirmed || participant.Status != db.ParticipantStatusAccepted {
+		// Получить вещь можно только после того, как пункты её выдали: до delivered она
+		// физически едет, и «получил» означало бы подтверждение того, чего не было.
+		if exchangeStatus != db.ChainStatusDelivered || participant.Status != db.ParticipantStatusAccepted {
 			return ErrConflict
 		}
 
@@ -121,6 +123,12 @@ func finalizeExchange(
 	}
 	if traded != int64(len(items)) {
 		return ErrConflict
+	}
+
+	// Вещи разъехались по новым владельцам: адрес хранения больше не описывает ничего и
+	// зря держал бы пункт от удаления.
+	if err := queries.ClearExchangeItemsPickupPoint(ctx, pgUUID(exchangeID)); err != nil {
+		return fmt.Errorf("clear exchange items pickup point: %w", err)
 	}
 
 	if err := queries.CompleteExchange(ctx, pgUUID(exchangeID)); err != nil {

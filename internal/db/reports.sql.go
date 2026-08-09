@@ -11,6 +11,52 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const assignReportForAdmin = `-- name: AssignReportForAdmin :execrows
+UPDATE reports
+SET
+    assignee_id = $1,
+    assigned_at = now()
+WHERE id = $2
+  AND status = 'open'
+  AND assignee_id IS NULL
+`
+
+type AssignReportForAdminParams struct {
+	AdminID  pgtype.UUID
+	ReportID pgtype.UUID
+}
+
+// Назначение — один условный UPDATE. Два администратора могут нажать кнопку одновременно,
+// но строку изменит только один: после его UPDATE assignee_id уже не NULL.
+func (q *Queries) AssignReportForAdmin(ctx context.Context, arg AssignReportForAdminParams) (int64, error) {
+	result, err := q.db.Exec(ctx, assignReportForAdmin, arg.AdminID, arg.ReportID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const countReportsForAdmin = `-- name: CountReportsForAdmin :one
+SELECT count(*)
+FROM reports AS report
+WHERE ($1::text = '' OR report.status::text = $1::text)
+  AND ($2::text = '' OR report.reason::text = $2::text)
+  AND ($3::uuid IS NULL OR report.assignee_id = $3::uuid)
+`
+
+type CountReportsForAdminParams struct {
+	Status     string
+	Reason     string
+	AssigneeID pgtype.UUID
+}
+
+func (q *Queries) CountReportsForAdmin(ctx context.Context, arg CountReportsForAdminParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countReportsForAdmin, arg.Status, arg.Reason, arg.AssigneeID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createReport = `-- name: CreateReport :one
 INSERT INTO reports (reporter_id, message_id, reason, comment)
 VALUES (
@@ -19,7 +65,7 @@ VALUES (
     $3,
     $4
 )
-RETURNING id, reporter_id, message_id, reason, comment, status, assignee_id, created_at
+RETURNING id, reporter_id, message_id, reason, comment, status, assignee_id, created_at, assigned_at, closed_at, resolution_comment
 `
 
 type CreateReportParams struct {
@@ -48,7 +94,158 @@ func (q *Queries) CreateReport(ctx context.Context, arg CreateReportParams) (Rep
 		&i.Status,
 		&i.AssigneeID,
 		&i.CreatedAt,
+		&i.AssignedAt,
+		&i.ClosedAt,
+		&i.ResolutionComment,
 	)
+	return i, err
+}
+
+const decideReportForAdmin = `-- name: DecideReportForAdmin :execrows
+UPDATE reports
+SET
+    status = $1,
+    closed_at = now(),
+    resolution_comment = $2
+WHERE id = $3
+  AND status = 'open'
+  AND assignee_id = $4
+`
+
+type DecideReportForAdminParams struct {
+	Decision          ReportStatus
+	ResolutionComment string
+	ReportID          pgtype.UUID
+	AdminID           pgtype.UUID
+}
+
+// Решение может принять только текущий исполнитель и только пока жалоба open.
+// status и время закрытия меняются одним атомарным запросом.
+func (q *Queries) DecideReportForAdmin(ctx context.Context, arg DecideReportForAdminParams) (int64, error) {
+	result, err := q.db.Exec(ctx, decideReportForAdmin,
+		arg.Decision,
+		arg.ResolutionComment,
+		arg.ReportID,
+		arg.AdminID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const getReportForAdmin = `-- name: GetReportForAdmin :one
+SELECT
+    report.id         AS report_id,
+    report.reason     AS report_reason,
+    report.comment    AS report_comment,
+    report.status     AS report_status,
+    report.created_at AS report_created_at,
+    report.assigned_at AS report_assigned_at,
+    report.closed_at AS report_closed_at,
+    report.resolution_comment AS report_resolution_comment,
+    reporter.id        AS reporter_id,
+    reporter.nickname  AS reporter_nickname,
+    reporter.photo_url AS reporter_photo_url,
+    offender.id        AS offender_id,
+    offender.nickname  AS offender_nickname,
+    offender.photo_url AS offender_photo_url,
+    message.id         AS message_id,
+    message.body       AS message_body,
+    message.created_at AS message_created_at,
+    exchange.id        AS exchange_id,
+    exchange.status    AS exchange_status,
+    assignee.id        AS assignee_id,
+    assignee.nickname  AS assignee_nickname,
+    assignee.photo_url AS assignee_photo_url
+FROM reports AS report
+JOIN users AS reporter
+    ON reporter.id = report.reporter_id
+JOIN chain_messages AS message
+    ON message.id = report.message_id
+JOIN users AS offender
+    ON offender.id = message.author_id
+JOIN chains AS exchange
+    ON exchange.id = message.chain_id
+LEFT JOIN users AS assignee
+    ON assignee.id = report.assignee_id
+WHERE report.id = $1
+`
+
+type GetReportForAdminRow struct {
+	ReportID                pgtype.UUID
+	ReportReason            ReportReason
+	ReportComment           string
+	ReportStatus            ReportStatus
+	ReportCreatedAt         pgtype.Timestamptz
+	ReportAssignedAt        pgtype.Timestamptz
+	ReportClosedAt          pgtype.Timestamptz
+	ReportResolutionComment string
+	ReporterID              pgtype.UUID
+	ReporterNickname        string
+	ReporterPhotoUrl        pgtype.Text
+	OffenderID              pgtype.UUID
+	OffenderNickname        string
+	OffenderPhotoUrl        pgtype.Text
+	MessageID               pgtype.UUID
+	MessageBody             pgtype.Text
+	MessageCreatedAt        pgtype.Timestamptz
+	ExchangeID              pgtype.UUID
+	ExchangeStatus          ChainStatus
+	AssigneeID              pgtype.UUID
+	AssigneeNickname        pgtype.Text
+	AssigneePhotoUrl        pgtype.Text
+}
+
+// Карточка использует ту же форму, что и строка очереди. Так frontend может перейти
+// от списка к деталям без второго набора несовместимых названий полей.
+func (q *Queries) GetReportForAdmin(ctx context.Context, reportID pgtype.UUID) (GetReportForAdminRow, error) {
+	row := q.db.QueryRow(ctx, getReportForAdmin, reportID)
+	var i GetReportForAdminRow
+	err := row.Scan(
+		&i.ReportID,
+		&i.ReportReason,
+		&i.ReportComment,
+		&i.ReportStatus,
+		&i.ReportCreatedAt,
+		&i.ReportAssignedAt,
+		&i.ReportClosedAt,
+		&i.ReportResolutionComment,
+		&i.ReporterID,
+		&i.ReporterNickname,
+		&i.ReporterPhotoUrl,
+		&i.OffenderID,
+		&i.OffenderNickname,
+		&i.OffenderPhotoUrl,
+		&i.MessageID,
+		&i.MessageBody,
+		&i.MessageCreatedAt,
+		&i.ExchangeID,
+		&i.ExchangeStatus,
+		&i.AssigneeID,
+		&i.AssigneeNickname,
+		&i.AssigneePhotoUrl,
+	)
+	return i, err
+}
+
+const getReportProcessingState = `-- name: GetReportProcessingState :one
+SELECT status, assignee_id
+FROM reports
+WHERE id = $1
+`
+
+type GetReportProcessingStateRow struct {
+	Status     ReportStatus
+	AssigneeID pgtype.UUID
+}
+
+// Вызывается только если условный UPDATE не изменил строку. Нужен, чтобы отличить 404
+// от конфликтов «уже назначена», «не назначена» и «уже закрыта».
+func (q *Queries) GetReportProcessingState(ctx context.Context, reportID pgtype.UUID) (GetReportProcessingStateRow, error) {
+	row := q.db.QueryRow(ctx, getReportProcessingState, reportID)
+	var i GetReportProcessingStateRow
+	err := row.Scan(&i.Status, &i.AssigneeID)
 	return i, err
 }
 
@@ -85,4 +282,132 @@ func (q *Queries) GetReportTarget(ctx context.Context, arg GetReportTargetParams
 	var i GetReportTargetRow
 	err := row.Scan(&i.Kind, &i.AuthorID, &i.IsParticipant)
 	return i, err
+}
+
+const listReportsForAdmin = `-- name: ListReportsForAdmin :many
+SELECT
+    report.id         AS report_id,
+    report.reason     AS report_reason,
+    report.comment    AS report_comment,
+    report.status     AS report_status,
+    report.created_at AS report_created_at,
+    report.assigned_at AS report_assigned_at,
+    report.closed_at AS report_closed_at,
+    report.resolution_comment AS report_resolution_comment,
+    reporter.id        AS reporter_id,
+    reporter.nickname  AS reporter_nickname,
+    reporter.photo_url AS reporter_photo_url,
+    offender.id        AS offender_id,
+    offender.nickname  AS offender_nickname,
+    offender.photo_url AS offender_photo_url,
+    message.id         AS message_id,
+    message.body       AS message_body,
+    message.created_at AS message_created_at,
+    exchange.id        AS exchange_id,
+    exchange.status    AS exchange_status,
+    assignee.id        AS assignee_id,
+    assignee.nickname  AS assignee_nickname,
+    assignee.photo_url AS assignee_photo_url
+FROM reports AS report
+JOIN users AS reporter
+    ON reporter.id = report.reporter_id
+JOIN chain_messages AS message
+    ON message.id = report.message_id
+JOIN users AS offender
+    ON offender.id = message.author_id
+JOIN chains AS exchange
+    ON exchange.id = message.chain_id
+LEFT JOIN users AS assignee
+    ON assignee.id = report.assignee_id
+WHERE ($1::text = '' OR report.status::text = $1::text)
+  AND ($2::text = '' OR report.reason::text = $2::text)
+  AND ($3::uuid IS NULL OR report.assignee_id = $3::uuid)
+ORDER BY report.created_at, report.id
+LIMIT $5
+OFFSET $4
+`
+
+type ListReportsForAdminParams struct {
+	Status     string
+	Reason     string
+	AssigneeID pgtype.UUID
+	PageOffset int32
+	PageLimit  int32
+}
+
+type ListReportsForAdminRow struct {
+	ReportID                pgtype.UUID
+	ReportReason            ReportReason
+	ReportComment           string
+	ReportStatus            ReportStatus
+	ReportCreatedAt         pgtype.Timestamptz
+	ReportAssignedAt        pgtype.Timestamptz
+	ReportClosedAt          pgtype.Timestamptz
+	ReportResolutionComment string
+	ReporterID              pgtype.UUID
+	ReporterNickname        string
+	ReporterPhotoUrl        pgtype.Text
+	OffenderID              pgtype.UUID
+	OffenderNickname        string
+	OffenderPhotoUrl        pgtype.Text
+	MessageID               pgtype.UUID
+	MessageBody             pgtype.Text
+	MessageCreatedAt        pgtype.Timestamptz
+	ExchangeID              pgtype.UUID
+	ExchangeStatus          ChainStatus
+	AssigneeID              pgtype.UUID
+	AssigneeNickname        pgtype.Text
+	AssigneePhotoUrl        pgtype.Text
+}
+
+// Административная очередь. Пустая строка означает, что фильтр не задан; UUID
+// разбирается в handler и приходит сюда NULL, если фильтра по исполнителю нет.
+// Старые жалобы идут первыми: очередь модерации разбирается по порядку поступления.
+func (q *Queries) ListReportsForAdmin(ctx context.Context, arg ListReportsForAdminParams) ([]ListReportsForAdminRow, error) {
+	rows, err := q.db.Query(ctx, listReportsForAdmin,
+		arg.Status,
+		arg.Reason,
+		arg.AssigneeID,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListReportsForAdminRow
+	for rows.Next() {
+		var i ListReportsForAdminRow
+		if err := rows.Scan(
+			&i.ReportID,
+			&i.ReportReason,
+			&i.ReportComment,
+			&i.ReportStatus,
+			&i.ReportCreatedAt,
+			&i.ReportAssignedAt,
+			&i.ReportClosedAt,
+			&i.ReportResolutionComment,
+			&i.ReporterID,
+			&i.ReporterNickname,
+			&i.ReporterPhotoUrl,
+			&i.OffenderID,
+			&i.OffenderNickname,
+			&i.OffenderPhotoUrl,
+			&i.MessageID,
+			&i.MessageBody,
+			&i.MessageCreatedAt,
+			&i.ExchangeID,
+			&i.ExchangeStatus,
+			&i.AssigneeID,
+			&i.AssigneeNickname,
+			&i.AssigneePhotoUrl,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

@@ -25,3 +25,124 @@ VALUES (
     sqlc.arg(comment)
 )
 RETURNING *;
+
+-- Административная очередь. Пустая строка означает, что фильтр не задан; UUID
+-- разбирается в handler и приходит сюда NULL, если фильтра по исполнителю нет.
+-- Старые жалобы идут первыми: очередь модерации разбирается по порядку поступления.
+-- name: ListReportsForAdmin :many
+SELECT
+    report.id         AS report_id,
+    report.reason     AS report_reason,
+    report.comment    AS report_comment,
+    report.status     AS report_status,
+    report.created_at AS report_created_at,
+    report.assigned_at AS report_assigned_at,
+    report.closed_at AS report_closed_at,
+    report.resolution_comment AS report_resolution_comment,
+    reporter.id        AS reporter_id,
+    reporter.nickname  AS reporter_nickname,
+    reporter.photo_url AS reporter_photo_url,
+    offender.id        AS offender_id,
+    offender.nickname  AS offender_nickname,
+    offender.photo_url AS offender_photo_url,
+    message.id         AS message_id,
+    message.body       AS message_body,
+    message.created_at AS message_created_at,
+    exchange.id        AS exchange_id,
+    exchange.status    AS exchange_status,
+    assignee.id        AS assignee_id,
+    assignee.nickname  AS assignee_nickname,
+    assignee.photo_url AS assignee_photo_url
+FROM reports AS report
+JOIN users AS reporter
+    ON reporter.id = report.reporter_id
+JOIN chain_messages AS message
+    ON message.id = report.message_id
+JOIN users AS offender
+    ON offender.id = message.author_id
+JOIN chains AS exchange
+    ON exchange.id = message.chain_id
+LEFT JOIN users AS assignee
+    ON assignee.id = report.assignee_id
+WHERE (sqlc.arg(status)::text = '' OR report.status::text = sqlc.arg(status)::text)
+  AND (sqlc.arg(reason)::text = '' OR report.reason::text = sqlc.arg(reason)::text)
+  AND (sqlc.narg(assignee_id)::uuid IS NULL OR report.assignee_id = sqlc.narg(assignee_id)::uuid)
+ORDER BY report.created_at, report.id
+LIMIT sqlc.arg(page_limit)
+OFFSET sqlc.arg(page_offset);
+
+-- name: CountReportsForAdmin :one
+SELECT count(*)
+FROM reports AS report
+WHERE (sqlc.arg(status)::text = '' OR report.status::text = sqlc.arg(status)::text)
+  AND (sqlc.arg(reason)::text = '' OR report.reason::text = sqlc.arg(reason)::text)
+  AND (sqlc.narg(assignee_id)::uuid IS NULL OR report.assignee_id = sqlc.narg(assignee_id)::uuid);
+
+-- Карточка использует ту же форму, что и строка очереди. Так frontend может перейти
+-- от списка к деталям без второго набора несовместимых названий полей.
+-- name: GetReportForAdmin :one
+SELECT
+    report.id         AS report_id,
+    report.reason     AS report_reason,
+    report.comment    AS report_comment,
+    report.status     AS report_status,
+    report.created_at AS report_created_at,
+    report.assigned_at AS report_assigned_at,
+    report.closed_at AS report_closed_at,
+    report.resolution_comment AS report_resolution_comment,
+    reporter.id        AS reporter_id,
+    reporter.nickname  AS reporter_nickname,
+    reporter.photo_url AS reporter_photo_url,
+    offender.id        AS offender_id,
+    offender.nickname  AS offender_nickname,
+    offender.photo_url AS offender_photo_url,
+    message.id         AS message_id,
+    message.body       AS message_body,
+    message.created_at AS message_created_at,
+    exchange.id        AS exchange_id,
+    exchange.status    AS exchange_status,
+    assignee.id        AS assignee_id,
+    assignee.nickname  AS assignee_nickname,
+    assignee.photo_url AS assignee_photo_url
+FROM reports AS report
+JOIN users AS reporter
+    ON reporter.id = report.reporter_id
+JOIN chain_messages AS message
+    ON message.id = report.message_id
+JOIN users AS offender
+    ON offender.id = message.author_id
+JOIN chains AS exchange
+    ON exchange.id = message.chain_id
+LEFT JOIN users AS assignee
+    ON assignee.id = report.assignee_id
+WHERE report.id = sqlc.arg(report_id);
+
+-- Назначение — один условный UPDATE. Два администратора могут нажать кнопку одновременно,
+-- но строку изменит только один: после его UPDATE assignee_id уже не NULL.
+-- name: AssignReportForAdmin :execrows
+UPDATE reports
+SET
+    assignee_id = sqlc.arg(admin_id),
+    assigned_at = now()
+WHERE id = sqlc.arg(report_id)
+  AND status = 'open'
+  AND assignee_id IS NULL;
+
+-- Решение может принять только текущий исполнитель и только пока жалоба open.
+-- status и время закрытия меняются одним атомарным запросом.
+-- name: DecideReportForAdmin :execrows
+UPDATE reports
+SET
+    status = sqlc.arg(decision),
+    closed_at = now(),
+    resolution_comment = sqlc.arg(resolution_comment)
+WHERE id = sqlc.arg(report_id)
+  AND status = 'open'
+  AND assignee_id = sqlc.arg(admin_id);
+
+-- Вызывается только если условный UPDATE не изменил строку. Нужен, чтобы отличить 404
+-- от конфликтов «уже назначена», «не назначена» и «уже закрыта».
+-- name: GetReportProcessingState :one
+SELECT status, assignee_id
+FROM reports
+WHERE id = sqlc.arg(report_id);

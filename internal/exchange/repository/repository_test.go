@@ -330,6 +330,61 @@ type fakeExchangeWriteQueries struct {
 	dealsCompletedErr            error
 	systemMessages               []db.CreateChainSystemMessageParams
 	systemMessageErr             error
+	pickupLocked                 bool
+	lockPickupErr                error
+	confirmedExchangeID          pgtype.UUID
+	findConfirmedErr             error
+	pickupSet                    []db.SetItemPickupPointParams
+	pickupUpdated                int64
+	setPickupErr                 error
+	promoted                     int64
+	promoteErr                   error
+	pickupCleared                bool
+	clearPickupErr               error
+}
+
+func (f *fakeExchangeWriteQueries) LockItemPickup(context.Context, pgtype.UUID) error {
+	f.pickupLocked = true
+	return f.lockPickupErr
+}
+
+// Невыставленный confirmedExchangeID означает «вещь ни в каком подтверждённом обмене»,
+// и база в этом случае отвечает именно ErrNoRows.
+func (f *fakeExchangeWriteQueries) FindConfirmedExchangeForItem(
+	context.Context,
+	pgtype.UUID,
+) (pgtype.UUID, error) {
+	if f.findConfirmedErr != nil {
+		return pgtype.UUID{}, f.findConfirmedErr
+	}
+	if !f.confirmedExchangeID.Valid {
+		return pgtype.UUID{}, pgx.ErrNoRows
+	}
+
+	return f.confirmedExchangeID, nil
+}
+
+func (f *fakeExchangeWriteQueries) SetItemPickupPoint(
+	_ context.Context,
+	params db.SetItemPickupPointParams,
+) (int64, error) {
+	f.pickupSet = append(f.pickupSet, params)
+	return f.pickupUpdated, f.setPickupErr
+}
+
+func (f *fakeExchangeWriteQueries) PromoteExchangeToDelivering(
+	context.Context,
+	pgtype.UUID,
+) (int64, error) {
+	return f.promoted, f.promoteErr
+}
+
+func (f *fakeExchangeWriteQueries) ClearExchangeItemsPickupPoint(
+	context.Context,
+	pgtype.UUID,
+) error {
+	f.pickupCleared = true
+	return f.clearPickupErr
 }
 
 func (f *fakeExchangeWriteQueries) CreateChainSystemMessage(
@@ -349,9 +404,11 @@ func assertRecordedEvents(
 ) {
 	t.Helper()
 
-	recorded := make([]db.ChainMessageKind, len(queries.systemMessages))
-	for index, message := range queries.systemMessages {
-		recorded[index] = message.Kind
+	// Объявление через var, а не make: без событий срез остаётся nil и сходится с пустым
+	// списком ожиданий, который приходит из вызова без аргументов.
+	var recorded []db.ChainMessageKind
+	for _, message := range queries.systemMessages {
+		recorded = append(recorded, message.Kind)
 	}
 
 	if !reflect.DeepEqual(recorded, want) {

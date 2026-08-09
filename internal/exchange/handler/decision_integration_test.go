@@ -199,6 +199,9 @@ func TestExchangeDecisionsIntegration(t *testing.T) {
 		}
 	}
 
+	// Подтвердить получение можно только после того, как пункты выдали вещи.
+	deliverExchange(ctx, t, pool, confirmedExchangeID)
+
 	for index := 0; index < len(participants)-1; index++ {
 		if err := service.CompleteParticipation(ctx, confirmedExchangeID, participants[index].UserID); err != nil {
 			t.Fatalf("complete exchange participant %d: %v", index, err)
@@ -209,8 +212,8 @@ func TestExchangeDecisionsIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get exchange waiting for completion: %v", err)
 	}
-	if waiting.Status != "confirmed" {
-		t.Fatalf("partially completed exchange status = %q, want confirmed", waiting.Status)
+	if waiting.Status != "delivered" {
+		t.Fatalf("partially completed exchange status = %q, want delivered", waiting.Status)
 	}
 	for index, participant := range waiting.Participants {
 		if index < len(participants)-1 && participant.CompletionConfirmedAt == nil {

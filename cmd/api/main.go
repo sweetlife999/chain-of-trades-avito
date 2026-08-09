@@ -86,7 +86,9 @@ func main() {
 	pickupPoints := pickuppointservice.New(pickuppointrepository.New(queries))
 	adminDashboard := admindashboardservice.New(admindashboardrepository.New(queries))
 	adminExchanges := adminexchangeservice.New(usersRepository, exchangesRepository)
-	reports := reportservice.New(reportrepository.New(queries))
+	reportsRepository := reportrepository.New(queries)
+	reports := reportservice.New(reportsRepository)
+	adminReports := reportservice.NewAdmin(reportsRepository, exchangesRepository)
 
 	tokens := authtoken.NewManager(cfg.JWTSecret, authTokenTTL)
 	authenticator := authmiddleware.New(tokens)
@@ -98,6 +100,10 @@ func main() {
 	authhandler.New(auth, cfg.CookieSecure, authTokenTTL).
 		RegisterRoutes(router, authenticator.RequireAuthentication)
 	exchangesHandler.RegisterRoutes(router, authenticator.RequireAuthentication)
+	pickupPointsHandler := pickuppointhandler.New(pickupPoints)
+	// Справочник пунктов нужен обычному пользователю, чтобы выбрать, куда нести вещь.
+	// Заводить и править их по-прежнему может только администратор — ниже, в /admin.
+	pickupPointsHandler.RegisterPublicRoutes(router, authenticator.RequireAuthentication)
 	// Жалуется обычный участник обмена, поэтому маршрут живёт вне группы /admin.
 	reporthandler.New(reports).RegisterRoutes(router, authenticator.RequireAuthentication)
 
@@ -108,8 +114,9 @@ func main() {
 		adminRouter.Use(adminAuthorizer.RequireAdmin)
 		admindashboardhandler.New(adminDashboard).RegisterRoutes(adminRouter)
 		adminexchangehandler.New(adminExchanges).RegisterRoutes(adminRouter)
-		pickuppointhandler.New(pickupPoints).RegisterRoutes(adminRouter)
+		pickupPointsHandler.RegisterRoutes(adminRouter)
 		exchangesHandler.RegisterAdminRoutes(adminRouter)
+		reporthandler.NewAdmin(adminReports).RegisterRoutes(adminRouter)
 	})
 
 	router.Get("/health", health)
