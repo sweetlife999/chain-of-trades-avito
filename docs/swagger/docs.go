@@ -432,6 +432,227 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/reports": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Возвращает жалобы для модерации вместе с жалобщиком, нарушителем, сообщением и обменом.\nПоддерживает пагинацию и фильтры по статусу, причине и назначенному администратору.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-reports"
+                ],
+                "summary": "Очередь жалоб",
+                "parameters": [
+                    {
+                        "enum": [
+                            "open",
+                            "resolved",
+                            "rejected"
+                        ],
+                        "type": "string",
+                        "description": "Статус жалобы",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "spam",
+                            "abuse",
+                            "other"
+                        ],
+                        "type": "string",
+                        "description": "Причина жалобы",
+                        "name": "reason",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "UUID назначенного администратора",
+                        "name": "assignee_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Размер страницы (1-100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Смещение",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AdminReportListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный фильтр или пагинация",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "403": {
+                        "description": "Пользователь не администратор",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/reports/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Возвращает жалобу, автора жалобы, автора сообщения, само сообщение и обмен.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-reports"
+                ],
+                "summary": "Карточка жалобы",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID жалобы",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AdminReportResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный UUID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "403": {
+                        "description": "Пользователь не администратор",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "404": {
+                        "description": "Жалоба не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/reports/{id}/messages": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Возвращает полный тред обмена, к которому относится жалоба. Доступ только на чтение.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-reports"
+                ],
+                "summary": "Переписка по жалобе",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID жалобы",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AdminReportMessagesResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный UUID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "403": {
+                        "description": "Пользователь не администратор",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "404": {
+                        "description": "Жалоба не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/users/{user_id}/exchanges": {
             "get": {
                 "security": [
@@ -1866,6 +2087,116 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "dto.AdminExchangeResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.AdminMessageResponse": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.AdminReportListResponse": {
+            "type": "object",
+            "properties": {
+                "pagination": {
+                    "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_report_dto.PaginationResponse"
+                },
+                "reports": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.AdminReportResponse"
+                    }
+                }
+            }
+        },
+        "dto.AdminReportMessagesResponse": {
+            "type": "object",
+            "properties": {
+                "exchange_id": {
+                    "type": "string"
+                },
+                "messages": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.MessageResponse"
+                    }
+                },
+                "report_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.AdminReportResponse": {
+            "type": "object",
+            "properties": {
+                "assignee": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.AdminUserResponse"
+                        }
+                    ],
+                    "x-nullable": true
+                },
+                "comment": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "exchange": {
+                    "$ref": "#/definitions/dto.AdminExchangeResponse"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "message": {
+                    "$ref": "#/definitions/dto.AdminMessageResponse"
+                },
+                "offender": {
+                    "$ref": "#/definitions/dto.AdminUserResponse"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "reporter": {
+                    "$ref": "#/definitions/dto.AdminUserResponse"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.AdminUserResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "nickname": {
+                    "type": "string"
+                },
+                "photo_url": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.AuthenticatedUserResponse": {
             "type": "object",
             "properties": {
@@ -2140,7 +2471,7 @@ const docTemplate = `{
                     }
                 },
                 "pagination": {
-                    "$ref": "#/definitions/dto.PaginationResponse"
+                    "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.PaginationResponse"
                 }
             }
         },
@@ -2198,20 +2529,6 @@ const docTemplate = `{
                         "exchange_completed",
                         "exchange_superseded"
                     ]
-                }
-            }
-        },
-        "dto.PaginationResponse": {
-            "type": "object",
-            "properties": {
-                "limit": {
-                    "type": "integer"
-                },
-                "offset": {
-                    "type": "integer"
-                },
-                "total": {
-                    "type": "integer"
                 }
             }
         },
@@ -2464,6 +2781,20 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.PaginationResponse": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
         "github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.CategoryResponse": {
             "type": "object",
             "properties": {
@@ -2522,6 +2853,20 @@ const docTemplate = `{
                 "slug": {
                     "type": "string",
                     "example": "bikes"
+                }
+            }
+        },
+        "github_com_sweetlife999_chain-of-trades-avito_internal_report_dto.PaginationResponse": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },
