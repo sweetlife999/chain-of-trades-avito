@@ -15,12 +15,13 @@ const (
 	ActionUserBlocked          = "user_blocked"
 	ActionUserUnblocked        = "user_unblocked"
 	ActionExchangeCancelled    = "exchange_cancelled"
+	ActionExchangeDelivered    = "exchange_delivered"
 )
 
 var Actions = []string{
 	ActionReportAssigned, ActionReportResolved, ActionReportRejected,
 	ActionReportMessagesViewed, ActionUserBlocked, ActionUserUnblocked,
-	ActionExchangeCancelled,
+	ActionExchangeCancelled, ActionExchangeDelivered,
 }
 
 type UserBlockState struct {

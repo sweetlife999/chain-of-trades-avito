@@ -114,6 +114,22 @@ WHERE chains.id = sqlc.arg(exchange_id)
         AND item.pickup_point_id IS NULL
   );
 
+-- Администратор завершает физическую доставку всей цепочки одной командой. Проверка
+-- пунктов продублирована намеренно: status = 'delivering' уже означает, что все вещи
+-- сданы, но это условие не даст некорректным старым данным перейти к получению.
+-- name: MarkExchangeDelivered :execrows
+UPDATE chains
+SET status = 'delivered'
+WHERE chains.id = sqlc.arg(exchange_id)
+  AND chains.status = 'delivering'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM chain_participants AS participant
+      JOIN items AS item ON item.id = participant.gives_item_id
+      WHERE participant.chain_id = sqlc.arg(exchange_id)
+        AND item.pickup_point_id IS NULL
+  );
+
 -- После победы одного обмена все ещё открытые предложения с любым общим
 -- объявлением больше не выполнимы и сразу закрываются для frontend. Отмена и запись
 -- события в тред каждой отменённой цепочки — одно выражение: участник не может

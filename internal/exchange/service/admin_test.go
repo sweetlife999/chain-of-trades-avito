@@ -71,3 +71,28 @@ func TestCancelByAdminWrapsRepositoryError(t *testing.T) {
 		t.Fatalf("CancelByAdmin() error = %v, want wrapped %v", err, databaseError)
 	}
 }
+
+func TestMarkDeliveredByAdmin(t *testing.T) {
+	t.Parallel()
+
+	repository := &fakeRepository{}
+	exchangeID := uuid.New()
+	adminID := uuid.New()
+	if err := New(repository).MarkDeliveredByAdmin(context.Background(), exchangeID, adminID); err != nil {
+		t.Fatalf("MarkDeliveredByAdmin() error = %v", err)
+	}
+	if repository.adminDelivery.exchangeID != exchangeID || repository.adminDelivery.adminID != adminID {
+		t.Fatalf("admin delivery = %+v", repository.adminDelivery)
+	}
+}
+
+func TestMarkDeliveredByAdminWrapsRepositoryError(t *testing.T) {
+	t.Parallel()
+
+	databaseError := errors.New("database unavailable")
+	repository := &fakeRepository{adminDelivery: fakeAdminDelivery{err: databaseError}}
+	err := New(repository).MarkDeliveredByAdmin(context.Background(), uuid.New(), uuid.New())
+	if !errors.Is(err, databaseError) {
+		t.Fatalf("MarkDeliveredByAdmin() error = %v, want wrapped %v", err, databaseError)
+	}
+}

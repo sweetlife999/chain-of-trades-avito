@@ -18,8 +18,7 @@ import (
 
 // TestExchangeDeliveryIntegration гоняет узел доставки на живой БД: вещи уезжают в пункт,
 // последняя сдача уводит обмен в delivering, «Товар получен» до выдачи не проходит, а после
-// завершения пункт с вещей снимается. Перевод delivering -> delivered делает администратор,
-// его ручка живёт вне этой задачи и здесь заменена запросом.
+// завершения пункт с вещей снимается. Перевод delivering -> delivered выполняет администратор.
 func TestExchangeDeliveryIntegration(t *testing.T) {
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
@@ -74,13 +73,11 @@ func TestExchangeDeliveryIntegration(t *testing.T) {
 		t.Fatalf("complete before delivery error = %v, want ErrConflict", err)
 	}
 
-	if _, err := pool.Exec(
-		ctx,
-		"UPDATE chains SET status = 'delivered' WHERE id = $1",
-		exchangeID,
-	); err != nil {
+	if err := service.MarkDeliveredByAdmin(ctx, exchangeID, users[0]); err != nil {
 		t.Fatalf("mark exchange delivered: %v", err)
 	}
+	assertChainStatus(t, ctx, pool, exchangeID, "delivered")
+	assertThreadTail(t, ctx, repository, exchangeID, "exchange_delivering", "exchange_delivered")
 
 	for index, userID := range users[:2] {
 		if err := service.CompleteParticipation(ctx, exchangeID, userID); err != nil {
