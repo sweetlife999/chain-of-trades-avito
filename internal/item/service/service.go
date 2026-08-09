@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -169,7 +170,8 @@ func (s *Service) Update(
 		return itemmodel.Item{}, validationError("at least one field must be provided")
 	}
 
-	if err := s.requireOwner(ctx, id, userID); err != nil {
+	current, err := s.requireOwner(ctx, id, userID)
+	if err != nil {
 		return itemmodel.Item{}, err
 	}
 
@@ -212,7 +214,10 @@ func (s *Service) Update(
 		changes.Wants = wants
 	}
 
-	compatibilityChanged := changes.Category != nil || changes.Wants != nil
+	// Именно изменение значения, а не наличие поля в теле: клиент присылает объявление
+	// целиком, и правка одного заголовка иначе выглядела бы как смена условий обмена.
+	compatibilityChanged := (changes.Category != nil && *changes.Category != current.Category) ||
+		(changes.Wants != nil && !sameWants(changes.Wants, current.Wants))
 	if compatibilityChanged {
 		hasOpenExchange, err := s.repository.HasOpenExchange(ctx, id)
 		if err != nil {
@@ -236,7 +241,7 @@ func (s *Service) Update(
 }
 
 func (s *Service) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	if err := s.requireOwner(ctx, id, userID); err != nil {
+	if _, err := s.requireOwner(ctx, id, userID); err != nil {
 		return err
 	}
 
@@ -252,7 +257,7 @@ func (s *Service) SetPickupPoint(
 	userID uuid.UUID,
 	pickupPointID uuid.UUID,
 ) error {
-	if err := s.requireOwner(ctx, id, userID); err != nil {
+	if _, err := s.requireOwner(ctx, id, userID); err != nil {
 		return err
 	}
 
@@ -262,7 +267,7 @@ func (s *Service) SetPickupPoint(
 // ClearPickupPoint забирает вещь из пункта домой. Пока вещь занята в обмене, забирать её
 // нельзя: остальные участники уже рассчитывают на то, что она лежит на месте.
 func (s *Service) ClearPickupPoint(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	if err := s.requireOwner(ctx, id, userID); err != nil {
+	if _, err := s.requireOwner(ctx, id, userID); err != nil {
 		return err
 	}
 
@@ -283,17 +288,23 @@ func (s *Service) ListCategories(ctx context.Context) ([]itemmodel.Category, err
 
 // Владельца проверяем чтением, а не условием в UPDATE: иначе «не моя вещь» и «нет такой
 // вещи» слились бы в один результат, и 403 стал бы неотличим от 404.
-func (s *Service) requireOwner(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
+func (s *Service) requireOwner(ctx context.Context, id uuid.UUID, userID uuid.UUID) (itemmodel.Item, error) {
 	item, err := s.repository.GetByID(ctx, id)
 	if err != nil {
-		return err
+		return itemmodel.Item{}, err
 	}
 
 	if item.OwnerID != userID {
-		return ErrForbidden
+		return itemmodel.Item{}, ErrForbidden
 	}
 
-	return nil
+	return item, nil
+}
+
+// Желания сравниваются как множества: из БД они приходят отсортированными по слагу,
+// а от клиента — в том порядке, в каком он их отметил.
+func sameWants(a []string, b []string) bool {
+	return slices.Equal(slices.Sorted(slices.Values(a)), slices.Sorted(slices.Values(b)))
 }
 
 func (s *Service) findExchange(ctx context.Context, item itemmodel.Item) {

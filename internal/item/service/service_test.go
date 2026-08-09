@@ -413,6 +413,53 @@ func TestPresentationUpdateDoesNotStartExchangeSearch(t *testing.T) {
 	}
 }
 
+// Клиент присылает объявление целиком, поэтому category и wants приходят в теле даже
+// тогда, когда пользователь тронул один заголовок. Такой запрос не меняет условий обмена
+// и не должен упираться в запрет для вещи, занятой в незавершённом обмене.
+func TestUpdateWithUnchangedCompatibilityIsAllowedInOpenExchange(t *testing.T) {
+	t.Parallel()
+
+	ownerID := uuid.New()
+	itemID := uuid.New()
+	current := itemmodel.Item{
+		ID:       itemID,
+		OwnerID:  ownerID,
+		Category: "bikes",
+		Wants:    []string{"books", "toys"},
+	}
+	repository := &fakeRepository{
+		get: func(context.Context, uuid.UUID) (itemmodel.Item, error) {
+			return current, nil
+		},
+		hasOpen: func(context.Context, uuid.UUID) (bool, error) {
+			return true, nil
+		},
+		update: func(context.Context, uuid.UUID, itemmodel.Changes) (itemmodel.Item, error) {
+			return current, nil
+		},
+	}
+	finder := &fakeExchangeFinder{}
+
+	_, err := newWithDependencies(repository, finder, log.Default()).Update(
+		context.Background(),
+		itemID,
+		ownerID,
+		UpdateInput{
+			Title:    stringPointer("New title"),
+			Category: stringPointer("bikes"),
+			// Порядок отличается от хранимого намеренно: из БД желания приходят
+			// отсортированными, а от клиента — как он их отметил.
+			Wants: []string{"toys", "books"},
+		},
+	)
+	if err != nil {
+		t.Fatalf("Update() error = %v, want success", err)
+	}
+	if finder.calls != 0 {
+		t.Fatalf("FindAndSave() calls = %d, want 0", finder.calls)
+	}
+}
+
 func TestSearchErrorIsLoggedWithoutBreakingCreate(t *testing.T) {
 	t.Parallel()
 
