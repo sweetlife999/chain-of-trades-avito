@@ -12,9 +12,10 @@ lint:
 run:
 	go run ./cmd/api
 
-# Поднять приложение целиком: БД, миграции, API и фронт на http://localhost
+# Поднять приложение целиком: БД, миграции, API и фронт на http://localhost.
+# Пересборку держит pull_policy: build в compose, поэтому здесь --build не нужен.
 up:
-	docker compose up -d --build
+	docker compose up -d
 
 # Только БД с миграциями — для разработки, дальше make run и npm run dev
 db:
