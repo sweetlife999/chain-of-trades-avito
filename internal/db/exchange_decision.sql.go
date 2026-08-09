@@ -267,6 +267,31 @@ func (q *Queries) LockExchangeParticipant(ctx context.Context, arg LockExchangeP
 	return i, err
 }
 
+const markExchangeDelivered = `-- name: MarkExchangeDelivered :execrows
+UPDATE chains
+SET status = 'delivered'
+WHERE chains.id = $1
+  AND chains.status = 'delivering'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM chain_participants AS participant
+      JOIN items AS item ON item.id = participant.gives_item_id
+      WHERE participant.chain_id = $1
+        AND item.pickup_point_id IS NULL
+  )
+`
+
+// Администратор завершает физическую доставку всей цепочки одной командой. Проверка
+// пунктов продублирована намеренно: status = 'delivering' уже означает, что все вещи
+// сданы, но это условие не даст некорректным старым данным перейти к получению.
+func (q *Queries) MarkExchangeDelivered(ctx context.Context, exchangeID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, markExchangeDelivered, exchangeID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const promoteExchangeToDelivering = `-- name: PromoteExchangeToDelivering :execrows
 UPDATE chains
 SET status = 'delivering'

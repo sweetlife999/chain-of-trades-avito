@@ -24,6 +24,7 @@ type Service interface {
 	ConfirmParticipation(context.Context, uuid.UUID, uuid.UUID) error
 	DeclineParticipation(context.Context, uuid.UUID, uuid.UUID) error
 	CancelByAdmin(context.Context, uuid.UUID, uuid.UUID) error
+	MarkDeliveredByAdmin(context.Context, uuid.UUID, uuid.UUID) error
 	CompleteParticipation(context.Context, uuid.UUID, uuid.UUID) error
 	PostMessage(context.Context, uuid.UUID, uuid.UUID, string) (exchangemodel.Message, error)
 	ListMessages(context.Context, uuid.UUID, uuid.UUID) ([]exchangemodel.Message, error)
@@ -53,6 +54,39 @@ func (h *Handler) RegisterRoutes(router chi.Router, requireAuth func(http.Handle
 // middleware аутентификации и проверки роли администратора.
 func (h *Handler) RegisterAdminRoutes(router chi.Router) {
 	router.Post("/exchanges/{id}/cancel", h.cancelByAdmin)
+	router.Post("/exchanges/{id}/mark-delivered", h.markDeliveredByAdmin)
+}
+
+// @Summary     Завершить доставку обмена
+// @Description Переводит обмен из delivering в delivered после доставки всех вещей в ПВЗ. После этого участники могут подтвердить получение. Повторный запрос для delivered безопасен.
+// @Tags        admin
+// @Param       id path string true "UUID обмена"
+// @Success     204 "Обмен переведён к получению"
+// @Failure     400 {object} exchangedto.ErrorResponse "ID не является UUID"
+// @Failure     401 {object} exchangedto.ErrorResponse "Пользователь не авторизован"
+// @Failure     403 {object} exchangedto.ErrorResponse "Недостаточно прав"
+// @Failure     404 {object} exchangedto.ErrorResponse "Обмен не найден"
+// @Failure     409 {object} exchangedto.ErrorResponse "Обмен не доставляется или не все вещи находятся в ПВЗ"
+// @Failure     500 {object} exchangedto.ErrorResponse "Внутренняя ошибка"
+// @Security    CookieAuth
+// @Router      /admin/exchanges/{id}/mark-delivered [post]
+func (h *Handler) markDeliveredByAdmin(w http.ResponseWriter, r *http.Request) {
+	exchangeID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid exchange id")
+		return
+	}
+	adminID, ok := currentUserID(w, r)
+	if !ok {
+		return
+	}
+
+	if err := h.service.MarkDeliveredByAdmin(r.Context(), exchangeID, adminID); err != nil {
+		handleServiceError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // @Summary     Принудительно отменить обмен

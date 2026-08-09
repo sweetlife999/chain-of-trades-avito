@@ -118,29 +118,42 @@ func createPickupPoint(ctx context.Context, t *testing.T, pool *pgxpool.Pool) uu
 }
 
 // deliverExchange доводит подтверждённый обмен до состояния, из которого участники могут
-// подтверждать получение: вещи уезжают в пункт, а перевод «доставка -> доставлено» делает
-// администратор. Его ручка живёт вне этой задачи, поэтому здесь она заменена запросом.
-func deliverExchange(ctx context.Context, t *testing.T, pool *pgxpool.Pool, exchangeID uuid.UUID) {
+// подтверждать получение: владельцы сдают вещи в пункт, затем администратор завершает доставку.
+func deliverExchange(
+	ctx context.Context,
+	t *testing.T,
+	pool *pgxpool.Pool,
+	service *exchangeservice.Service,
+	exchangeID uuid.UUID,
+	adminID uuid.UUID,
+) {
 	t.Helper()
 
 	pointID := createPickupPoint(ctx, t, pool)
-
-	_, err := pool.Exec(ctx, `
-		UPDATE items
-		SET pickup_point_id = $2
-		WHERE id IN (SELECT gives_item_id FROM chain_participants WHERE chain_id = $1)`,
-		exchangeID,
-		pointID,
-	)
+	rows, err := pool.Query(ctx, `
+		SELECT gives_item_id, user_id
+		FROM chain_participants
+		WHERE chain_id = $1
+		ORDER BY position`, exchangeID)
 	if err != nil {
-		t.Fatalf("move exchange items to pickup point: %v", err)
+		t.Fatalf("list exchange items for delivery: %v", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var itemID, ownerID uuid.UUID
+		if err := rows.Scan(&itemID, &ownerID); err != nil {
+			t.Fatalf("scan exchange item for delivery: %v", err)
+		}
+		if err := service.RecordItemPickup(ctx, itemID, ownerID, pointID); err != nil {
+			t.Fatalf("move exchange item %s to pickup point: %v", itemID, err)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("iterate exchange items for delivery: %v", err)
 	}
 
-	if _, err := pool.Exec(
-		ctx,
-		"UPDATE chains SET status = 'delivered' WHERE id = $1",
-		exchangeID,
-	); err != nil {
+	if err := service.MarkDeliveredByAdmin(ctx, exchangeID, adminID); err != nil {
 		t.Fatalf("mark exchange delivered: %v", err)
 	}
 }
@@ -151,6 +164,9 @@ func cleanupIntegrationData(
 	users []uuid.UUID,
 	items []uuid.UUID,
 ) {
+	// Аудит ссылается на администратора через RESTRICT и должен уйти до пользователей.
+	_, _ = pool.Exec(ctx, "DELETE FROM admin_audit_log WHERE admin_id = ANY($1::uuid[])", users)
+
 	for _, userID := range users {
 		_, _ = pool.Exec(ctx, `
 			DELETE FROM chains

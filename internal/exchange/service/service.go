@@ -40,6 +40,7 @@ type Repository interface {
 	ConfirmParticipation(context.Context, uuid.UUID, uuid.UUID) error
 	DeclineParticipation(context.Context, uuid.UUID, uuid.UUID) ([]exchangemodel.Node, string, error)
 	CancelByAdmin(context.Context, uuid.UUID, uuid.UUID) ([]exchangemodel.Node, string, error)
+	MarkDeliveredByAdmin(context.Context, uuid.UUID, uuid.UUID) error
 	CompleteParticipation(context.Context, uuid.UUID, uuid.UUID) error
 	RecordItemPickup(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) error
 	ExchangeAccess(context.Context, uuid.UUID, uuid.UUID) (string, bool, error)
@@ -302,6 +303,15 @@ func (s *Service) CancelByAdmin(ctx context.Context, exchangeID, adminID uuid.UU
 	// Сама отмена уже зафиксирована транзакцией. Повторный поиск — best effort:
 	// его сбой не должен превращать успешный административный запрос в HTTP 500.
 	s.recoverExchanges(ctx, recoveryNodes, cancelledSignature)
+
+	return nil
+}
+
+// MarkDeliveredByAdmin открывает участникам этап подтверждения получения.
+func (s *Service) MarkDeliveredByAdmin(ctx context.Context, exchangeID, adminID uuid.UUID) error {
+	if err := s.repository.MarkDeliveredByAdmin(ctx, exchangeID, adminID); err != nil {
+		return fmt.Errorf("mark exchange delivered by admin: %w", err)
+	}
 
 	return nil
 }

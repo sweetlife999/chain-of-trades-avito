@@ -560,6 +560,7 @@ type fakeService struct {
 	listMessages func(context.Context, uuid.UUID, uuid.UUID) ([]exchangemodel.Message, error)
 	markRead     func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) error
 	adminCancel  func(context.Context, uuid.UUID, uuid.UUID) error
+	adminDeliver func(context.Context, uuid.UUID, uuid.UUID) error
 }
 
 func (f *fakeService) MarkThreadRead(
@@ -639,6 +640,17 @@ func (f *fakeService) CancelByAdmin(ctx context.Context, exchangeID, adminID uui
 		return nil
 	}
 	return f.adminCancel(ctx, exchangeID, adminID)
+}
+
+func (f *fakeService) MarkDeliveredByAdmin(
+	ctx context.Context,
+	exchangeID uuid.UUID,
+	adminID uuid.UUID,
+) error {
+	if f.adminDeliver == nil {
+		return nil
+	}
+	return f.adminDeliver(ctx, exchangeID, adminID)
 }
 
 func (f *fakeService) CompleteParticipation(

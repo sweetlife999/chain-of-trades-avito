@@ -21,6 +21,7 @@ const (
 	AdminAuditActionUserBlocked          AdminAuditAction = "user_blocked"
 	AdminAuditActionUserUnblocked        AdminAuditAction = "user_unblocked"
 	AdminAuditActionExchangeCancelled    AdminAuditAction = "exchange_cancelled"
+	AdminAuditActionExchangeDelivered    AdminAuditAction = "exchange_delivered"
 )
 
 func (e *AdminAuditAction) Scan(src interface{}) error {
