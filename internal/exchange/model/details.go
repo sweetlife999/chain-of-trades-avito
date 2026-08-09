@@ -38,6 +38,14 @@ type ParticipantItem struct {
 	Description string
 	Status      string
 	Category    ParticipantCategory
+	// nil — вещь ещё дома у владельца. По этому полю участник видит, кого ждут.
+	PickupPoint *ParticipantPickupPoint
+}
+
+type ParticipantPickupPoint struct {
+	ID      uuid.UUID
+	Name    string
+	Address string
 }
 
 type ParticipantCategory struct {

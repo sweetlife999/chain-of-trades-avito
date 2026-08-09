@@ -25,6 +25,8 @@ type Service interface {
 	ListByOwner(context.Context, uuid.UUID) ([]itemmodel.Item, error)
 	Update(context.Context, uuid.UUID, uuid.UUID, itemservice.UpdateInput) (itemmodel.Item, error)
 	Delete(context.Context, uuid.UUID, uuid.UUID) error
+	SetPickupPoint(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) error
+	ClearPickupPoint(context.Context, uuid.UUID, uuid.UUID) error
 	ListCategories(context.Context) ([]itemmodel.Category, error)
 }
 
@@ -42,6 +44,8 @@ func (h *Handler) RegisterRoutes(router chi.Router, requireAuth func(http.Handle
 	router.Get("/items/{id}", h.getByID)
 	router.With(requireAuth).Patch("/items/{id}", h.update)
 	router.With(requireAuth).Delete("/items/{id}", h.delete)
+	router.With(requireAuth).Post("/items/{id}/pickup", h.setPickupPoint)
+	router.With(requireAuth).Delete("/items/{id}/pickup", h.clearPickupPoint)
 	router.Get("/categories", h.listCategories)
 }
 
@@ -222,6 +226,89 @@ func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// @Summary     Отнести вещь в пункт выдачи
+// @Description Отмечает, что вещь лежит в указанном ПВЗ. Отнести можно и вещь, которая ни в
+// @Description каком обмене не участвует — к моменту сборки цепочки она уже будет на месте.
+// @Description Когда в пунктах окажутся все вещи подтверждённого обмена, он переходит в доставку.
+// @Description Список пунктов: GET /pickup-points.
+// @Tags        items
+// @Accept      json
+// @Param       id      path string                         true "UUID объявления"
+// @Param       request body itemdto.SetPickupPointRequest true "Пункт выдачи"
+// @Success     204 "Вещь отмечена как сданная в пункт"
+// @Failure     400 {object} itemdto.ItemError "ID не UUID, тело не JSON или такого пункта нет"
+// @Failure     401 {object} itemdto.ItemError "Нет или истекла cookie access_token"
+// @Failure     403 {object} itemdto.ItemError "Объявление принадлежит другому пользователю"
+// @Failure     404 {object} itemdto.ItemError "Объявление не найдено"
+// @Failure     409 {object} itemdto.ItemError "Вещь уже обменяна или снята с публикации"
+// @Failure     500 {object} itemdto.ItemError "Внутренняя ошибка"
+// @Security    CookieAuth
+// @Router      /items/{id}/pickup [post]
+func (h *Handler) setPickupPoint(w http.ResponseWriter, r *http.Request) {
+	id, ok := parseID(w, r)
+	if !ok {
+		return
+	}
+
+	userID, ok := currentUser(w, r)
+	if !ok {
+		return
+	}
+
+	var request itemdto.SetPickupPointRequest
+	if err := decodeJSON(w, r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	pickupPointID, err := uuid.Parse(request.PickupPointID)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid pickup point id")
+		return
+	}
+
+	if err := h.service.SetPickupPoint(r.Context(), id, userID, pickupPointID); err != nil {
+		handleServiceError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// @Summary     Забрать вещь из пункта выдачи
+// @Description Возвращает вещь домой. Пока вещь занята в незавершённом обмене, забрать её
+// @Description нельзя: остальные участники рассчитывают на то, что она лежит на месте.
+// @Description Идемпотентен: у вещи без отметки забирать нечего.
+// @Tags        items
+// @Param       id path string true "UUID объявления"
+// @Success     204 "Вещь снова дома"
+// @Failure     400 {object} itemdto.ItemError "ID не является UUID"
+// @Failure     401 {object} itemdto.ItemError "Нет или истекла cookie access_token"
+// @Failure     403 {object} itemdto.ItemError "Объявление принадлежит другому пользователю"
+// @Failure     404 {object} itemdto.ItemError "Объявление не найдено"
+// @Failure     409 {object} itemdto.ItemError "Вещь участвует в незавершённом обмене"
+// @Failure     500 {object} itemdto.ItemError "Внутренняя ошибка"
+// @Security    CookieAuth
+// @Router      /items/{id}/pickup [delete]
+func (h *Handler) clearPickupPoint(w http.ResponseWriter, r *http.Request) {
+	id, ok := parseID(w, r)
+	if !ok {
+		return
+	}
+
+	userID, ok := currentUser(w, r)
+	if !ok {
+		return
+	}
+
+	if err := h.service.ClearPickupPoint(r.Context(), id, userID); err != nil {
+		handleServiceError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // @Summary     Список категорий
 // @Description Справочник для полей `category` и `wants`. Слаг — стабильный ключ, название меняется, слаг нет.
 // @Tags        items
@@ -287,8 +374,12 @@ func handleServiceError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusForbidden, "forbidden")
 	case errors.Is(err, itemservice.ErrNotFound):
 		writeError(w, http.StatusNotFound, "item not found")
+	case errors.Is(err, itemservice.ErrUnknownPickupPoint):
+		writeError(w, http.StatusBadRequest, "unknown pickup point")
 	case errors.Is(err, itemservice.ErrItemInChain):
 		writeError(w, http.StatusConflict, "item participates in an open exchange")
+	case errors.Is(err, itemservice.ErrConflict):
+		writeError(w, http.StatusConflict, "item is no longer exchangeable")
 	default:
 		log.Printf("item handler: %v", err)
 		writeError(w, http.StatusInternalServerError, "internal server error")

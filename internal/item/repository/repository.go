@@ -213,8 +213,23 @@ func toModel(item db.GetItemByIDRow) itemmodel.Item {
 		PhotoURLs:   item.PhotoUrls,
 		Wants:       item.Wants,
 		Status:      string(item.Status),
+		PickupPoint: toPickupPoint(item),
 		CreatedAt:   item.CreatedAt.Time,
 		UpdatedAt:   item.UpdatedAt.Time,
+	}
+}
+
+// Пункт приезжает LEFT JOIN-ом, поэтому его отсутствие — это NULL в колонке, а не
+// отдельный признак: невалидный id и означает «вещь дома».
+func toPickupPoint(item db.GetItemByIDRow) *itemmodel.PickupPoint {
+	if !item.PickupPointID.Valid {
+		return nil
+	}
+
+	return &itemmodel.PickupPoint{
+		ID:      uuid.UUID(item.PickupPointID.Bytes),
+		Name:    item.PickupPointName.String,
+		Address: item.PickupPointAddress.String,
 	}
 }
 
