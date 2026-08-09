@@ -22,6 +22,7 @@ var (
 type neighborQueries interface {
 	FindExchangeNeighbors(context.Context, pgtype.UUID) ([]db.FindExchangeNeighborsRow, error)
 	HasUserBlockConflict(context.Context, db.HasUserBlockConflictParams) (bool, error)
+	ListExchangeSearchUserStats(context.Context, []pgtype.UUID) ([]db.ListExchangeSearchUserStatsRow, error)
 }
 
 type Repository struct {
@@ -92,6 +93,34 @@ func (r *Repository) HasUserBlockConflict(
 	}
 
 	return conflict, nil
+}
+
+func (r *Repository) GetSearchUserStats(
+	ctx context.Context,
+	userIDs []uuid.UUID,
+) (map[uuid.UUID]exchangemodel.SearchUserStats, error) {
+	queryIDs := make([]pgtype.UUID, len(userIDs))
+	for index, userID := range userIDs {
+		queryIDs[index] = pgUUID(userID)
+	}
+
+	rows, err := r.queries.ListExchangeSearchUserStats(ctx, queryIDs)
+	if err != nil {
+		return nil, fmt.Errorf("list exchange search user stats: %w", err)
+	}
+
+	stats := make(map[uuid.UUID]exchangemodel.SearchUserStats, len(rows))
+	for _, row := range rows {
+		userID := uuid.UUID(row.ID.Bytes)
+		stats[userID] = exchangemodel.SearchUserStats{
+			UserID:         userID,
+			DealsCompleted: row.DealsCompleted,
+			DealsBroken:    row.DealsBroken,
+			Rating:         row.Rating,
+		}
+	}
+
+	return stats, nil
 }
 
 func (r *Repository) SaveExchange(

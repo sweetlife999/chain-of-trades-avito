@@ -21,6 +21,13 @@ type SearchResults struct {
 	Found       bool
 }
 
+type SearchUserStats struct {
+	UserID         uuid.UUID
+	DealsCompleted int32
+	DealsBroken    int32
+	Rating         float64
+}
+
 type Participant struct {
 	UserID         uuid.UUID
 	GivesItemID    uuid.UUID
