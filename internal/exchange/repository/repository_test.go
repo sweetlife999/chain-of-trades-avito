@@ -147,7 +147,13 @@ func TestSaveExchange(t *testing.T) {
 		},
 	}}
 
-	queries := &fakeExchangeWriteQueries{exchangeID: pgUUID(exchangeID)}
+	queries := &fakeExchangeWriteQueries{
+		exchangeID: pgUUID(exchangeID),
+		items: []db.LockExchangeItemsRow{
+			{ID: pgUUID(firstItemID), OwnerID: pgUUID(firstUserID), Status: db.ItemStatusAvailable},
+			{ID: pgUUID(secondItemID), OwnerID: pgUUID(secondUserID), Status: db.ItemStatusAvailable},
+		},
+	}
 	transactions := &fakeTransactionManager{queries: queries}
 	repository := newRepository(&fakeNeighborQueries{}, transactions)
 
@@ -254,6 +260,75 @@ func TestSaveExchangeParticipantErrorRollsBack(t *testing.T) {
 
 	if transactions.committed {
 		t.Fatal("failed transaction was committed")
+	}
+}
+
+func TestSaveExchangeRejectsStaleItems(t *testing.T) {
+	t.Parallel()
+
+	itemID := uuid.New()
+	ownerID := uuid.New()
+	exchange := exchangemodel.Exchange{Participants: []exchangemodel.Participant{{
+		UserID:         ownerID,
+		GivesItemID:    itemID,
+		ReceivesItemID: itemID,
+	}}}
+
+	for _, test := range []struct {
+		name  string
+		items []db.LockExchangeItemsRow
+	}{
+		{name: "item disappeared"},
+		{
+			name: "item was reserved",
+			items: []db.LockExchangeItemsRow{{
+				ID:      pgUUID(itemID),
+				OwnerID: pgUUID(ownerID),
+				Status:  db.ItemStatusReserved,
+			}},
+		},
+	} {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			queries := &fakeExchangeWriteQueries{exchangeID: pgUUID(uuid.New()), items: test.items}
+			transactions := &fakeTransactionManager{queries: queries}
+			repository := newRepository(&fakeNeighborQueries{}, transactions)
+
+			_, err := repository.SaveExchange(context.Background(), exchange)
+			if !errors.Is(err, ErrStaleSearchResult) {
+				t.Fatalf("SaveExchange() error = %v, want %v", err, ErrStaleSearchResult)
+			}
+			if transactions.committed {
+				t.Fatal("stale exchange transaction was committed")
+			}
+		})
+	}
+}
+
+func TestSaveExchangeItemLockErrorRollsBack(t *testing.T) {
+	t.Parallel()
+
+	databaseError := errors.New("lock items failed")
+	queries := &fakeExchangeWriteQueries{
+		exchangeID:   pgUUID(uuid.New()),
+		lockItemsErr: databaseError,
+	}
+	transactions := &fakeTransactionManager{queries: queries}
+	repository := newRepository(&fakeNeighborQueries{}, transactions)
+	exchange := exchangemodel.Exchange{Participants: []exchangemodel.Participant{{
+		UserID:         uuid.New(),
+		GivesItemID:    uuid.New(),
+		ReceivesItemID: uuid.New(),
+	}}}
+
+	_, err := repository.SaveExchange(context.Background(), exchange)
+	if !errors.Is(err, databaseError) {
+		t.Fatalf("SaveExchange() error = %v, want wrapped %v", err, databaseError)
+	}
+	if transactions.committed {
+		t.Fatal("failed item lock transaction was committed")
 	}
 }
 

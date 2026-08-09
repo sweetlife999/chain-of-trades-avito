@@ -60,7 +60,7 @@ func TestCancelByAdminRecoversWithAlternativeCycle(t *testing.T) {
 	}
 }
 
-func TestRecoveryStopsAfterFirstSavedExchange(t *testing.T) {
+func TestRecoverySavesSeveralIndependentAlternatives(t *testing.T) {
 	t.Parallel()
 
 	first := makeNodes(3)
@@ -82,8 +82,8 @@ func TestRecoveryStopsAfterFirstSavedExchange(t *testing.T) {
 	if err := New(repository).CancelByAdmin(context.Background(), uuid.New(), uuid.New()); err != nil {
 		t.Fatalf("CancelByAdmin() error = %v", err)
 	}
-	if repository.saveCalls != 1 {
-		t.Fatalf("SaveExchange() calls = %d, want recovery to stop after first success", repository.saveCalls)
+	if repository.saveCalls != 2 {
+		t.Fatalf("SaveExchange() calls = %d, want both independent alternatives", repository.saveCalls)
 	}
 }
 

@@ -93,6 +93,90 @@ func TestFindCycleReturnsFirstCycle(t *testing.T) {
 	assertCycle(t, cycle, []exchangemodel.Node{start, first})
 }
 
+func TestFindCyclesReturnsSeveralAlternatives(t *testing.T) {
+	t.Parallel()
+
+	start := testNode(1)
+	alternatives := []exchangemodel.Node{testNode(2), testNode(3), testNode(4)}
+	neighbors := map[uuid.UUID][]exchangemodel.Node{start.ItemID: alternatives}
+	for _, alternative := range alternatives {
+		neighbors[alternative.ItemID] = []exchangemodel.Node{start}
+	}
+
+	cycles, err := New(&fakeRepository{neighbors: neighbors}).FindCycles(
+		context.Background(),
+		start,
+		maxSearchResults,
+	)
+	if err != nil {
+		t.Fatalf("FindCycles() error = %v", err)
+	}
+	if len(cycles) != len(alternatives) {
+		t.Fatalf("FindCycles() count = %d, want %d", len(cycles), len(alternatives))
+	}
+	for index, cycle := range cycles {
+		assertCycle(t, cycle, []exchangemodel.Node{start, alternatives[index]})
+	}
+}
+
+func TestFindCyclesDeduplicatesDifferentDirectionsOfSameComposition(t *testing.T) {
+	t.Parallel()
+
+	start := testNode(1)
+	second := testNode(2)
+	third := testNode(3)
+	repository := &fakeRepository{neighbors: map[uuid.UUID][]exchangemodel.Node{
+		start.ItemID:  {second, third},
+		second.ItemID: {third, start},
+		third.ItemID:  {start, second},
+	}}
+
+	cycles, err := New(repository).FindCycles(context.Background(), start, maxSearchResults)
+	if err != nil {
+		t.Fatalf("FindCycles() error = %v", err)
+	}
+	wantComposition := compositionKey([]exchangemodel.Node{start, second, third})
+	matches := 0
+	for _, cycle := range cycles {
+		if compositionKey(cycle) == wantComposition {
+			matches++
+		}
+	}
+	if matches != 1 {
+		t.Fatalf("same three-item composition returned %d times, want 1", matches)
+	}
+}
+
+func TestFindCyclesHonorsLimit(t *testing.T) {
+	t.Parallel()
+
+	start := testNode(1)
+	alternatives := []exchangemodel.Node{testNode(2), testNode(3), testNode(4)}
+	neighbors := map[uuid.UUID][]exchangemodel.Node{start.ItemID: alternatives}
+	for _, alternative := range alternatives {
+		neighbors[alternative.ItemID] = []exchangemodel.Node{start}
+	}
+
+	cycles, err := New(&fakeRepository{neighbors: neighbors}).FindCycles(context.Background(), start, 2)
+	if err != nil {
+		t.Fatalf("FindCycles() error = %v", err)
+	}
+	if len(cycles) != 2 {
+		t.Fatalf("FindCycles() count = %d, want 2", len(cycles))
+	}
+}
+
+func TestFindCyclesRejectsInvalidLimit(t *testing.T) {
+	t.Parallel()
+
+	service := New(&fakeRepository{})
+	for _, limit := range []int{0, maxSearchResults + 1} {
+		if _, err := service.FindCycles(context.Background(), testNode(1), limit); !errors.Is(err, ErrValidation) {
+			t.Fatalf("FindCycles(limit=%d) error = %v, want %v", limit, err, ErrValidation)
+		}
+	}
+}
+
 func TestFindCycleSkipsBlockedUserAndUsesAnotherBranch(t *testing.T) {
 	t.Parallel()
 
@@ -482,6 +566,78 @@ func TestFindAndSaveSkipsDuplicateAndSavesAlternative(t *testing.T) {
 	if len(repository.savedExchange.Participants) != 2 ||
 		repository.savedExchange.Participants[1].GivesItemID != alternative.ItemID {
 		t.Fatalf("saved exchange = %+v, want cycle through alternative item", repository.savedExchange)
+	}
+}
+
+func TestFindAndSaveAllSavesSeveralAlternatives(t *testing.T) {
+	t.Parallel()
+
+	start := testNode(1)
+	alternatives := []exchangemodel.Node{testNode(2), testNode(3), testNode(4)}
+	neighbors := map[uuid.UUID][]exchangemodel.Node{start.ItemID: alternatives}
+	for _, alternative := range alternatives {
+		neighbors[alternative.ItemID] = []exchangemodel.Node{start}
+	}
+	repository := &fakeRepository{neighbors: neighbors, savedExchangeID: uuid.New()}
+
+	result, err := New(repository).FindAndSaveAll(context.Background(), start)
+	if err != nil {
+		t.Fatalf("FindAndSaveAll() error = %v", err)
+	}
+	if !result.Found || len(result.ExchangeIDs) != len(alternatives) {
+		t.Fatalf("FindAndSaveAll() = %+v, want %d results", result, len(alternatives))
+	}
+	if len(repository.savedExchanges) != len(alternatives) {
+		t.Fatalf("saved exchanges = %d, want %d", len(repository.savedExchanges), len(alternatives))
+	}
+}
+
+func TestFindAndSaveAllSkipsDuplicateAndStaleCandidates(t *testing.T) {
+	t.Parallel()
+
+	start := testNode(1)
+	alternatives := []exchangemodel.Node{testNode(2), testNode(3), testNode(4)}
+	neighbors := map[uuid.UUID][]exchangemodel.Node{start.ItemID: alternatives}
+	for _, alternative := range alternatives {
+		neighbors[alternative.ItemID] = []exchangemodel.Node{start}
+	}
+	repository := &fakeRepository{
+		neighbors:       neighbors,
+		savedExchangeID: uuid.New(),
+		saveErrors:      []error{ErrDuplicateExchange, ErrStaleSearchResult, nil},
+	}
+
+	result, err := New(repository).FindAndSaveAll(context.Background(), start)
+	if err != nil {
+		t.Fatalf("FindAndSaveAll() error = %v", err)
+	}
+	if !result.Found || len(result.ExchangeIDs) != 1 {
+		t.Fatalf("FindAndSaveAll() = %+v, want one saved alternative", result)
+	}
+	if repository.saveCalls != 3 {
+		t.Fatalf("SaveExchange() calls = %d, want 3", repository.saveCalls)
+	}
+}
+
+func TestFindAndSaveAllStopsAtMaximumResults(t *testing.T) {
+	t.Parallel()
+
+	start := testNode(1)
+	alternatives := make([]exchangemodel.Node, maxSearchResults+2)
+	neighbors := make(map[uuid.UUID][]exchangemodel.Node, len(alternatives)+1)
+	for index := range alternatives {
+		alternatives[index] = testNode(byte(index + 2))
+		neighbors[alternatives[index].ItemID] = []exchangemodel.Node{start}
+	}
+	neighbors[start.ItemID] = alternatives
+	repository := &fakeRepository{neighbors: neighbors, savedExchangeID: uuid.New()}
+
+	result, err := New(repository).FindAndSaveAll(context.Background(), start)
+	if err != nil {
+		t.Fatalf("FindAndSaveAll() error = %v", err)
+	}
+	if len(result.ExchangeIDs) != maxSearchResults || repository.saveCalls != maxSearchResults {
+		t.Fatalf("results=%d saves=%d, want %d", len(result.ExchangeIDs), repository.saveCalls, maxSearchResults)
 	}
 }
 
@@ -1009,6 +1165,7 @@ type fakeRepository struct {
 	errors              map[uuid.UUID]error
 	calls               int
 	savedExchange       exchangemodel.Exchange
+	savedExchanges      []exchangemodel.Exchange
 	savedExchangeID     uuid.UUID
 	saveErr             error
 	saveErrors          []error
@@ -1132,6 +1289,7 @@ func (f *fakeRepository) SaveExchange(
 ) (uuid.UUID, error) {
 	f.saveCalls++
 	f.savedExchange = exchange
+	f.savedExchanges = append(f.savedExchanges, exchange)
 	if len(f.saveErrors) >= f.saveCalls {
 		return f.savedExchangeID, f.saveErrors[f.saveCalls-1]
 	}

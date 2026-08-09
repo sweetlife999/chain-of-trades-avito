@@ -14,7 +14,10 @@ import (
 	exchangemodel "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/model"
 )
 
-var ErrDuplicateExchange = errors.New("exchange cycle already exists")
+var (
+	ErrDuplicateExchange = errors.New("exchange cycle already exists")
+	ErrStaleSearchResult = errors.New("exchange items are no longer available")
+)
 
 type neighborQueries interface {
 	FindExchangeNeighbors(context.Context, pgtype.UUID) ([]db.FindExchangeNeighborsRow, error)
@@ -121,6 +124,19 @@ func (r *Repository) SaveExchange(
 			})
 			if err != nil {
 				return fmt.Errorf("create exchange participant at position %d: %w", participant.Position, err)
+			}
+		}
+
+		items, err := queries.LockExchangeItems(ctx, id)
+		if err != nil {
+			return fmt.Errorf("lock exchange items before save: %w", err)
+		}
+		if len(items) != len(exchange.Participants) {
+			return ErrStaleSearchResult
+		}
+		for _, item := range items {
+			if item.Status != db.ItemStatusAvailable {
+				return ErrStaleSearchResult
 			}
 		}
 

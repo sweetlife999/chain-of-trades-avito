@@ -545,7 +545,7 @@ func TestCompatibilityUpdateCheckError(t *testing.T) {
 }
 
 type fakeExchangeFinder struct {
-	result exchangemodel.SearchResult
+	result exchangemodel.SearchResults
 	err    error
 	node   exchangemodel.Node
 	calls  int
@@ -569,10 +569,10 @@ func (f *fakeExchangeFinder) RecordItemPickup(
 	return f.pickupErr
 }
 
-func (f *fakeExchangeFinder) FindAndSave(
+func (f *fakeExchangeFinder) FindAndSaveAll(
 	_ context.Context,
 	node exchangemodel.Node,
-) (exchangemodel.SearchResult, error) {
+) (exchangemodel.SearchResults, error) {
 	f.calls++
 	f.node = node
 	return f.result, f.err

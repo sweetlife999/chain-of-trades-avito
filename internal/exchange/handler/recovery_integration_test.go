@@ -83,6 +83,61 @@ func TestExchangeCompositionUniquenessIntegration(t *testing.T) {
 	}
 }
 
+func TestMultipleExchangeSearchIntegration(t *testing.T) {
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("DATABASE_URL is not set")
+	}
+
+	ctx := context.Background()
+	pool, err := pgxpool.New(ctx, databaseURL)
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	users, items := seedExchangeGraph(
+		t,
+		ctx,
+		pool,
+		"multiple-search",
+		[]string{"books", "hobby", "hobby"},
+		[]string{"hobby", "books", "books"},
+	)
+
+	repository := exchangerepository.New(pool)
+	service := exchangeservice.New(repository)
+	result, err := service.FindAndSaveAll(ctx, exchangemodel.Node{ItemID: items[0], OwnerID: users[0]})
+	if err != nil {
+		t.Fatalf("find and save all exchanges: %v", err)
+	}
+	if !result.Found || len(result.ExchangeIDs) != 2 {
+		t.Fatalf("search result = %+v, want two exchanges", result)
+	}
+
+	first := proposedExchangesWithItems(t, ctx, pool, items[0], items[1])
+	second := proposedExchangesWithItems(t, ctx, pool, items[0], items[2])
+	if len(first) != 1 || len(second) != 1 {
+		t.Fatalf("saved alternatives: first=%d second=%d, want one each", len(first), len(second))
+	}
+
+	for _, userID := range []uuid.UUID{users[0], users[1]} {
+		if err := service.ConfirmParticipation(ctx, first[0], userID); err != nil {
+			t.Fatalf("confirm selected exchange for user %s: %v", userID, err)
+		}
+	}
+	assertChainStatus(t, ctx, pool, first[0], "confirmed")
+	assertChainStatus(t, ctx, pool, second[0], "cancelled")
+
+	for index, wantStatus := range []string{"reserved", "reserved", "available"} {
+		var status string
+		if err := pool.QueryRow(ctx, "SELECT status FROM items WHERE id = $1", items[index]).Scan(&status); err != nil {
+			t.Fatalf("read item %d status: %v", index, err)
+		}
+		if status != wantStatus {
+			t.Fatalf("item %d status = %q, want %q", index, status, wantStatus)
+		}
+	}
+}
+
 func TestExchangeRecoveryIntegration(t *testing.T) {
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
