@@ -16,6 +16,11 @@ type SearchResult struct {
 	Found      bool
 }
 
+type SearchResults struct {
+	ExchangeIDs []uuid.UUID
+	Found       bool
+}
+
 type Participant struct {
 	UserID         uuid.UUID
 	GivesItemID    uuid.UUID

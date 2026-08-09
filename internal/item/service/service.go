@@ -48,7 +48,7 @@ type Repository interface {
 }
 
 type ExchangeFinder interface {
-	FindAndSave(context.Context, exchangemodel.Node) (exchangemodel.SearchResult, error)
+	FindAndSaveAll(context.Context, exchangemodel.Node) (exchangemodel.SearchResults, error)
 	RecordItemPickup(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) error
 }
 
@@ -312,7 +312,7 @@ func (s *Service) findExchange(ctx context.Context, item itemmodel.Item) {
 		return
 	}
 
-	_, err := s.exchanges.FindAndSave(ctx, exchangemodel.Node{
+	_, err := s.exchanges.FindAndSaveAll(ctx, exchangemodel.Node{
 		ItemID:  item.ID,
 		OwnerID: item.OwnerID,
 	})

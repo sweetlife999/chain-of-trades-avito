@@ -16,7 +16,8 @@ import (
 )
 
 const (
-	maxParticipants = 5
+	maxParticipants  = 5
+	maxSearchResults = 10
 	// Тред нужен, чтобы договориться о передаче вещей, а не для длинных писем.
 	maxMessageLength = 2000
 )
@@ -28,6 +29,7 @@ var (
 	ErrConflict           = exchangerepository.ErrConflict
 	ErrNotFound           = exchangerepository.ErrNotFound
 	ErrDuplicateExchange  = exchangerepository.ErrDuplicateExchange
+	ErrStaleSearchResult  = exchangerepository.ErrStaleSearchResult
 	ErrUnknownPickupPoint = exchangerepository.ErrUnknownPickupPoint
 )
 
@@ -66,22 +68,42 @@ func newWithDependencies(repository Repository, logger errorLogger) *Service {
 	return &Service{repository: repository, logger: logger}
 }
 
-// FindCycle ищет первый обмен, который начинается со start и возвращается в него.
-// Отсутствие подходящего обмена — нормальный результат: в этом случае возвращается nil, nil.
+// FindCycle is the backwards-compatible single-result search. New automatic
+// search uses FindCycles and persists several alternatives.
 func (s *Service) FindCycle(ctx context.Context, start exchangemodel.Node) ([]exchangemodel.Node, error) {
-	return s.findCycle(ctx, start, nil)
+	cycles, err := s.findCycles(ctx, start, 1, nil)
+	if err != nil || len(cycles) == 0 {
+		return nil, err
+	}
+
+	return cycles[0], nil
 }
 
-func (s *Service) findCycle(
+// FindCycles enumerates up to limit unique cycles. Limit is deliberately
+// bounded: this path is still synchronous until the worker task is introduced.
+func (s *Service) FindCycles(
 	ctx context.Context,
 	start exchangemodel.Node,
+	limit int,
+) ([][]exchangemodel.Node, error) {
+	if limit < 1 || limit > maxSearchResults {
+		return nil, fmt.Errorf("%w: cycle limit must be between 1 and %d", ErrValidation, maxSearchResults)
+	}
+
+	return s.findCycles(ctx, start, limit, nil)
+}
+
+func (s *Service) findCycles(
+	ctx context.Context,
+	start exchangemodel.Node,
+	limit int,
 	excludedCompositions map[string]struct{},
-) ([]exchangemodel.Node, error) {
+) ([][]exchangemodel.Node, error) {
 	path := []exchangemodel.Node{start}
 	visitedItems := map[uuid.UUID]struct{}{start.ItemID: {}}
 	visitedOwners := map[uuid.UUID]struct{}{start.OwnerID: {}}
-
-	var cycle []exchangemodel.Node
+	foundCompositions := make(map[string]struct{}, limit)
+	cycles := make([][]exchangemodel.Node, 0, limit)
 
 	var dfs func(exchangemodel.Node) (bool, error)
 	dfs = func(current exchangemodel.Node) (bool, error) {
@@ -99,12 +121,19 @@ func (s *Service) findCycle(
 			if next.ItemID == start.ItemID {
 				if len(path) >= 2 {
 					candidate := append([]exchangemodel.Node(nil), path...)
-					if _, excluded := excludedCompositions[compositionKey(candidate)]; excluded {
+					composition := compositionKey(candidate)
+					if _, excluded := excludedCompositions[composition]; excluded {
+						continue
+					}
+					if _, found := foundCompositions[composition]; found {
 						continue
 					}
 
-					cycle = candidate
-					return true, nil
+					foundCompositions[composition] = struct{}{}
+					cycles = append(cycles, candidate)
+					if len(cycles) == limit {
+						return true, nil
+					}
 				}
 
 				continue
@@ -139,7 +168,7 @@ func (s *Service) findCycle(
 			visitedOwners[next.OwnerID] = struct{}{}
 			path = append(path, next)
 
-			found, err := dfs(next)
+			stop, err := dfs(next)
 
 			path = path[:len(path)-1]
 			delete(visitedItems, next.ItemID)
@@ -149,7 +178,7 @@ func (s *Service) findCycle(
 				return false, err
 			}
 
-			if found {
+			if stop {
 				return true, nil
 			}
 		}
@@ -157,16 +186,12 @@ func (s *Service) findCycle(
 		return false, nil
 	}
 
-	found, err := dfs(start)
+	_, err := dfs(start)
 	if err != nil {
 		return nil, err
 	}
 
-	if !found {
-		return nil, nil
-	}
-
-	return cycle, nil
+	return cycles, nil
 }
 
 // SaveCycle переводит найденный путь в участников обмена и сохраняет их одной транзакцией.
@@ -194,39 +219,83 @@ func (s *Service) SaveCycle(ctx context.Context, cycle []exchangemodel.Node) (uu
 	return id, nil
 }
 
-// FindAndSave запускает полный сценарий: ищет обмен от нового объявления и,
-// если находит, сохраняет его. Отсутствие обмена не считается ошибкой.
+// FindAndSave keeps the old single-result contract for existing callers.
 func (s *Service) FindAndSave(
 	ctx context.Context,
 	start exchangemodel.Node,
 ) (exchangemodel.SearchResult, error) {
-	excludedCompositions := make(map[string]struct{})
-
-	for {
-		cycle, err := s.findCycle(ctx, start, excludedCompositions)
-		if err != nil {
-			return exchangemodel.SearchResult{}, fmt.Errorf("search exchange: %w", err)
-		}
-		if cycle == nil {
-			return exchangemodel.SearchResult{}, nil
-		}
-
-		exchangeID, err := s.SaveCycle(ctx, cycle)
-		if errors.Is(err, ErrDuplicateExchange) {
-			// Этот набор вещей уже мог существовать до запуска поиска или быть сохранён
-			// параллельным DFS. Исключаем состав и ищем следующую альтернативу.
-			excludedCompositions[compositionKey(cycle)] = struct{}{}
-			continue
-		}
-		if err != nil {
-			return exchangemodel.SearchResult{}, fmt.Errorf("persist found exchange: %w", err)
-		}
-
-		return exchangemodel.SearchResult{
-			ExchangeID: exchangeID,
-			Found:      true,
-		}, nil
+	results, err := s.findAndSave(ctx, []exchangemodel.Node{start}, 1, nil)
+	if err != nil {
+		return exchangemodel.SearchResult{}, err
 	}
+	if len(results) == 0 {
+		return exchangemodel.SearchResult{}, nil
+	}
+
+	return exchangemodel.SearchResult{ExchangeID: results[0], Found: true}, nil
+}
+
+// FindAndSaveAll is the automatic search entry point. It saves several
+// alternatives but never more than maxSearchResults per trigger.
+func (s *Service) FindAndSaveAll(
+	ctx context.Context,
+	start exchangemodel.Node,
+) (exchangemodel.SearchResults, error) {
+	ids, err := s.findAndSave(ctx, []exchangemodel.Node{start}, maxSearchResults, nil)
+	if err != nil {
+		return exchangemodel.SearchResults{ExchangeIDs: ids, Found: len(ids) > 0}, err
+	}
+
+	return exchangemodel.SearchResults{ExchangeIDs: ids, Found: len(ids) > 0}, nil
+}
+
+func (s *Service) findAndSave(
+	ctx context.Context,
+	starts []exchangemodel.Node,
+	limit int,
+	excludedCompositions map[string]struct{},
+) ([]uuid.UUID, error) {
+	if excludedCompositions == nil {
+		excludedCompositions = make(map[string]struct{})
+	}
+	exchangeIDs := make([]uuid.UUID, 0, limit)
+
+	for _, start := range starts {
+		for len(exchangeIDs) < limit {
+			cycles, err := s.findCycles(
+				ctx,
+				start,
+				limit-len(exchangeIDs),
+				excludedCompositions,
+			)
+			if err != nil {
+				return exchangeIDs, fmt.Errorf("search exchanges: %w", err)
+			}
+			if len(cycles) == 0 {
+				break
+			}
+
+			for _, cycle := range cycles {
+				composition := compositionKey(cycle)
+				excludedCompositions[composition] = struct{}{}
+
+				exchangeID, err := s.SaveCycle(ctx, cycle)
+				if errors.Is(err, ErrDuplicateExchange) || errors.Is(err, ErrStaleSearchResult) {
+					continue
+				}
+				if err != nil {
+					return exchangeIDs, fmt.Errorf("persist found exchange: %w", err)
+				}
+
+				exchangeIDs = append(exchangeIDs, exchangeID)
+				if len(exchangeIDs) == limit {
+					return exchangeIDs, nil
+				}
+			}
+		}
+	}
+
+	return exchangeIDs, nil
 }
 
 func (s *Service) ListForUser(ctx context.Context, userID uuid.UUID) ([]exchangemodel.Details, error) {
@@ -329,31 +398,8 @@ func (s *Service) recoverExchanges(
 	// Поэтому отменённый состав нельзя тут же пересобрать другой перестановкой.
 	excludedCompositions := map[string]struct{}{cancelledComposition: {}}
 
-	for _, start := range nodes {
-		for {
-			cycle, err := s.findCycle(ctx, start, excludedCompositions)
-			if err != nil {
-				s.logger.Printf("recover exchange search for item %s: %v", start.ItemID, err)
-				break
-			}
-			if cycle == nil {
-				break
-			}
-
-			composition := compositionKey(cycle)
-			if _, err := s.SaveCycle(ctx, cycle); errors.Is(err, ErrDuplicateExchange) {
-				excludedCompositions[composition] = struct{}{}
-				continue
-			} else if err != nil {
-				s.logger.Printf("save recovered exchange for item %s: %v", start.ItemID, err)
-				break
-			}
-
-			// Один и тот же набор можно обойти с каждого объявления. Канонический
-			// ключ состава не даёт сохранить его несколько раз за один recovery.
-			excludedCompositions[composition] = struct{}{}
-			return
-		}
+	if _, err := s.findAndSave(ctx, nodes, maxSearchResults, excludedCompositions); err != nil {
+		s.logger.Printf("recover exchanges after cancellation: %v", err)
 	}
 }
 
