@@ -26,16 +26,23 @@ type AdminExchangeResponse struct {
 }
 
 type AdminReportResponse struct {
-	ID        string                `json:"id"`
-	Reason    string                `json:"reason"`
-	Comment   string                `json:"comment"`
-	Status    string                `json:"status"`
-	Reporter  AdminUserResponse     `json:"reporter"`
-	Offender  AdminUserResponse     `json:"offender"`
-	Message   AdminMessageResponse  `json:"message"`
-	Exchange  AdminExchangeResponse `json:"exchange"`
-	Assignee  *AdminUserResponse    `json:"assignee" extensions:"x-nullable"`
-	CreatedAt time.Time             `json:"created_at"`
+	ID                string                `json:"id"`
+	Reason            string                `json:"reason"`
+	Comment           string                `json:"comment"`
+	Status            string                `json:"status"`
+	Reporter          AdminUserResponse     `json:"reporter"`
+	Offender          AdminUserResponse     `json:"offender"`
+	Message           AdminMessageResponse  `json:"message"`
+	Exchange          AdminExchangeResponse `json:"exchange"`
+	Assignee          *AdminUserResponse    `json:"assignee" extensions:"x-nullable"`
+	CreatedAt         time.Time             `json:"created_at"`
+	AssignedAt        *time.Time            `json:"assigned_at" extensions:"x-nullable"`
+	ClosedAt          *time.Time            `json:"closed_at" extensions:"x-nullable"`
+	ResolutionComment string                `json:"resolution_comment"`
+}
+
+type AdminDecisionRequest struct {
+	Comment string `json:"comment" example:"Нарушение подтверждено"`
 }
 
 type PaginationResponse struct {
@@ -72,7 +79,10 @@ func AdminReportFromModel(report reportmodel.AdminReport) AdminReportResponse {
 			ID:     report.Exchange.ID.String(),
 			Status: report.Exchange.Status,
 		},
-		CreatedAt: report.CreatedAt,
+		CreatedAt:         report.CreatedAt,
+		AssignedAt:        report.AssignedAt,
+		ClosedAt:          report.ClosedAt,
+		ResolutionComment: report.ResolutionComment,
 	}
 
 	if report.Assignee != nil {

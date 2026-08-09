@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -15,8 +16,12 @@ import (
 )
 
 var (
-	ErrNotFound  = errors.New("message not found")
-	ErrDuplicate = errors.New("message is already reported")
+	ErrNotFound         = errors.New("message not found")
+	ErrDuplicate        = errors.New("message is already reported")
+	ErrAlreadyAssigned  = errors.New("report is already assigned")
+	ErrNotAssigned      = errors.New("report is not assigned")
+	ErrAssignedToOther  = errors.New("report is assigned to another administrator")
+	ErrAlreadyProcessed = errors.New("report is already processed")
 )
 
 type Repository struct {
@@ -121,6 +126,106 @@ func (r *Repository) GetForAdmin(
 	return adminReportFromGetRow(row), nil
 }
 
+// AssignForAdmin использует условный UPDATE, поэтому право на жалобу атомарно получает
+// только один администратор. Повторный запрос того же администратора идемпотентен.
+func (r *Repository) AssignForAdmin(
+	ctx context.Context,
+	reportID uuid.UUID,
+	adminID uuid.UUID,
+) error {
+	affected, err := r.queries.AssignReportForAdmin(ctx, db.AssignReportForAdminParams{
+		AdminID:  pgUUID(adminID),
+		ReportID: pgUUID(reportID),
+	})
+	if err != nil {
+		return fmt.Errorf("assign report for admin: %w", err)
+	}
+	if affected == 1 {
+		return nil
+	}
+
+	state, err := r.processingState(ctx, reportID)
+	if err != nil {
+		return err
+	}
+	if state.status != "open" {
+		return ErrAlreadyProcessed
+	}
+	if state.assigneeID != nil && *state.assigneeID == adminID {
+		return nil
+	}
+	if state.assigneeID != nil {
+		return ErrAlreadyAssigned
+	}
+
+	return errors.New("report assignment was not changed")
+}
+
+// DecideForAdmin меняет статус только у открытой жалобы, назначенной этому админу.
+// Статус, комментарий и время решения записываются одним запросом.
+func (r *Repository) DecideForAdmin(
+	ctx context.Context,
+	reportID uuid.UUID,
+	adminID uuid.UUID,
+	decision string,
+	comment string,
+) error {
+	affected, err := r.queries.DecideReportForAdmin(ctx, db.DecideReportForAdminParams{
+		Decision:          db.ReportStatus(decision),
+		ResolutionComment: comment,
+		ReportID:          pgUUID(reportID),
+		AdminID:           pgUUID(adminID),
+	})
+	if err != nil {
+		return fmt.Errorf("decide report for admin: %w", err)
+	}
+	if affected == 1 {
+		return nil
+	}
+
+	state, err := r.processingState(ctx, reportID)
+	if err != nil {
+		return err
+	}
+	if state.status != "open" {
+		return ErrAlreadyProcessed
+	}
+	if state.assigneeID == nil {
+		return ErrNotAssigned
+	}
+	if *state.assigneeID != adminID {
+		return ErrAssignedToOther
+	}
+
+	return errors.New("report decision was not changed")
+}
+
+type reportProcessingState struct {
+	status     string
+	assigneeID *uuid.UUID
+}
+
+func (r *Repository) processingState(
+	ctx context.Context,
+	reportID uuid.UUID,
+) (reportProcessingState, error) {
+	row, err := r.queries.GetReportProcessingState(ctx, pgUUID(reportID))
+	if err != nil {
+		return reportProcessingState{}, fmt.Errorf(
+			"get report processing state: %w",
+			translateError(err),
+		)
+	}
+
+	state := reportProcessingState{status: string(row.Status)}
+	if row.AssigneeID.Valid {
+		assigneeID := uuid.UUID(row.AssigneeID.Bytes)
+		state.assigneeID = &assigneeID
+	}
+
+	return state, nil
+}
+
 func pgUUID(id uuid.UUID) pgtype.UUID {
 	return pgtype.UUID{Bytes: [16]byte(id), Valid: true}
 }
@@ -151,6 +256,9 @@ func adminReportFromListRow(row db.ListReportsForAdminRow) reportmodel.AdminRepo
 		row.ReportComment,
 		row.ReportStatus,
 		row.ReportCreatedAt,
+		row.ReportAssignedAt,
+		row.ReportClosedAt,
+		row.ReportResolutionComment,
 		row.ReporterID,
 		row.ReporterNickname,
 		row.ReporterPhotoUrl,
@@ -175,6 +283,9 @@ func adminReportFromGetRow(row db.GetReportForAdminRow) reportmodel.AdminReport 
 		row.ReportComment,
 		row.ReportStatus,
 		row.ReportCreatedAt,
+		row.ReportAssignedAt,
+		row.ReportClosedAt,
+		row.ReportResolutionComment,
 		row.ReporterID,
 		row.ReporterNickname,
 		row.ReporterPhotoUrl,
@@ -198,6 +309,9 @@ func adminReportFromFields(
 	comment string,
 	status db.ReportStatus,
 	createdAt pgtype.Timestamptz,
+	assignedAt pgtype.Timestamptz,
+	closedAt pgtype.Timestamptz,
+	resolutionComment string,
 	reporterID pgtype.UUID,
 	reporterNickname string,
 	reporterPhoto pgtype.Text,
@@ -237,7 +351,10 @@ func adminReportFromFields(
 			ID:     uuid.UUID(exchangeID.Bytes),
 			Status: string(exchangeStatus),
 		},
-		CreatedAt: createdAt.Time,
+		CreatedAt:         createdAt.Time,
+		AssignedAt:        timePointer(assignedAt),
+		ClosedAt:          timePointer(closedAt),
+		ResolutionComment: resolutionComment,
 	}
 
 	if assigneeID.Valid {
@@ -257,6 +374,14 @@ func textPointer(value pgtype.Text) *string {
 	}
 
 	return &value.String
+}
+
+func timePointer(value pgtype.Timestamptz) *time.Time {
+	if !value.Valid {
+		return nil
+	}
+
+	return &value.Time
 }
 
 func translateError(err error) error {

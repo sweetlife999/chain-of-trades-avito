@@ -351,14 +351,17 @@ type PickupPoint struct {
 }
 
 type Report struct {
-	ID         pgtype.UUID
-	ReporterID pgtype.UUID
-	MessageID  pgtype.UUID
-	Reason     ReportReason
-	Comment    string
-	Status     ReportStatus
-	AssigneeID pgtype.UUID
-	CreatedAt  pgtype.Timestamptz
+	ID                pgtype.UUID
+	ReporterID        pgtype.UUID
+	MessageID         pgtype.UUID
+	Reason            ReportReason
+	Comment           string
+	Status            ReportStatus
+	AssigneeID        pgtype.UUID
+	CreatedAt         pgtype.Timestamptz
+	AssignedAt        pgtype.Timestamptz
+	ClosedAt          pgtype.Timestamptz
+	ResolutionComment string
 }
 
 type User struct {

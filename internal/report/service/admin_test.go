@@ -12,14 +12,19 @@ import (
 )
 
 type fakeAdminRepository struct {
-	reports   []reportmodel.AdminReport
-	report    reportmodel.AdminReport
-	total     int64
-	listErr   error
-	countErr  error
-	getErr    error
-	gotFilter reportmodel.AdminFilter
-	gotID     uuid.UUID
+	reports     []reportmodel.AdminReport
+	report      reportmodel.AdminReport
+	total       int64
+	listErr     error
+	countErr    error
+	getErr      error
+	assignErr   error
+	decideErr   error
+	gotFilter   reportmodel.AdminFilter
+	gotID       uuid.UUID
+	gotAdminID  uuid.UUID
+	gotDecision string
+	gotComment  string
 }
 
 func (f *fakeAdminRepository) ListForAdmin(
@@ -44,6 +49,30 @@ func (f *fakeAdminRepository) GetForAdmin(
 ) (reportmodel.AdminReport, error) {
 	f.gotID = reportID
 	return f.report, f.getErr
+}
+
+func (f *fakeAdminRepository) AssignForAdmin(
+	_ context.Context,
+	reportID uuid.UUID,
+	adminID uuid.UUID,
+) error {
+	f.gotID = reportID
+	f.gotAdminID = adminID
+	return f.assignErr
+}
+
+func (f *fakeAdminRepository) DecideForAdmin(
+	_ context.Context,
+	reportID uuid.UUID,
+	adminID uuid.UUID,
+	decision string,
+	comment string,
+) error {
+	f.gotID = reportID
+	f.gotAdminID = adminID
+	f.gotDecision = decision
+	f.gotComment = comment
+	return f.decideErr
 }
 
 type fakeMessageRepository struct {
@@ -176,5 +205,76 @@ func TestAdminGetRejectsEmptyID(t *testing.T) {
 	)
 	if !errors.Is(err, ErrValidation) {
 		t.Fatalf("Get() = %v, want %v", err, ErrValidation)
+	}
+}
+
+func TestAdminAssignUsesCurrentAdministratorAndReturnsUpdatedReport(t *testing.T) {
+	t.Parallel()
+
+	reportID := uuid.New()
+	adminID := uuid.New()
+	repository := &fakeAdminRepository{report: reportmodel.AdminReport{
+		ID: reportID, Status: "open",
+	}}
+
+	report, err := NewAdmin(repository, &fakeMessageRepository{}).Assign(
+		context.Background(), reportID, adminID,
+	)
+	if err != nil {
+		t.Fatalf("Assign() = %v, want no error", err)
+	}
+	if report.ID != reportID || repository.gotID != reportID || repository.gotAdminID != adminID {
+		t.Fatalf("report = %s, repository got report/admin = %s/%s", report.ID, repository.gotID, repository.gotAdminID)
+	}
+}
+
+func TestAdminDecideTrimsCommentAndReturnsUpdatedReport(t *testing.T) {
+	t.Parallel()
+
+	reportID := uuid.New()
+	adminID := uuid.New()
+	repository := &fakeAdminRepository{report: reportmodel.AdminReport{
+		ID: reportID, Status: "resolved",
+	}}
+
+	report, err := NewAdmin(repository, &fakeMessageRepository{}).Decide(
+		context.Background(), reportID, adminID, "resolved", "  нарушение подтверждено  ",
+	)
+	if err != nil {
+		t.Fatalf("Decide() = %v, want no error", err)
+	}
+	if report.Status != "resolved" || repository.gotDecision != "resolved" ||
+		repository.gotComment != "нарушение подтверждено" {
+		t.Fatalf("report/decision/comment = %q/%q/%q", report.Status, repository.gotDecision, repository.gotComment)
+	}
+}
+
+func TestAdminDecideValidatesInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		reportID uuid.UUID
+		adminID  uuid.UUID
+		decision string
+		comment  string
+	}{
+		{name: "empty report", adminID: uuid.New(), decision: "resolved", comment: "ok"},
+		{name: "empty admin", reportID: uuid.New(), decision: "resolved", comment: "ok"},
+		{name: "invalid decision", reportID: uuid.New(), adminID: uuid.New(), decision: "open", comment: "ok"},
+		{name: "empty comment", reportID: uuid.New(), adminID: uuid.New(), decision: "rejected", comment: "  "},
+		{name: "long comment", reportID: uuid.New(), adminID: uuid.New(), decision: "resolved", comment: string(make([]rune, maxCommentLength+1))},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := NewAdmin(&fakeAdminRepository{}, &fakeMessageRepository{}).Decide(
+				context.Background(), test.reportID, test.adminID, test.decision, test.comment,
+			)
+			if !errors.Is(err, ErrValidation) {
+				t.Fatalf("Decide() = %v, want %v", err, ErrValidation)
+			}
+		})
 	}
 }

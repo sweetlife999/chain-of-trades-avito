@@ -582,6 +582,76 @@
                 }
             }
         },
+        "/admin/reports/{id}/assign": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Атомарно назначает открытую жалобу текущему администратору.\nЕсли её уже взял другой администратор или она закрыта, возвращает конфликт.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-reports"
+                ],
+                "summary": "Взять жалобу в работу",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID жалобы",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AdminReportResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный UUID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "403": {
+                        "description": "Пользователь не администратор",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "404": {
+                        "description": "Жалоба не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "409": {
+                        "description": "Жалоба уже назначена или закрыта",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/reports/{id}/messages": {
             "get": {
                 "security": [
@@ -633,6 +703,170 @@
                     },
                     "404": {
                         "description": "Жалоба не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/reports/{id}/reject": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Закрывает назначенную текущему администратору жалобу со статусом rejected.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-reports"
+                ],
+                "summary": "Отклонить жалобу",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID жалобы",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Комментарий к решению",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.AdminDecisionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AdminReportResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный запрос",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "403": {
+                        "description": "Пользователь не администратор",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "404": {
+                        "description": "Жалоба не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "409": {
+                        "description": "Жалоба не назначена этому админу или уже закрыта",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/reports/{id}/resolve": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Закрывает назначенную текущему администратору жалобу со статусом resolved.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-reports"
+                ],
+                "summary": "Подтвердить жалобу",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID жалобы",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Комментарий к решению",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.AdminDecisionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AdminReportResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный запрос",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "403": {
+                        "description": "Пользователь не администратор",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "404": {
+                        "description": "Жалоба не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReportError"
+                        }
+                    },
+                    "409": {
+                        "description": "Жалоба не назначена этому админу или уже закрыта",
                         "schema": {
                             "$ref": "#/definitions/dto.ReportError"
                         }
@@ -2328,6 +2562,15 @@
         }
     },
     "definitions": {
+        "dto.AdminDecisionRequest": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string",
+                    "example": "Нарушение подтверждено"
+                }
+            }
+        },
         "dto.AdminExchangeResponse": {
             "type": "object",
             "properties": {
@@ -2387,12 +2630,20 @@
         "dto.AdminReportResponse": {
             "type": "object",
             "properties": {
+                "assigned_at": {
+                    "type": "string",
+                    "x-nullable": true
+                },
                 "assignee": {
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.AdminUserResponse"
                         }
                     ],
+                    "x-nullable": true
+                },
+                "closed_at": {
+                    "type": "string",
                     "x-nullable": true
                 },
                 "comment": {
@@ -2418,6 +2669,9 @@
                 },
                 "reporter": {
                     "$ref": "#/definitions/dto.AdminUserResponse"
+                },
+                "resolution_comment": {
+                    "type": "string"
                 },
                 "status": {
                     "type": "string"

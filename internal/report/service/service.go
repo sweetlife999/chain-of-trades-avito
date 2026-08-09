@@ -26,10 +26,14 @@ const (
 var reasons = []string{"spam", "abuse", "other"}
 
 var (
-	ErrValidation = errors.New("validation error")
-	ErrForbidden  = errors.New("report is not allowed")
-	ErrNotFound   = reportrepository.ErrNotFound
-	ErrDuplicate  = reportrepository.ErrDuplicate
+	ErrValidation       = errors.New("validation error")
+	ErrForbidden        = errors.New("report is not allowed")
+	ErrNotFound         = reportrepository.ErrNotFound
+	ErrDuplicate        = reportrepository.ErrDuplicate
+	ErrAlreadyAssigned  = reportrepository.ErrAlreadyAssigned
+	ErrNotAssigned      = reportrepository.ErrNotAssigned
+	ErrAssignedToOther  = reportrepository.ErrAssignedToOther
+	ErrAlreadyProcessed = reportrepository.ErrAlreadyProcessed
 )
 
 type Repository interface {

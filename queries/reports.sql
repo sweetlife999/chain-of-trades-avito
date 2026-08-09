@@ -36,6 +36,9 @@ SELECT
     report.comment    AS report_comment,
     report.status     AS report_status,
     report.created_at AS report_created_at,
+    report.assigned_at AS report_assigned_at,
+    report.closed_at AS report_closed_at,
+    report.resolution_comment AS report_resolution_comment,
     reporter.id        AS reporter_id,
     reporter.nickname  AS reporter_nickname,
     reporter.photo_url AS reporter_photo_url,
@@ -84,6 +87,9 @@ SELECT
     report.comment    AS report_comment,
     report.status     AS report_status,
     report.created_at AS report_created_at,
+    report.assigned_at AS report_assigned_at,
+    report.closed_at AS report_closed_at,
+    report.resolution_comment AS report_resolution_comment,
     reporter.id        AS reporter_id,
     reporter.nickname  AS reporter_nickname,
     reporter.photo_url AS reporter_photo_url,
@@ -110,3 +116,33 @@ JOIN chains AS exchange
 LEFT JOIN users AS assignee
     ON assignee.id = report.assignee_id
 WHERE report.id = sqlc.arg(report_id);
+
+-- Назначение — один условный UPDATE. Два администратора могут нажать кнопку одновременно,
+-- но строку изменит только один: после его UPDATE assignee_id уже не NULL.
+-- name: AssignReportForAdmin :execrows
+UPDATE reports
+SET
+    assignee_id = sqlc.arg(admin_id),
+    assigned_at = now()
+WHERE id = sqlc.arg(report_id)
+  AND status = 'open'
+  AND assignee_id IS NULL;
+
+-- Решение может принять только текущий исполнитель и только пока жалоба open.
+-- status и время закрытия меняются одним атомарным запросом.
+-- name: DecideReportForAdmin :execrows
+UPDATE reports
+SET
+    status = sqlc.arg(decision),
+    closed_at = now(),
+    resolution_comment = sqlc.arg(resolution_comment)
+WHERE id = sqlc.arg(report_id)
+  AND status = 'open'
+  AND assignee_id = sqlc.arg(admin_id);
+
+-- Вызывается только если условный UPDATE не изменил строку. Нужен, чтобы отличить 404
+-- от конфликтов «уже назначена», «не назначена» и «уже закрыта».
+-- name: GetReportProcessingState :one
+SELECT status, assignee_id
+FROM reports
+WHERE id = sqlc.arg(report_id);

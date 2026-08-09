@@ -1,5 +1,11 @@
 basePath: /
 definitions:
+  dto.AdminDecisionRequest:
+    properties:
+      comment:
+        example: Нарушение подтверждено
+        type: string
+    type: object
   dto.AdminExchangeResponse:
     properties:
       id:
@@ -38,9 +44,15 @@ definitions:
     type: object
   dto.AdminReportResponse:
     properties:
+      assigned_at:
+        type: string
+        x-nullable: true
       assignee:
         allOf:
         - $ref: '#/definitions/dto.AdminUserResponse'
+        x-nullable: true
+      closed_at:
+        type: string
         x-nullable: true
       comment:
         type: string
@@ -58,6 +70,8 @@ definitions:
         type: string
       reporter:
         $ref: '#/definitions/dto.AdminUserResponse'
+      resolution_comment:
+        type: string
       status:
         type: string
     type: object
@@ -958,6 +972,53 @@ paths:
       summary: Карточка жалобы
       tags:
       - admin-reports
+  /admin/reports/{id}/assign:
+    post:
+      description: |-
+        Атомарно назначает открытую жалобу текущему администратору.
+        Если её уже взял другой администратор или она закрыта, возвращает конфликт.
+      parameters:
+      - description: UUID жалобы
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AdminReportResponse'
+        "400":
+          description: Некорректный UUID
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "403":
+          description: Пользователь не администратор
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "404":
+          description: Жалоба не найдена
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "409":
+          description: Жалоба уже назначена или закрыта
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+      security:
+      - CookieAuth: []
+      summary: Взять жалобу в работу
+      tags:
+      - admin-reports
   /admin/reports/{id}/messages:
     get:
       description: Возвращает полный тред обмена, к которому относится жалоба. Доступ
@@ -998,6 +1059,114 @@ paths:
       security:
       - CookieAuth: []
       summary: Переписка по жалобе
+      tags:
+      - admin-reports
+  /admin/reports/{id}/reject:
+    post:
+      consumes:
+      - application/json
+      description: Закрывает назначенную текущему администратору жалобу со статусом
+        rejected.
+      parameters:
+      - description: UUID жалобы
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Комментарий к решению
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AdminDecisionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AdminReportResponse'
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "403":
+          description: Пользователь не администратор
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "404":
+          description: Жалоба не найдена
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "409":
+          description: Жалоба не назначена этому админу или уже закрыта
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+      security:
+      - CookieAuth: []
+      summary: Отклонить жалобу
+      tags:
+      - admin-reports
+  /admin/reports/{id}/resolve:
+    post:
+      consumes:
+      - application/json
+      description: Закрывает назначенную текущему администратору жалобу со статусом
+        resolved.
+      parameters:
+      - description: UUID жалобы
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Комментарий к решению
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AdminDecisionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AdminReportResponse'
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "403":
+          description: Пользователь не администратор
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "404":
+          description: Жалоба не найдена
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "409":
+          description: Жалоба не назначена этому админу или уже закрыта
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+      security:
+      - CookieAuth: []
+      summary: Подтвердить жалобу
       tags:
       - admin-reports
   /admin/users/{user_id}/exchanges:
