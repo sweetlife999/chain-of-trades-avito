@@ -23,6 +23,14 @@ import {
   type TCreateChainForm,
 } from "../MyChainsProcess/CreateChain/shemaCreateChain";
 
+const sameOrdered = (a: string[], b: string[]) =>
+  a.length === b.length && a.every((value, index) => value === b[index]);
+
+// Порядок фотографий важен — первая идёт в превью. Порядок желаний не важен ни здесь,
+// ни на сервере, а с бэкенда они приходят отсортированными по слагу.
+const sameUnordered = (a: string[], b: string[]) =>
+  sameOrdered([...a].sort(), [...b].sort());
+
 const getUpdateErrorMessage = (error: unknown) => {
   if (axios.isAxiosError<{ error?: string }>(error)) {
     return error.response?.data?.error ?? "Не удалось сохранить изменения";
@@ -101,14 +109,36 @@ const ItemEditForm = ({ item }: TFormProps) => {
     },
   });
 
+  // Шлём только то, что пользователь реально изменил: PATCH принимает любое подмножество полей.
   const onSubmit = (formData: TCreateChainForm) => {
-    updateMutation.mutate({
-      title: formData.title.trim(),
-      category: formData.category,
-      description: formData.description.trim(),
-      photo_urls: formData.photo_urls.map(({ url }) => url.trim()),
-      wants: formData.wants,
-    });
+    const title = formData.title.trim();
+    const description = formData.description.trim();
+    const photoUrls = formData.photo_urls.map(({ url }) => url.trim());
+
+    const request: TUpdateItemRequest = {};
+    if (title !== item.title) {
+      request.title = title;
+    }
+    if (formData.category !== item.category) {
+      request.category = formData.category;
+    }
+    if (description !== item.description) {
+      request.description = description;
+    }
+    if (!sameOrdered(photoUrls, item.photo_urls)) {
+      request.photo_urls = photoUrls;
+    }
+    if (!sameUnordered(formData.wants, item.wants)) {
+      request.wants = formData.wants;
+    }
+
+    // Пустое тело API не примет, да и слать нечего — просто возвращаемся к карточке.
+    if (Object.keys(request).length === 0) {
+      navigate(`/items/${item.id}`, { replace: true });
+      return;
+    }
+
+    updateMutation.mutate(request);
   };
 
   const categories = categoriesQuery.data ?? [];
