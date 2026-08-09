@@ -38,3 +38,15 @@ SELECT EXISTS (
         AND block.blocker_id = ANY(sqlc.arg(path_user_ids)::uuid[])
     )
 );
+
+-- Статистика читается одним запросом для всех владельцев найденных циклов. Пользователь
+-- без рейтинга получает нейтральные 3.0, чтобы новый аккаунт не оказался автоматически
+-- хуже аккаунта с одной оценкой.
+-- name: ListExchangeSearchUserStats :many
+SELECT
+    id,
+    deals_completed,
+    deals_broken,
+    COALESCE(rating::double precision, 3.0)::double precision AS rating
+FROM users
+WHERE id = ANY(sqlc.arg(user_ids)::uuid[]);

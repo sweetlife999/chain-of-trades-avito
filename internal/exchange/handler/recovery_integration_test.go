@@ -138,6 +138,69 @@ func TestMultipleExchangeSearchIntegration(t *testing.T) {
 	}
 }
 
+func TestExchangeRankingIntegration(t *testing.T) {
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("DATABASE_URL is not set")
+	}
+
+	ctx := context.Background()
+	pool, err := pgxpool.New(ctx, databaseURL)
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	users, items := seedExchangeGraph(
+		t,
+		ctx,
+		pool,
+		"ranking",
+		[]string{"books", "hobby", "hobby"},
+		[]string{"hobby", "books", "books"},
+	)
+
+	// Оба варианта совместимы, но третий пользователь заметно надёжнее второго.
+	// Вещь ненадёжного пользователя создаётся раньше, поэтому этот тест доказывает,
+	// что порядок сохранения задаёт ranking, а не порядок обхода DFS.
+	if _, err := pool.Exec(ctx, `
+		UPDATE users
+		SET deals_completed = CASE id WHEN $1 THEN 1 WHEN $2 THEN 20 ELSE 0 END,
+			deals_broken = CASE id WHEN $1 THEN 9 ELSE 0 END,
+			rating = CASE id WHEN $1 THEN 1.0 WHEN $2 THEN 5.0 ELSE 3.0 END
+		WHERE id = ANY($3::uuid[])`, users[1], users[2], users); err != nil {
+		t.Fatalf("prepare ranking stats: %v", err)
+	}
+
+	service := exchangeservice.New(exchangerepository.New(pool))
+	result, err := service.FindAndSaveAll(ctx, exchangemodel.Node{ItemID: items[0], OwnerID: users[0]})
+	if err != nil {
+		t.Fatalf("find ranked exchanges: %v", err)
+	}
+	if !result.Found || len(result.ExchangeIDs) != 2 {
+		t.Fatalf("ranked search result = %+v, want two exchanges", result)
+	}
+
+	var containsBest, containsWorse bool
+	if err := pool.QueryRow(ctx, `
+		SELECT
+			EXISTS (
+				SELECT 1 FROM chain_participants
+				WHERE chain_id = $1 AND gives_item_id = $2
+			),
+			EXISTS (
+				SELECT 1 FROM chain_participants
+				WHERE chain_id = $1 AND gives_item_id = $3
+			)`, result.ExchangeIDs[0], items[2], items[1]).Scan(&containsBest, &containsWorse); err != nil {
+		t.Fatalf("inspect first ranked exchange: %v", err)
+	}
+	if !containsBest || containsWorse {
+		t.Fatalf(
+			"first ranked exchange contains best=%t worse=%t, want true and false",
+			containsBest,
+			containsWorse,
+		)
+	}
+}
+
 func TestExchangeRecoveryIntegration(t *testing.T) {
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {

@@ -123,6 +123,44 @@ func TestHasUserBlockConflictError(t *testing.T) {
 	}
 }
 
+func TestGetSearchUserStats(t *testing.T) {
+	t.Parallel()
+
+	firstID, secondID := uuid.New(), uuid.New()
+	queries := &fakeNeighborQueries{statsRows: []db.ListExchangeSearchUserStatsRow{
+		{ID: pgUUID(firstID), DealsCompleted: 12, DealsBroken: 1, Rating: 4.8},
+		{ID: pgUUID(secondID), DealsCompleted: 2, DealsBroken: 3, Rating: 3.0},
+	}}
+	repository := newRepository(queries, nil)
+
+	stats, err := repository.GetSearchUserStats(context.Background(), []uuid.UUID{firstID, secondID})
+	if err != nil {
+		t.Fatalf("GetSearchUserStats() error = %v", err)
+	}
+	if len(queries.statsUserIDs) != 2 || queries.statsUserIDs[0] != pgUUID(firstID) ||
+		queries.statsUserIDs[1] != pgUUID(secondID) {
+		t.Fatalf("query user IDs = %v", queries.statsUserIDs)
+	}
+	if stats[firstID].DealsCompleted != 12 || stats[firstID].DealsBroken != 1 || stats[firstID].Rating != 4.8 {
+		t.Fatalf("first user stats = %+v", stats[firstID])
+	}
+	if stats[secondID].DealsCompleted != 2 || stats[secondID].DealsBroken != 3 || stats[secondID].Rating != 3.0 {
+		t.Fatalf("second user stats = %+v", stats[secondID])
+	}
+}
+
+func TestGetSearchUserStatsError(t *testing.T) {
+	t.Parallel()
+
+	databaseError := errors.New("database unavailable")
+	repository := newRepository(&fakeNeighborQueries{statsErr: databaseError}, nil)
+
+	_, err := repository.GetSearchUserStats(context.Background(), []uuid.UUID{uuid.New()})
+	if !errors.Is(err, databaseError) {
+		t.Fatalf("GetSearchUserStats() error = %v, want wrapped %v", err, databaseError)
+	}
+}
+
 func TestSaveExchange(t *testing.T) {
 	t.Parallel()
 
@@ -354,6 +392,9 @@ type fakeNeighborQueries struct {
 	blockConflict       bool
 	blockConflictErr    error
 	blockConflictParams db.HasUserBlockConflictParams
+	statsRows           []db.ListExchangeSearchUserStatsRow
+	statsUserIDs        []pgtype.UUID
+	statsErr            error
 }
 
 type fakeExchangeWriteQueries struct {
@@ -720,4 +761,12 @@ func (f *fakeNeighborQueries) HasUserBlockConflict(
 ) (bool, error) {
 	f.blockConflictParams = params
 	return f.blockConflict, f.blockConflictErr
+}
+
+func (f *fakeNeighborQueries) ListExchangeSearchUserStats(
+	_ context.Context,
+	userIDs []pgtype.UUID,
+) ([]db.ListExchangeSearchUserStatsRow, error) {
+	f.statsUserIDs = userIDs
+	return f.statsRows, f.statsErr
 }

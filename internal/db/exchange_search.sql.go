@@ -90,3 +90,48 @@ func (q *Queries) HasUserBlockConflict(ctx context.Context, arg HasUserBlockConf
 	err := row.Scan(&exists)
 	return exists, err
 }
+
+const listExchangeSearchUserStats = `-- name: ListExchangeSearchUserStats :many
+SELECT
+    id,
+    deals_completed,
+    deals_broken,
+    COALESCE(rating::double precision, 3.0)::double precision AS rating
+FROM users
+WHERE id = ANY($1::uuid[])
+`
+
+type ListExchangeSearchUserStatsRow struct {
+	ID             pgtype.UUID
+	DealsCompleted int32
+	DealsBroken    int32
+	Rating         float64
+}
+
+// Статистика читается одним запросом для всех владельцев найденных циклов. Пользователь
+// без рейтинга получает нейтральные 3.0, чтобы новый аккаунт не оказался автоматически
+// хуже аккаунта с одной оценкой.
+func (q *Queries) ListExchangeSearchUserStats(ctx context.Context, userIds []pgtype.UUID) ([]ListExchangeSearchUserStatsRow, error) {
+	rows, err := q.db.Query(ctx, listExchangeSearchUserStats, userIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListExchangeSearchUserStatsRow
+	for rows.Next() {
+		var i ListExchangeSearchUserStatsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.DealsCompleted,
+			&i.DealsBroken,
+			&i.Rating,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
