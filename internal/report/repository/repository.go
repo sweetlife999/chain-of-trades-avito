@@ -171,7 +171,7 @@ func (r *Repository) DecideForAdmin(
 	comment string,
 ) error {
 	affected, err := r.queries.DecideReportForAdmin(ctx, db.DecideReportForAdminParams{
-		Decision:          db.ReportStatus(decision),
+		Decision:          decision,
 		ResolutionComment: comment,
 		ReportID:          pgUUID(reportID),
 		AdminID:           pgUUID(adminID),
@@ -198,6 +198,24 @@ func (r *Repository) DecideForAdmin(
 	}
 
 	return errors.New("report decision was not changed")
+}
+
+func (r *Repository) RecordMessagesViewed(
+	ctx context.Context,
+	reportID uuid.UUID,
+	adminID uuid.UUID,
+) error {
+	_, err := r.queries.CreateAdminAuditLog(ctx, db.CreateAdminAuditLogParams{
+		AdminID:    pgUUID(adminID),
+		Action:     db.AdminAuditActionReportMessagesViewed,
+		TargetType: db.AdminAuditTargetReport,
+		TargetID:   pgUUID(reportID),
+		Metadata:   []byte(`{}`),
+	})
+	if err != nil {
+		return fmt.Errorf("record report messages view: %w", err)
+	}
+	return nil
 }
 
 type reportProcessingState struct {

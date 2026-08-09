@@ -2,7 +2,7 @@
 export
 
 
-.PHONY: lint run up db down reset migrate-up migrate-down migrate-status sqlc smoke swagger test-exchange-integration test-user-blocks-integration test-exchange-recovery-integration test-exchange-refusal-integration test-exchange-messages-integration test-delivery-integration test-reports-integration
+.PHONY: lint run up db down reset migrate-up migrate-down migrate-status sqlc smoke swagger test-exchange-integration test-user-blocks-integration test-exchange-recovery-integration test-exchange-refusal-integration test-exchange-messages-integration test-delivery-integration test-reports-integration test-admin-audit-integration
 
 # Линтер. Требует golangci-lint v2 той же версии, что пиннится в CI:
 # go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
@@ -89,3 +89,9 @@ test-delivery-integration:
 test-reports-integration:
 	go test -tags=integration ./internal/report/handler \
 		-run TestReportsIntegration -count=1
+
+# Живой сценарий глобальной блокировки: атомарная запись аудита и немедленный
+# запрет уже выданного JWT через актуальное состояние аккаунта в БД.
+test-admin-audit-integration:
+	go test -tags=integration ./internal/adminaudit/handler \
+		-run TestAdminUserBlockAuditIntegration -count=1

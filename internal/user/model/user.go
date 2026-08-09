@@ -16,6 +16,9 @@ type User struct {
 	DealsBroken    int32
 	Rating         *float64
 	IsAdmin        bool
+	IsBlocked      bool
+	BlockedAt      *time.Time
+	BlockedBy      *uuid.UUID
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 }

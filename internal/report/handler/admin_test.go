@@ -55,9 +55,11 @@ func (f *fakeAdminReadService) Get(
 func (f *fakeAdminReadService) ListMessages(
 	_ context.Context,
 	reportID uuid.UUID,
+	adminID uuid.UUID,
 ) (reportmodel.AdminReport, []exchangemodel.Message, error) {
 	f.called = true
 	f.gotReportID = reportID
+	f.gotAdminID = adminID
 	return f.report, f.messages, f.err
 }
 
@@ -171,7 +173,7 @@ func TestAdminReportDetailAndMessages(t *testing.T) {
 	thread := httptest.NewRecorder()
 	adminReportRouter(service).ServeHTTP(
 		thread,
-		httptest.NewRequest(http.MethodGet, "/reports/"+reportID.String()+"/messages", nil),
+		adminRequest(http.MethodGet, "/reports/"+reportID.String()+"/messages", "", uuid.New()),
 	)
 	if thread.Code != http.StatusOK {
 		t.Fatalf("messages status = %d; body = %s", thread.Code, thread.Body.String())
@@ -309,6 +311,10 @@ func (f reportTokenParser) Parse(string) (uuid.UUID, error) { return f.userID, n
 
 type reportAdminChecker struct{ admin bool }
 
+func (f reportAdminChecker) CanAuthenticate(context.Context, uuid.UUID) (bool, error) {
+	return true, nil
+}
+
 func (f reportAdminChecker) IsAdmin(context.Context, uuid.UUID) (bool, error) { return f.admin, nil }
 
 func TestAdminReportRoutesRequireAdministrator(t *testing.T) {
@@ -330,8 +336,9 @@ func TestAdminReportRoutesRequireAdministrator(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			service := &fakeAdminReadService{page: reportmodel.AdminPage{Reports: []reportmodel.AdminReport{}}}
-			authenticator := authmiddleware.New(reportTokenParser{userID: uuid.New()})
-			authorizer := authmiddleware.NewAdminAuthorizer(reportAdminChecker{admin: test.admin})
+			checker := reportAdminChecker{admin: test.admin}
+			authenticator := authmiddleware.New(reportTokenParser{userID: uuid.New()}, checker)
+			authorizer := authmiddleware.NewAdminAuthorizer(checker)
 			router := chi.NewRouter()
 			router.Route("/admin", func(admin chi.Router) {
 				admin.Use(authenticator.RequireAuthentication)

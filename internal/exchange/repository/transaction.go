@@ -48,6 +48,7 @@ type exchangeWriteQueries interface {
 	ClearExchangeItemsPickupPoint(context.Context, pgtype.UUID) error
 	CompleteExchange(context.Context, pgtype.UUID) error
 	IncrementExchangeParticipantsDealsCompleted(context.Context, pgtype.UUID) (int64, error)
+	CreateAdminAuditLog(context.Context, db.CreateAdminAuditLogParams) (db.AdminAuditLog, error)
 }
 
 type transactionManager interface {

@@ -205,6 +205,10 @@ type fakeAdminChecker struct{ admin bool }
 
 func (f fakeAdminChecker) IsAdmin(context.Context, uuid.UUID) (bool, error) { return f.admin, nil }
 
+func (f fakeAdminChecker) CanAuthenticate(context.Context, uuid.UUID) (bool, error) {
+	return true, nil
+}
+
 func TestPickupPointRoutesRequireAdmin(t *testing.T) {
 	t.Parallel()
 
@@ -231,8 +235,9 @@ func TestPickupPointRoutesRequireAdmin(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			serviceCalled = false
 			router := chi.NewRouter()
-			authenticator := authmiddleware.New(fakeTokenParser{userID: userID})
-			authorizer := authmiddleware.NewAdminAuthorizer(fakeAdminChecker{admin: test.admin})
+			checker := fakeAdminChecker{admin: test.admin}
+			authenticator := authmiddleware.New(fakeTokenParser{userID: userID}, checker)
+			authorizer := authmiddleware.NewAdminAuthorizer(checker)
 			router.Route("/admin", func(admin chi.Router) {
 				admin.Use(authenticator.RequireAuthentication)
 				admin.Use(authorizer.RequireAdmin)

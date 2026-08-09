@@ -45,6 +45,9 @@ func TestReportsIntegration(t *testing.T) {
 
 	t.Cleanup(func() {
 		cleanup := context.Background()
+		if _, err := pool.Exec(cleanup, "DELETE FROM admin_audit_log WHERE admin_id = ANY($1)", users); err != nil {
+			t.Errorf("cleanup admin audit: %v", err)
+		}
 		if _, err := pool.Exec(cleanup, "DELETE FROM chains WHERE id = $1", chainID); err != nil {
 			t.Errorf("cleanup chains: %v", err)
 		}
@@ -247,9 +250,11 @@ func TestReportsIntegration(t *testing.T) {
 	}
 
 	thread := httptest.NewRecorder()
+	threadRequest := httptest.NewRequest(http.MethodGet, "/reports/"+created.ID+"/messages", nil)
+	threadRequest = threadRequest.WithContext(authcontext.WithUserID(threadRequest.Context(), users[0]))
 	adminRouter.ServeHTTP(
 		thread,
-		httptest.NewRequest(http.MethodGet, "/reports/"+created.ID+"/messages", nil),
+		threadRequest,
 	)
 	if thread.Code != http.StatusOK {
 		t.Fatalf("admin thread: status = %d, want 200 (body %s)", thread.Code, thread.Body.String())
@@ -286,8 +291,8 @@ func TestReportsIntegration(t *testing.T) {
 	}
 	close(start)
 	firstCode, secondCode := <-result, <-result
-	if !((firstCode == http.StatusOK && secondCode == http.StatusConflict) ||
-		(firstCode == http.StatusConflict && secondCode == http.StatusOK)) {
+	if (firstCode != http.StatusOK || secondCode != http.StatusConflict) &&
+		(firstCode != http.StatusConflict || secondCode != http.StatusOK) {
 		t.Fatalf("concurrent assignments = %d/%d, want 200/409", firstCode, secondCode)
 	}
 

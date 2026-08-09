@@ -341,6 +341,16 @@ type fakeExchangeWriteQueries struct {
 	promoteErr                   error
 	pickupCleared                bool
 	clearPickupErr               error
+	adminAudit                   []db.CreateAdminAuditLogParams
+	adminAuditErr                error
+}
+
+func (f *fakeExchangeWriteQueries) CreateAdminAuditLog(
+	_ context.Context,
+	params db.CreateAdminAuditLogParams,
+) (db.AdminAuditLog, error) {
+	f.adminAudit = append(f.adminAudit, params)
+	return db.AdminAuditLog{}, f.adminAuditErr
 }
 
 func (f *fakeExchangeWriteQueries) LockItemPickup(context.Context, pgtype.UUID) error {

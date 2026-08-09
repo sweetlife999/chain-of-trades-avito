@@ -23,7 +23,7 @@ type Service interface {
 	GetForUser(context.Context, uuid.UUID, uuid.UUID) (exchangemodel.Details, error)
 	ConfirmParticipation(context.Context, uuid.UUID, uuid.UUID) error
 	DeclineParticipation(context.Context, uuid.UUID, uuid.UUID) error
-	CancelByAdmin(context.Context, uuid.UUID) error
+	CancelByAdmin(context.Context, uuid.UUID, uuid.UUID) error
 	CompleteParticipation(context.Context, uuid.UUID, uuid.UUID) error
 	PostMessage(context.Context, uuid.UUID, uuid.UUID, string) (exchangemodel.Message, error)
 	ListMessages(context.Context, uuid.UUID, uuid.UUID) ([]exchangemodel.Message, error)
@@ -74,8 +74,12 @@ func (h *Handler) cancelByAdmin(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid exchange id")
 		return
 	}
+	adminID, ok := currentUserID(w, r)
+	if !ok {
+		return
+	}
 
-	if err := h.service.CancelByAdmin(r.Context(), exchangeID); err != nil {
+	if err := h.service.CancelByAdmin(r.Context(), exchangeID, adminID); err != nil {
 		handleServiceError(w, err)
 		return
 	}

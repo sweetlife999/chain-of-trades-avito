@@ -15,6 +15,7 @@ type fakeRepository struct {
 	create      func(context.Context, usermodel.NewUser) (usermodel.User, error)
 	get         func(context.Context, uuid.UUID) (usermodel.User, error)
 	isAdmin     func(context.Context, uuid.UUID) (bool, error)
+	canAuth     func(context.Context, uuid.UUID) (bool, error)
 	update      func(context.Context, uuid.UUID, usermodel.Changes) (usermodel.User, error)
 	block       func(context.Context, uuid.UUID, uuid.UUID) error
 	listBlocked func(context.Context, uuid.UUID) ([]usermodel.BlockedUser, error)
@@ -34,6 +35,13 @@ func (f *fakeRepository) IsAdmin(ctx context.Context, id uuid.UUID) (bool, error
 		return false, nil
 	}
 	return f.isAdmin(ctx, id)
+}
+
+func (f *fakeRepository) CanAuthenticate(ctx context.Context, id uuid.UUID) (bool, error) {
+	if f.canAuth == nil {
+		return true, nil
+	}
+	return f.canAuth(ctx, id)
 }
 
 func (f *fakeRepository) Update(ctx context.Context, id uuid.UUID, changes usermodel.Changes) (usermodel.User, error) {

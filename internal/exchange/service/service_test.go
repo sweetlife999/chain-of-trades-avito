@@ -1190,8 +1190,10 @@ func (f *fakeRepository) DeclineParticipation(
 func (f *fakeRepository) CancelByAdmin(
 	_ context.Context,
 	exchangeID uuid.UUID,
+	adminID uuid.UUID,
 ) ([]exchangemodel.Node, string, error) {
 	f.adminCancel.exchangeID = exchangeID
+	f.adminCancel.adminID = adminID
 	return append([]exchangemodel.Node(nil), f.adminCancel.recovery...),
 		f.adminCancel.signature,
 		f.adminCancel.err
@@ -1199,6 +1201,7 @@ func (f *fakeRepository) CancelByAdmin(
 
 type fakeAdminCancellation struct {
 	exchangeID uuid.UUID
+	adminID    uuid.UUID
 	recovery   []exchangemodel.Node
 	signature  string
 	err        error

@@ -120,29 +120,49 @@ WHERE report.id = sqlc.arg(report_id);
 -- Назначение — один условный UPDATE. Два администратора могут нажать кнопку одновременно,
 -- но строку изменит только один: после его UPDATE assignee_id уже не NULL.
 -- name: AssignReportForAdmin :execrows
-UPDATE reports
-SET
-    assignee_id = sqlc.arg(admin_id),
-    assigned_at = now()
-WHERE id = sqlc.arg(report_id)
-  AND status = 'open'
-  AND assignee_id IS NULL;
+WITH changed AS (
+    UPDATE reports AS report
+    SET
+        assignee_id = sqlc.arg(admin_id),
+        assigned_at = now()
+    WHERE report.id = sqlc.arg(report_id)
+      AND report.status = 'open'
+      AND report.assignee_id IS NULL
+    RETURNING report.id
+)
+INSERT INTO admin_audit_log (admin_id, action, target_type, target_id)
+SELECT sqlc.arg(admin_id), 'report_assigned', 'report', changed.id
+FROM changed;
 
 -- Решение может принять только текущий исполнитель и только пока жалоба open.
 -- status и время закрытия меняются одним атомарным запросом.
 -- name: DecideReportForAdmin :execrows
-UPDATE reports
-SET
-    status = sqlc.arg(decision),
-    closed_at = now(),
-    resolution_comment = sqlc.arg(resolution_comment)
-WHERE id = sqlc.arg(report_id)
-  AND status = 'open'
-  AND assignee_id = sqlc.arg(admin_id);
+WITH changed AS (
+    UPDATE reports AS report
+    SET
+        status = sqlc.arg(decision),
+        closed_at = now(),
+        resolution_comment = sqlc.arg(resolution_comment)
+    WHERE report.id = sqlc.arg(report_id)
+      AND report.status = 'open'
+      AND report.assignee_id = sqlc.arg(admin_id)
+    RETURNING report.id
+)
+INSERT INTO admin_audit_log (admin_id, action, target_type, target_id, metadata)
+SELECT
+    sqlc.arg(admin_id),
+    CASE
+        WHEN sqlc.arg(decision)::text = 'resolved' THEN 'report_resolved'::admin_audit_action
+        ELSE 'report_rejected'::admin_audit_action
+    END,
+    'report',
+    changed.id,
+    jsonb_build_object('resolution_comment', sqlc.arg(resolution_comment)::text)
+FROM changed;
 
 -- Вызывается только если условный UPDATE не изменил строку. Нужен, чтобы отличить 404
 -- от конфликтов «уже назначена», «не назначена» и «уже закрыта».
 -- name: GetReportProcessingState :one
 SELECT status, assignee_id
-FROM reports
-WHERE id = sqlc.arg(report_id);
+FROM reports AS report
+WHERE report.id = sqlc.arg(report_id);
