@@ -1,4 +1,10 @@
-import { memo, useEffect, type MouseEvent, type ReactNode } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import CloseIcon from "/src/Assets/close.svg";
@@ -11,15 +17,22 @@ type PopupProps = {
 const PopupComponent = ({ children }: PopupProps) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const locationState = location.state as { closeTo?: string } | null;
+  const closeTo = locationState?.closeTo;
 
-  const closePopup = () => {
+  const closePopup = useCallback(() => {
+    if (closeTo) {
+      navigate(closeTo, { replace: true });
+      return;
+    }
+
     navigate(location.pathname.includes("/login") ? -1 : -2);
-  };
+  }, [closeTo, location.pathname, navigate]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        navigate(location.pathname.includes("/login") ? -1 : -2);
+        closePopup();
       }
     };
 
@@ -28,7 +41,7 @@ const PopupComponent = ({ children }: PopupProps) => {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [location.pathname, navigate]);
+  }, [closePopup]);
 
   const handleOverlayClick = (event: MouseEvent<HTMLDivElement>) => {
     if (event.target === event.currentTarget) {

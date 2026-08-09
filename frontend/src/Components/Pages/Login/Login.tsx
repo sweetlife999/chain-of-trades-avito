@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import styles from "./Styles.module.scss";
 import { Button } from "../../UI/Button/Button";
 import { Popup } from "../../UI/Popup/Popup";
@@ -15,7 +15,12 @@ import type { TAuthenticatedUser } from "../../../Api/auth/auth.types";
 
 const LoginComponent = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useAuthDispatch();
+  const locationState = location.state as
+    | { closeTo?: string; from?: string }
+    | null;
+  const destination = locationState?.from ?? "/profile";
 
   const {
     register,
@@ -24,27 +29,35 @@ const LoginComponent = () => {
     setError,
   } = useForm<FormState>({
     resolver: zodResolver(formSchema),
-    
   });
 
-const loginMutation = useMutation({
-  mutationFn: (data: FormState) => login(data),
+  const loginMutation = useMutation({
+    mutationFn: (data: FormState) => login(data),
 
-  onSuccess: (data: TAuthenticatedUser) => {
-    dispatch(setUserState(data));
-    navigate("/profile");
-  },
+    onSuccess: (data: TAuthenticatedUser) => {
+      dispatch(setUserState(data));
+      navigate(destination, { replace: true });
+    },
 
-  onError: () => {
-    setError("root", {
-      type: "server",
-      message: "Неверный nickname или пароль",
-    });
-  },
-});
+    onError: () => {
+      setError("root", {
+        type: "server",
+        message: "Неверный nickname или пароль",
+      });
+    },
+  });
 
   const onSubmit = (data: FormState) => {
     loginMutation.mutate(data);
+  };
+
+  const closeForm = () => {
+    if (locationState?.closeTo) {
+      navigate(locationState.closeTo, { replace: true });
+      return;
+    }
+
+    navigate(-1);
   };
 
   return (
@@ -73,7 +86,7 @@ const loginMutation = useMutation({
               className={styles.login__input}
               type="text"
               placeholder="nickname"
-              // autoComplete="email"
+              autoComplete="username"
               {...register("nickname")}
             />
             {errors.nickname && (
@@ -97,7 +110,7 @@ const loginMutation = useMutation({
           <Button
             color="transparent"
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={closeForm}
           >
             Отменить
           </Button>
@@ -112,7 +125,14 @@ const loginMutation = useMutation({
           <Button
             color="invisible"
             type="button"
-            onClick={() => navigate("/register")}
+            onClick={() =>
+              navigate("/register", {
+                state: {
+                  closeTo: locationState?.closeTo,
+                  from: destination,
+                },
+              })
+            }
           >
             Зарегистрироваться
           </Button>

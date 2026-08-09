@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,13 +11,22 @@ import { Input } from "../../UI/Input/Input";
 import { Popup } from "../../UI/Popup/Popup";
 
 import { registerAndLogin } from "../../../Api/auth/auth";
-import { registerSchema, type TAuthenticatedUser, type TRegister } from "../../../Api/auth/auth.types";
+import {
+  registerSchema,
+  type TAuthenticatedUser,
+  type TRegister,
+} from "../../../Api/auth/auth.types";
 import { useAuthDispatch } from "../../../Hooks/useAuthDispatch";
 import { setUserState } from "../../../Store/authSlice";
 
 const RegisterComponent = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useAuthDispatch();
+  const locationState = location.state as
+    | { closeTo?: string; from?: string }
+    | null;
+  const destination = locationState?.from ?? "/profile";
 
   const {
     register,
@@ -40,7 +49,7 @@ const RegisterComponent = () => {
 
     onSuccess: (data: TAuthenticatedUser) => {
       dispatch(setUserState(data));
-      navigate("/profile");
+      navigate(destination, { replace: true });
     },
 
     onError: () => {
@@ -53,6 +62,15 @@ const RegisterComponent = () => {
 
   const onSubmit = (data: TRegister) => {
     registerMutation.mutate(data);
+  };
+
+  const closeForm = () => {
+    if (locationState?.closeTo) {
+      navigate(locationState.closeTo, { replace: true });
+      return;
+    }
+
+    navigate(-1);
   };
 
   return (
@@ -120,7 +138,7 @@ const RegisterComponent = () => {
           <Button
             color="transparent"
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={closeForm}
           >
             Отменить
           </Button>
@@ -143,7 +161,14 @@ const RegisterComponent = () => {
           <Button
             color="invisible"
             type="button"
-            onClick={() => navigate("/login")}
+            onClick={() =>
+              navigate("/login", {
+                state: {
+                  closeTo: locationState?.closeTo,
+                  from: destination,
+                },
+              })
+            }
           >
             Войти
           </Button>

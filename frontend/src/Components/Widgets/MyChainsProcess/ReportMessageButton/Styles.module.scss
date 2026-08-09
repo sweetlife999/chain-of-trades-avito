@@ -1,0 +1,34 @@
+.reportButton {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  place-items: center;
+  color: #737982;
+  background: rgba(255, 255, 255, .92);
+  border: 1px solid #e0e3e7;
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    color .18s ease,
+    border-color .18s ease;
+
+  &:hover:not(:disabled),
+  &:focus-visible {
+    color: #b42318;
+    border-color: #f0b4ae;
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(180, 35, 24, .22);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    color: #08783f;
+    cursor: default;
+  }
+}

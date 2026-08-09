@@ -1,0 +1,15 @@
+.cancel {
+  &__button {
+    min-height: 40px;
+
+    svg {
+      flex: 0 0 auto;
+    }
+  }
+}
+
+@media (max-width: 520px) {
+  .cancel__button {
+    width: 100%;
+  }
+}

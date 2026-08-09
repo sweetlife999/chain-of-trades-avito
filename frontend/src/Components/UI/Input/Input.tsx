@@ -20,6 +20,7 @@ type TInput = {
   maxLength?: number;
   counter?: string;
   defaultValue?: string;
+  value?: string;
   autoComplete?: string;
   name?: string;
   onChange?: ChangeEventHandler<HTMLInputElement | HTMLTextAreaElement>;
@@ -44,6 +45,7 @@ const InputComponent = forwardRef<
       maxLength,
       counter,
       defaultValue,
+      value,
       autoComplete,
       name,
       onChange,
@@ -65,6 +67,7 @@ const InputComponent = forwardRef<
       placeholder,
       maxLength,
       defaultValue,
+      value,
       autoComplete,
       name,
       required,
