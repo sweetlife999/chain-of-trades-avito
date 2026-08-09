@@ -1,16 +1,25 @@
 .delivery {
   display: grid;
-  gap: 18px;
+  gap: 20px;
   padding: clamp(20px, 4vw, 32px);
   background: #fff;
   border: 1px solid #d7dadd;
   border-radius: $border-radius;
 
-  &__heading {
+  &__sectionHeader,
+  &__heading,
+  &__cardTop {
     display: flex;
     align-items: flex-start;
-    gap: 14px;
   }
+
+  &__sectionHeader,
+  &__cardTop {
+    justify-content: space-between;
+  }
+
+  &__sectionHeader { gap: 20px; }
+  &__heading { min-width: 0; gap: 14px; }
 
   &__icon {
     display: grid;
@@ -23,61 +32,136 @@
     place-items: center;
   }
 
-  &__headingContent {
-    min-width: 0;
-  }
+  &__headingContent { min-width: 0; }
 
   &__title {
-    margin: 0 0 5px;
-    color: #202124;
-    font-size: clamp(20px, 3vw, 24px);
+    @include section-title;
+    margin-bottom: 5px;
   }
 
-  &__description,
-  &__hint {
-    margin: 0;
-    color: #727780;
-    font-size: 13px;
-    line-height: 1.5;
+  &__description {
+    @include section-description;
+    max-width: 720px;
   }
 
-  &__form {
+  &__refresh { flex: 0 0 auto; }
+
+  &__state {
+    display: grid;
+    min-height: 210px;
+    place-items: center;
+    align-content: center;
+    gap: 9px;
+    padding: 28px;
+    color: #717780;
+    background: #f8f9fa;
+    border-radius: 14px;
+    text-align: center;
+  }
+
+  &__stateIcon { color: #8c9299; }
+  &__stateTitle { color: #292d32; font-size: 17px; }
+  &__stateDescription { max-width: 480px; font-size: 13px; line-height: 1.5; }
+
+  &__list {
+    display: grid;
+    gap: 12px;
+    transition: opacity .2s ease;
+
+    &[aria-busy="true"] { opacity: .65; }
+  }
+
+  &__card {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(190px, auto);
-    align-items: end;
-    gap: 14px;
+    gap: 22px;
+    padding: 18px;
+    border: 1px solid #e1e4e8;
+    border-radius: 14px;
+    background: #fff;
   }
 
-  &__action {
-    padding-bottom: 1px;
+  &__cardContent { display: grid; min-width: 0; gap: 14px; }
+  &__cardTop { gap: 16px; }
+  &__exchangeIdentity { display: grid; min-width: 0; gap: 4px; }
+  &__exchangeLabel { color: #777d85; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+
+  &__exchangeId {
+    overflow: hidden;
+    color: #292d32;
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  &__disabledButton {
-    width: 100%;
-    min-height: 35px;
-    padding: 8px 14px;
-    color: #9aa0a6;
-    background: #eef0f2;
-    border: 0;
-    border-radius: $border-radius;
-    font: inherit;
-    font-size: 13px;
+  &__status {
+    flex: 0 0 auto;
+    padding: 5px 9px;
+    color: #78570f;
+    background: #fff4d6;
+    border-radius: 14px;
+    font-size: 10px;
     font-weight: 600;
-    cursor: not-allowed;
   }
 
-  &__hint {
-    padding: 12px 14px;
-    color: #6b5310;
-    background: #fff8dc;
+  &__participants {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 8px;
+  }
+
+  &__participant {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+    padding: 10px 12px;
+    background: #f4f6f7;
     border-radius: 10px;
   }
+
+  &__participantName,
+  &__participantItem,
+  &__participantPickup {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__participantName { color: #34383e; font-size: 12px; }
+  &__participantItem { color: #5e646c; font-size: 11px; }
+  &__participantPickup { color: #858b93; font-size: 10px; }
+  &__date { color: #7b8189; font-size: 11px; }
+  &__action { display: grid; align-content: center; }
 }
 
-@media (max-width: 680px) {
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  color: #777d85;
+  font-size: 12px;
+
+  &__controls { display: flex; align-items: center; gap: 10px; }
+  &__current { min-width: 52px; text-align: center; }
+}
+
+@media (max-width: 760px) {
   .delivery {
-    &__form {
-      grid-template-columns: 1fr;
+    &__sectionHeader,
+    &__card {
+      display: flex;
+      align-items: stretch;
+      flex-direction: column;
     }
+
+    &__refresh,
+    &__action { width: 100%; }
+  }
+
+  .pagination {
+    align-items: flex-start;
+    flex-direction: column;
+    &__controls { width: 100%; justify-content: space-between; }
   }
 }

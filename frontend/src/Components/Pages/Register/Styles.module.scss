@@ -13,18 +13,9 @@
     text-align: center;
   }
 
-  &__title {
-    color: #171717;
-    font-size: clamp(24px, 5vw, 28px);
-    font-weight: 700;
-    line-height: 1.2;
-  }
+  &__title { @include page-title; }
 
-  &__description {
-    color: #777;
-    font-size: 14px;
-    line-height: 1.5;
-  }
+  &__description { @include page-description; }
 
   &__fields {
     display: flex;

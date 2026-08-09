@@ -49,7 +49,7 @@ export const AdminReportDecision = ({
         className={styles.decision}
         role="dialog"
       >
-        <header className={styles.decision__header}>
+        <div className={styles.decision__header}>
           <span
             className={[
               styles.decision__icon,
@@ -78,7 +78,7 @@ export const AdminReportDecision = ({
           >
             <X aria-hidden="true" />
           </button>
-        </header>
+        </div>
 
         <label className={styles.decision__field}>
           <span className={styles.decision__label}>

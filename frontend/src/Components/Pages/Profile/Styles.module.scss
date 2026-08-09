@@ -61,22 +61,14 @@
   }
 
   &__nickname {
+    @include page-title;
     margin: 0;
-
-    color: #171717;
-    font-size: 24px;
-    font-weight: 700;
-    line-height: 1.2;
   }
 
   &__description {
+    @include page-description;
     max-width: 560px;
-
     margin: 0;
-
-    color: #555;
-    font-size: 14px;
-    line-height: 1.5;
   }
 
   &__created {
@@ -86,6 +78,15 @@
 
     color: #777;
     font-size: 13px;
+  }
+
+
+  &__actions {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    min-width: 190px;
   }
 
   &__statistics {
@@ -337,11 +338,16 @@
       height: 72px;
     }
 
-    &__nickname {
-      font-size: 21px;
-    }
+  
+  &__actions {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    min-width: 190px;
+  }
 
-    &__statistics {
+  &__statistics {
       flex-direction: column;
     }
 
@@ -371,7 +377,8 @@
       align-items: flex-start;
     }
 
-    &__action {
+    &__action,
+    &__actions {
       width: 100%;
     }
 

@@ -32,14 +32,14 @@
     }
   }
   &__title {
+    @include page-title;
     margin: 14px 0 10px;
     overflow-wrap: anywhere;
-    font-size: clamp(25px, 4vw, 32px);
-    font-weight: 500;
   }
   &__meta {
     color: #666;
     font-size: 13px;
+    @include page-description;
   }
   &__headerActions {
     display: flex;

@@ -34,8 +34,8 @@
 
   &__iconImage { width: 21px; height: 21px; }
   &__headingText { display: grid; gap: 4px; min-width: 0; }
-  &__title { color: #202124; font-size: clamp(22px, 3vw, 25px); }
-  &__description { color: #7b8189; font-size: 13px; line-height: 1.4; }
+  &__title { @include section-title; }
+  &__description { @include section-description; }
   &__total { flex: 0 0 auto; padding: 6px 10px; color: #5f6670; background: #f3f4f5; border-radius: 999px; font-size: 11px; font-weight: 700; }
 
   &__filters {

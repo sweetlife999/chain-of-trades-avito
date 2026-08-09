@@ -1,26 +1,65 @@
-import { memo } from "react";
+import { memo, useState } from "react";
 
 import { DashboardStats } from "../DashboardStats/DashboardStats";
 import { PickupPoints } from "../PickupPoints/PickupPoints";
 import { AdminReports } from "../AdminReports/AdminReports";
 import { AdminExchangeDelivery } from "../AdminExchangeDelivery/AdminExchangeDelivery";
+import { AdminAuditLog } from "../AdminAuditLog/AdminAuditLog";
 import styles from "./Styles.module.scss";
 
+type TAdminSection =
+  | "statistics"
+  | "delivery"
+  | "pickup-points"
+  | "reports"
+  | "audit";
+
+const sections: Array<{ id: TAdminSection; label: string }> = [
+  { id: "statistics", label: "Статистика" },
+  { id: "delivery", label: "Завершение доставки" },
+  { id: "pickup-points", label: "Пункты выдачи" },
+  { id: "reports", label: "Жалобы пользователей" },
+  { id: "audit", label: "История действий админов" },
+];
+
 const AdminComponent = () => {
+  const [activeSection, setActiveSection] =
+    useState<TAdminSection>("statistics");
+
   return (
     <section className={styles.admin}>
-      <header className={styles.admin__header}>
+      <div className={styles.admin__header}>
         <span className={styles.admin__eyebrow}>Администрирование</span>
         <h1 className={styles.admin__title}>Панель управления</h1>
         <p className={styles.admin__description}>
-          Статистика сервиса, управление доставкой, пункты выдачи и очередь жалоб
+          Статистика сервиса, управление доставкой, пункты выдачи, жалобы и
+          журнал действий администраторов.
         </p>
-      </header>
+      </div>
 
-      <DashboardStats />
-      <AdminExchangeDelivery />
-      <PickupPoints />
-      <AdminReports />
+      <nav className={styles.admin__tabs} aria-label="Разделы админ-панели">
+        {sections.map((section) => (
+          <button
+            aria-current={activeSection === section.id ? "page" : undefined}
+            className={`${styles.admin__tab} ${
+              activeSection === section.id ? styles.admin__tab_active : ""
+            }`}
+            key={section.id}
+            type="button"
+            onClick={() => setActiveSection(section.id)}
+          >
+            {section.label}
+          </button>
+        ))}
+      </nav>
+
+      <div className={styles.admin__content}>
+        {activeSection === "statistics" && <DashboardStats />}
+        {activeSection === "delivery" && <AdminExchangeDelivery />}
+        {activeSection === "pickup-points" && <PickupPoints />}
+        {activeSection === "reports" && <AdminReports />}
+        {activeSection === "audit" && <AdminAuditLog />}
+      </div>
     </section>
   );
 };

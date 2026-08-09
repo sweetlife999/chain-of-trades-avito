@@ -13,7 +13,7 @@ const MainComponent = () => {
 
   return (
     <section className={styles.main}>
-      <header className={styles.main__titleCover}>
+      <div className={styles.main__titleCover}>
         <div className={styles.main__heading}>
           <h1 className={styles.main__title}>Обмены</h1>
           <p className={styles.main__subtitle}>Найдите подходящую цепочку обмена</p>
@@ -29,7 +29,7 @@ const MainComponent = () => {
         >
           Добавить вещь
         </Button>
-      </header>
+      </div>
 
       {isAuth ? (
         <PostsList />

@@ -15,6 +15,7 @@ import { Button } from "../../UI/Button/Button";
 import { ConfirmationPopup } from "../../UI/ConfirmationPopup/ConfirmationPopup";
 import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
 import { getAvatarGradient } from "../../Utils/getAvatarGradient";
+import { AdminGlobalBlockButton } from "../../Widgets/Admin/AdminGlobalBlockButton/AdminGlobalBlockButton";
 import { AdminUserExchanges } from "../../Widgets/Admin/AdminUserExchanges/AdminUserExchanges";
 
 type TBlockAction = {
@@ -144,38 +145,49 @@ const ProfileComponent = () => {
         </div>
 
         {isOwnProfile && currentUser && (
-          <Button
-            className={styles.profile__action}
-            color="transparent"
-            type="button"
-            onClick={() => navigate("/profile/edit")}
-          >
-            Редактировать
-          </Button>
+          <div className={styles.profile__actions}>
+            <Button
+              className={styles.profile__action}
+              color="transparent"
+              type="button"
+              onClick={() => navigate("/profile/edit")}
+            >
+              Редактировать
+            </Button>
+          </div>
         )}
 
         {!isOwnProfile && currentUser && (
-          <Button
-            className={styles.profile__action}
-            color={isBlocked ? "transparent" : "danger"}
-            disabled={blockedUsersQuery.isPending || blockedUsersQuery.isError}
-            type="button"
-            onClick={() =>
-              setBlockAction({
-                type: isBlocked ? "unblock" : "block",
-                userId: user.id,
-                nickname: user.nickname,
-              })
-            }
-          >
-            {blockedUsersQuery.isPending
-              ? "Проверяем..."
-              : blockedUsersQuery.isError
-                ? "Не удалось проверить блокировку"
-                : isBlocked
-                  ? "Разблокировать"
-                  : "Заблокировать"}
-          </Button>
+          <div className={styles.profile__actions}>
+            <Button
+              className={styles.profile__action}
+              color={isBlocked ? "transparent" : "danger"}
+              disabled={blockedUsersQuery.isPending || blockedUsersQuery.isError}
+              type="button"
+              onClick={() =>
+                setBlockAction({
+                  type: isBlocked ? "unblock" : "block",
+                  userId: user.id,
+                  nickname: user.nickname,
+                })
+              }
+            >
+              {blockedUsersQuery.isPending
+                ? "Проверяем..."
+                : blockedUsersQuery.isError
+                  ? "Не удалось проверить блокировку"
+                  : isBlocked
+                    ? "Разблокировать"
+                    : "Заблокировать"}
+            </Button>
+
+            {currentUser.is_admin && (
+              <AdminGlobalBlockButton
+                nickname={user.nickname}
+                userId={user.id}
+              />
+            )}
+          </div>
         )}
 
         <div className={styles.profile__statistics}>

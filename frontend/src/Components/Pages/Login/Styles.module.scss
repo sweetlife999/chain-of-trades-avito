@@ -17,20 +17,13 @@
   }
 
   &__title {
+    @include page-title;
     margin: 0;
-
-    color: #171717;
-    font-size: 28px;
-    font-weight: 700;
-    line-height: 1.2;
   }
 
   &__description {
+    @include page-description;
     margin: 0;
-
-    color: #777;
-    font-size: 14px;
-    line-height: 1.5;
   }
 
   &__fields {
@@ -124,9 +117,6 @@
   .login {
     gap: 22px;
 
-    &__title {
-      font-size: 24px;
-    }
 
     &__buttons {
       grid-template-columns: 1fr;

@@ -63,10 +63,10 @@ const StatusList = ({
   rows: TStatusRow[];
 }) => (
   <article className={styles.dashboard__detailsCard}>
-    <header className={styles.dashboard__detailsHeader}>
+    <div className={styles.dashboard__detailsHeader}>
       <h3 className={styles.dashboard__detailsTitle}>{title}</h3>
       <strong className={styles.dashboard__detailsTotal}>{total}</strong>
-    </header>
+    </div>
     <dl className={styles.dashboard__statusList}>
       {rows.map(({ label, value }) => (
         <div className={styles.dashboard__statusRow} key={label}>

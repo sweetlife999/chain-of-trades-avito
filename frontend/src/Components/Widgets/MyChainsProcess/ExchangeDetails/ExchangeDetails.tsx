@@ -252,7 +252,7 @@ const ExchangeDetailsComponent = () => {
 
   return (
     <section className={styles.details}>
-      <header className={styles.details__header}>
+      <div className={styles.details__header}>
         <div className={styles.details__heading}>
           <Link className={styles.details__back} to={returnTo}>
             ← {returnLabel}
@@ -278,7 +278,7 @@ const ExchangeDetailsComponent = () => {
             />
           )}
         </div>
-      </header>
+      </div>
 
       <div className={styles.details__progress}>
         <ExchangeProgress status={exchange.status} />

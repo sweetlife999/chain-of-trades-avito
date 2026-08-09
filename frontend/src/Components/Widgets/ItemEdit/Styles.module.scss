@@ -24,15 +24,10 @@
   }
 
   &__title,
-  &__accessTitle {
-    color: #171717;
-    font-size: clamp(25px, 4vw, 32px);
-    font-weight: 500;
-    line-height: 1.3;
-  }
+  &__accessTitle { @include page-title; }
 
   &__description,
-  &__accessDescription { color: #555; line-height: 1.5; }
+  &__accessDescription { @include page-description; }
 
   &__form {
     display: flex;

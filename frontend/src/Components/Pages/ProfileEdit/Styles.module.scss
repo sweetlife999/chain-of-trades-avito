@@ -8,16 +8,11 @@
   }
 
   &__title {
+    @include page-title;
     margin-bottom: 8px;
-    font-size: clamp(24px, 4vw, 30px);
-    line-height: 1.3;
   }
 
-  &__description {
-    color: #666;
-    font-size: 14px;
-    line-height: 1.5;
-  }
+  &__description { @include page-description; }
 
   &__form {
     display: grid;

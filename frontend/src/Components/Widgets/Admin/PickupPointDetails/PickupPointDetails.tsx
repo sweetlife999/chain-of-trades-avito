@@ -59,7 +59,7 @@ export const PickupPointDetails = ({
         className={styles.pointDetails}
         role="dialog"
       >
-        <header className={styles.pointDetails__header}>
+        <div className={styles.pointDetails__header}>
           <span className={styles.pointDetails__icon} aria-hidden="true">
             <MapPin className={styles.pointDetails__iconImage} />
           </span>
@@ -80,7 +80,7 @@ export const PickupPointDetails = ({
           >
             <X aria-hidden="true" className={styles.pointDetails__closeIcon} />
           </button>
-        </header>
+        </div>
 
         {pickupPointQuery.isPending && (
           <div className={styles.pointDetails__state}>

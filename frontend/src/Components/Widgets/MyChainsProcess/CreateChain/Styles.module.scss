@@ -14,17 +14,9 @@
     gap: 26px;
   }
 
-  &__title {
-    color: #171717;
-    font-size: clamp(26px, 4vw, 32px);
-    font-weight: 500;
-  }
+  &__title { @include page-title; }
 
-  &__subtitle {
-    color: #292929;
-    font-size: 16px;
-    line-height: 1.5;
-  }
+  &__subtitle { @include page-description; }
 
   &__section {
     display: flex;
@@ -339,9 +331,6 @@
       gap: 14px;
     }
 
-    &__title {
-      font-size: 26px;
-    }
 
     &__form {
       padding: 20px 16px 22px;

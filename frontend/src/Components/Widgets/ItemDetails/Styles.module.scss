@@ -46,9 +46,8 @@
   }
 
   &__title {
+    @include page-title;
     max-width: 100%;
-    font-size: clamp(26px, 4vw, 36px);
-    line-height: 1.25;
     overflow-wrap: anywhere;
   }
 
