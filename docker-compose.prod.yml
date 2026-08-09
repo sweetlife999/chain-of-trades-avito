@@ -1,0 +1,17 @@
+# Оверлей к docker-compose.yml: те же сервисы, но образы приезжают из GHCR,
+# а не собираются на месте. Применяется вместе с базовым файлом:
+#   IMAGE_TAG=<sha> docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build
+#
+# build: из базового файла остаётся, но --no-build его не трогает, а pull идёт
+# по image, поэтому гасить сборку отдельно не требуется.
+#
+# IMAGE_TAG задаёт .github/workflows/cd.yml. Откат — тот же up с прошлым sha.
+services:
+  migrate:
+    image: ghcr.io/sweetlife999/chain-of-trades-avito/api:${IMAGE_TAG}
+
+  api:
+    image: ghcr.io/sweetlife999/chain-of-trades-avito/api:${IMAGE_TAG}
+
+  web:
+    image: ghcr.io/sweetlife999/chain-of-trades-avito/web:${IMAGE_TAG}

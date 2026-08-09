@@ -64,12 +64,43 @@ make sqlc swagger && git status --short   # дерево должно остат
 `npm run build` на Node 22. Сборка там та же, что внутри образа веба, поэтому ошибка
 TypeScript падает в CI, а не в `docker build`.
 
+## Деплой
+
+Push в `main` запускает `.github/workflows/cd.yml`: он собирает образы `api` и `web`,
+пушит их в GHCR под тегом `github.sha`, копирует на сервер оба compose-файла и делает
+`docker compose pull && up -d --no-build`. На сервере ничего не собирается, миграции
+катает сервис `migrate` — тот же, что и локально.
+
+Тесты в CD не дублируются: в `main` попадает только смёрженный PR, на котором прошёл CI.
+Включи в настройках репозитория branch protection «require status checks», иначе прямой
+push в `main` уедет на сервер непроверенным.
+
+Секреты репозитория — три: `SSH_HOST`, `SSH_USER`, `SSH_KEY` (приватный ключ, публичный
+лежит в `~/.ssh/authorized_keys` на сервере). `GITHUB_TOKEN` встроенный, заводить его не
+нужно.
+
+Сервер готовится один раз руками — нужен docker с compose и каталог `/opt/chain-of-trades`
+с `.env` в нём. Compose-файлы туда положит сам деплой, а `.env` через GitHub не ходит:
+`JWT_SECRET` и пароль базы живут там же, где том с данными. Отличия от локального `.env` —
+`COOKIE_SECURE=true` и `SITE_ADDRESS=<домен>`, по которому Caddy сам выпустит сертификат.
+
+Откат — прошлый образ ещё в GHCR, поэтому на сервере:
+
+```bash
+cd /opt/chain-of-trades
+IMAGE_TAG=<sha предыдущего деплоя> docker compose \
+  -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build
+```
+
+Бэкапов БД пока нет: том `pgdata` — единственная копия данных.
+
 ## Что где
 
 | Путь              | Что там                                                          |
 |-------------------|------------------------------------------------------------------|
 | `Dockerfile`      | Образ Go: бинари `api` и `migrate` из одной сборки               |
 | `docker-compose.yml` | Четыре сервиса: `postgres`, `migrate`, `api`, `web`           |
+| `docker-compose.prod.yml` | Оверлей для сервера: образы из GHCR вместо сборки на месте |
 | `frontend/Dockerfile` | Образ веба: сборка фронта и Caddy, который её отдаёт         |
 | `frontend/Caddyfile`  | Один origin: статика, `/api/*` на API, TLS при домене        |
 | `migrations/`     | SQL-миграции goose, вшиты в binary через `embed.FS`              |
@@ -78,7 +109,7 @@ TypeScript падает в CI, а не в `docker build`.
 | `cmd/migrate/`    | Накат миграций (`up`, `down`, `status`, `reset`)                 |
 | `cmd/api/`        | Точка запуска HTTP API                                           |
 | `db/smoke.sql`    | Проверка констрейнтов и триггеров на живой БД                    |
-| `.github/`        | Шаблоны issue/PR и workflow CI                                   |
+| `.github/`        | Шаблоны issue/PR и workflow CI и CD                              |
 | `frontend/`       | Вся папка с фронтэндом                                           |
 | `docs/db.md`      | Схема, обоснование выбора PostgreSQL и типов данных              |
 | `docs/users.md`   | CRU пользователей, маршруты и коды ответа                        |
