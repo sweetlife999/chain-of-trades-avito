@@ -5,19 +5,28 @@ import styles from "./Styles.module.scss";
 import { Button } from "../../UI/Button/Button";
 import { PostsList } from "../../Widgets/PostsList/PostsList";
 import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
+import { AuthRequiredState } from "../../UI/AuthRequiredState/AuthRequiredState";
 
 const MainComponent = () => {
   const navigate = useNavigate();
   const { isAuth } = useAuthSelector();
 
   return (
-    <section>
+    <section className={styles.main}>
       <header className={styles.main__titleCover}>
-        <div>
+        <div className={styles.main__heading}>
           <h1 className={styles.main__title}>Обмены</h1>
           <p className={styles.main__subtitle}>Найдите подходящую цепочку обмена</p>
         </div>
-        <Button size="l" onClick={() => navigate("/exchanges/create")}>
+        <Button
+          className={styles.main__action}
+          size="l"
+          onClick={() =>
+            isAuth
+              ? navigate("/exchanges/create")
+              : navigate("/login", { state: { from: "/exchanges/create" } })
+          }
+        >
           Добавить вещь
         </Button>
       </header>
@@ -25,7 +34,11 @@ const MainComponent = () => {
       {isAuth ? (
         <PostsList />
       ) : (
-        <p className="error">Чтобы посмотреть обмены, войдите в аккаунт</p>
+        <AuthRequiredState
+          description="После входа вы увидите найденные цепочки, сможете добавить свою вещь и отслеживать поиск новых вариантов обмена."
+          returnTo="/"
+          title="Войдите, чтобы посмотреть обмены"
+        />
       )}
     </section>
   );

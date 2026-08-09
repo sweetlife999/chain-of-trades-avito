@@ -80,18 +80,21 @@ const MyChainsComponent = () => {
         </Button>
       </header>
 
-      <div className={styles.chains__tabs}>
-        {tabs.map(({ value, label }) => (
-          <button
-            className={clsx(tab === value && styles.active)}
-            key={value}
-            type="button"
-            onClick={() => setTab(value)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <div className={styles.chains__filters}>
+            {tabs.map(({ value, label }) => (
+              <button
+                className={clsx(
+                  styles.chains__filter,
+                  tab === value && styles.chains__filter_active,
+                )}
+                key={value}
+                type="button"
+                onClick={() => setTab(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
 
       {isPending && <p className={styles.chains__message}>Загрузка...</p>}
       {isError && (

@@ -74,15 +74,18 @@ export const AdminUserExchanges = ({
       className={styles.exchanges}
     >
       <header className={styles.exchanges__header}>
-        <div>
+        <div className={styles.exchanges__heading}>
           <span className={styles.exchanges__eyebrow}>Доступ администратора</span>
-          <h2 id="admin-user-exchanges-title">Активные обмены пользователя</h2>
-          <p>
+          <h2 className={styles.exchanges__title} id="admin-user-exchanges-title">
+            Активные обмены пользователя
+          </h2>
+          <p className={styles.exchanges__description}>
             Proposed и confirmed цепочки пользователя {userNickname}. Всего: {total}
           </p>
         </div>
 
         <Button
+          className={styles.exchanges__refresh}
           color="transparent"
           disabled={exchangesQuery.isFetching}
           size="s"
@@ -91,7 +94,11 @@ export const AdminUserExchanges = ({
             void exchangesQuery.refetch();
           }}
         >
-          <RefreshCw aria-hidden="true" size={17} />
+          <RefreshCw
+            aria-hidden="true"
+            className={styles.exchanges__refreshIcon}
+            size={17}
+          />
           Обновить
         </Button>
       </header>
@@ -104,9 +111,14 @@ export const AdminUserExchanges = ({
 
       {exchangesQuery.isError && (
         <div className={styles.exchanges__state} role="alert">
-          <h3>Не удалось загрузить обмены</h3>
-          <p>Проверьте соединение или права администратора и повторите запрос.</p>
+          <h3 className={styles.exchanges__stateTitle}>
+            Не удалось загрузить обмены
+          </h3>
+          <p className={styles.exchanges__stateDescription}>
+            Проверьте соединение или права администратора и повторите запрос.
+          </p>
           <Button
+            className={styles.exchanges__stateAction}
             color="light"
             size="s"
             type="button"
@@ -123,9 +135,17 @@ export const AdminUserExchanges = ({
         !exchangesQuery.isError &&
         exchanges.length === 0 && (
           <div className={styles.exchanges__state}>
-            <UsersRound aria-hidden="true" size={34} />
-            <h3>Активных обменов нет</h3>
-            <p>У пользователя нет цепочек со статусом proposed или confirmed.</p>
+            <UsersRound
+              aria-hidden="true"
+              className={styles.exchanges__stateIcon}
+              size={34}
+            />
+            <h3 className={styles.exchanges__stateTitle}>
+              Активных обменов нет
+            </h3>
+            <p className={styles.exchanges__stateDescription}>
+              У пользователя нет цепочек со статусом proposed или confirmed.
+            </p>
           </div>
         )}
 
@@ -138,24 +158,40 @@ export const AdminUserExchanges = ({
             <article className={styles.exchanges__card} key={exchange.id}>
               <div className={styles.exchanges__information}>
                 <div className={styles.exchanges__titleRow}>
-                  <h3>{getExchangeTitle(exchange, userId)}</h3>
-                  <span className={styles[`status_${exchange.status}`]}>
+                  <h3 className={styles.exchanges__cardTitle}>
+                    {getExchangeTitle(exchange, userId)}
+                  </h3>
+                  <span
+                    className={`${styles.exchanges__status} ${styles[`exchanges__status_${exchange.status}`]}`}
+                  >
                     {statusLabels[exchange.status]}
                   </span>
                 </div>
 
                 <div className={styles.exchanges__meta}>
-                  <span>{exchange.participants.length} участника</span>
-                  <time dateTime={exchange.created_at}>
+                  <span className={styles.exchanges__metaItem}>
+                    {exchange.participants.length} участника
+                  </span>
+                  <time
+                    className={styles.exchanges__metaItem}
+                    dateTime={exchange.created_at}
+                  >
                     Создан {formatDate(exchange.created_at)}
                   </time>
                 </div>
 
                 <div className={styles.exchanges__participants}>
                   {exchange.participants.map((participant) => (
-                    <span key={participant.user.id}>
-                      <strong>{participant.user.nickname}</strong>
-                      <small>{participant.gives_item.title}</small>
+                    <span
+                      className={styles.exchanges__participant}
+                      key={participant.user.id}
+                    >
+                      <strong className={styles.exchanges__participantName}>
+                        {participant.user.nickname}
+                      </strong>
+                      <small className={styles.exchanges__participantItem}>
+                        {participant.gives_item.title}
+                      </small>
                     </span>
                   ))}
                 </div>
@@ -178,10 +214,10 @@ export const AdminUserExchanges = ({
 
       {!exchangesQuery.isError && total > PAGE_SIZE && (
         <nav aria-label="Пагинация обменов" className={styles.pagination}>
-          <span>
+          <span className={styles.pagination__summary}>
             Показано {rangeStart}–{rangeEnd} из {total}
           </span>
-          <div>
+          <div className={styles.pagination__controls}>
             <Button
               color="transparent"
               disabled={page === 0 || exchangesQuery.isFetching}
@@ -191,7 +227,7 @@ export const AdminUserExchanges = ({
             >
               Назад
             </Button>
-            <span>
+            <span className={styles.pagination__current}>
               {page + 1} / {totalPages}
             </span>
             <Button

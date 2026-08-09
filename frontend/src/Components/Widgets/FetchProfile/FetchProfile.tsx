@@ -3,6 +3,7 @@ import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
 import { Link } from "react-router-dom";
 import { Button } from "../../UI/Button/Button";
 import { ProfilePreview } from "../ProfilePreview/ProfilePreview";
+import styles from "./Styles.module.scss";
 
 const FetchProfileComponent = () => {
   const { isAuth, user } = useAuthSelector();
@@ -12,9 +13,10 @@ const FetchProfileComponent = () => {
   }
 
   return (
-    <Link to="/login">
-      <Button size="m" color="transparent">
-        Вход и регистрация
+    <Link className={styles.authLink} to="/login">
+      <Button className={styles.authLink__button} size="m" color="transparent">
+        <span className={styles.authLink__label}>Вход и регистрация</span>
+        <span className={styles.authLink__labelCompact}>Войти</span>
       </Button>
     </Link>
   );

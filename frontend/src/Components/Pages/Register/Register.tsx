@@ -136,6 +136,7 @@ const RegisterComponent = () => {
 
         <div className={styles.register__buttons}>
           <Button
+            className={styles.register__button}
             color="transparent"
             type="button"
             onClick={closeForm}
@@ -144,6 +145,7 @@ const RegisterComponent = () => {
           </Button>
 
           <Button
+            className={styles.register__button}
             color="light"
             type="submit"
             centered

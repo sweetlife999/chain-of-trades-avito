@@ -1,10 +1,10 @@
 .cancel {
   &__button {
     min-height: 40px;
+  }
 
-    svg {
-      flex: 0 0 auto;
-    }
+  &__icon {
+    flex: 0 0 auto;
   }
 }
 

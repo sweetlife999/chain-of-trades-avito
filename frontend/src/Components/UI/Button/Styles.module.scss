@@ -1,5 +1,6 @@
 .button {
   display: inline-flex;
+  max-width: 100%;
   align-items: center;
   justify-content: center;
   gap: 8px;
@@ -14,7 +15,8 @@
 
   cursor: pointer;
   user-select: none;
-  white-space: nowrap;
+  text-align: center;
+  white-space: normal;
 
   transition:
     background-color 0.2s ease,
@@ -54,9 +56,9 @@
   }
 
   &_l {
-    min-height: 58px;
-    padding: 16px 34px;
-    font-size: 20px;
+    min-height: clamp(50px, 6vw, 58px);
+    padding: 14px clamp(22px, 3vw, 34px);
+    font-size: clamp(16px, 2vw, 20px);
     font-weight: 600;
   }
 
@@ -126,4 +128,15 @@
     margin-right: auto;
     margin-left: auto;
   }
+}
+
+@media (max-width: 480px) {
+  .button {
+    &_m { padding-inline: 18px; }
+    &_s { padding-inline: 14px; }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button { transition: none; }
 }

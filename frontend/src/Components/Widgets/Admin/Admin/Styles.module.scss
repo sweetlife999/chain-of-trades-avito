@@ -3,19 +3,22 @@
   gap: 30px;
 
   &__header {
-    h1 {
-      margin-top: 8px;
-      color: #171717;
-      font-size: clamp(38px, 5vw, 52px);
-      line-height: 1.15;
-    }
+    min-width: 0;
+  }
 
-    p {
-      margin-top: 8px;
-      color: #6b7280;
-      font-size: 16px;
-      line-height: 1.5;
-    }
+  &__title {
+    margin-top: 8px;
+    overflow-wrap: anywhere;
+    color: #171717;
+    font-size: clamp(32px, 5vw, 52px);
+    line-height: 1.15;
+  }
+
+  &__description {
+    margin-top: 8px;
+    color: #6b7280;
+    font-size: clamp(14px, 2vw, 16px);
+    line-height: 1.5;
   }
 
   &__eyebrow {

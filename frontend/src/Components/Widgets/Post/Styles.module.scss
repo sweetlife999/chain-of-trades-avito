@@ -1,4 +1,5 @@
 .post {
+  min-height: 100%;
   display: grid;
   gap: 16px;
   padding: 20px;
@@ -6,14 +7,29 @@
   border: 1px solid #ddd;
   border-radius: $border-radius;
   cursor: pointer;
+  background: #fff;
+  box-shadow: 0 4px 16px rgba(17, 24, 39, 0);
+  transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
 
-  &:hover {
+  &:hover,
+  &:focus-visible {
     border-color: $green-button;
+    box-shadow: 0 10px 28px rgba(17, 24, 39, .08);
+    transform: translateY(-2px);
   }
 
-  h2 {
+  &:focus-visible {
+    outline: 3px solid rgba($green-button, .18);
+    outline-offset: 2px;
+  }
+
+  &:active { transform: translateY(0); }
+
+  &__title {
     font-size: 20px;
     font-weight: 500;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
   }
 
   &__top {
@@ -24,6 +40,8 @@
     color: #777;
     font-size: 13px;
   }
+
+  &__participantsCount { flex: 0 0 auto; }
 
   &__status {
     padding: 5px 9px;
@@ -51,20 +69,25 @@
     border: 2px solid #fff;
     border-radius: 50%;
 
-    img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
     &:hover {
       z-index: 1;
       border-color: $green-button;
     }
   }
 
+  &__participantImage {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
   &__open {
+    align-self: end;
     color: $green-button;
     font-weight: 600;
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .post { transition: none; }
 }

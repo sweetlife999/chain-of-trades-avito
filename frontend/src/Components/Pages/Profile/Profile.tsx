@@ -145,6 +145,7 @@ const ProfileComponent = () => {
 
         {isOwnProfile && currentUser && (
           <Button
+            className={styles.profile__action}
             color="transparent"
             type="button"
             onClick={() => navigate("/profile/edit")}
@@ -155,6 +156,7 @@ const ProfileComponent = () => {
 
         {!isOwnProfile && currentUser && (
           <Button
+            className={styles.profile__action}
             color={isBlocked ? "transparent" : "danger"}
             disabled={blockedUsersQuery.isPending || blockedUsersQuery.isError}
             type="button"
@@ -267,21 +269,28 @@ const ProfileComponent = () => {
                         style={{ background: getAvatarGradient(blockedUser.id) }}
                       >
                         {blockedUser.photo_url ? (
-                          <img src={blockedUser.photo_url} alt={blockedUser.nickname} />
+                          <img
+                            alt={blockedUser.nickname}
+                            className={styles.profile__blockedAvatarImage}
+                            src={blockedUser.photo_url}
+                          />
                         ) : (
                           blockedUser.nickname.charAt(0).toUpperCase()
                         )}
                       </span>
 
                       <span className={styles.profile__blockedInformation}>
-                        <strong>{blockedUser.nickname}</strong>
-                        <span>
+                        <strong className={styles.profile__blockedName}>
+                          {blockedUser.nickname}
+                        </strong>
+                        <span className={styles.profile__blockedDate}>
                           Заблокирован {formatDate(blockedUser.blocked_at)}
                         </span>
                       </span>
                     </Link>
 
                     <Button
+                      className={styles.profile__blockedAction}
                       color="transparent"
                       disabled={blockMutationPending}
                       type="button"

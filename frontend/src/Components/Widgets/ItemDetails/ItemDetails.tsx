@@ -69,11 +69,13 @@ const ItemDetailsComponent = () => {
   };
 
   if (isPending) {
-    return <p>Загрузка...</p>;
+    return <p className={styles.item__state}>Загружаем вещь...</p>;
   }
 
   if (isError || !item) {
-    return <p>Не удалось загрузить вещь</p>;
+    return (
+      <p className={styles.item__state_error}>Не удалось загрузить вещь</p>
+    );
   }
 
   const isOwner = item.owner_id === user?.id;
@@ -81,27 +83,38 @@ const ItemDetailsComponent = () => {
   return (
     <>
       <article className={styles.item}>
-        <Link to="/myItems">← Мои вещи</Link>
+        <Link className={styles.item__back} to="/myItems">
+          ← Мои вещи
+        </Link>
 
         <div className={styles.item__grid}>
           <div className={styles.item__photos}>
             {item.photo_urls.map((url) => (
-              <img key={url} src={url} alt={item.title} />
+              <img
+                className={styles.item__photo}
+                key={url}
+                src={url}
+                alt={item.title}
+              />
             ))}
           </div>
 
           <div className={styles.item__info}>
-            <span className={styles[`status_${item.status}`]}>
+            <span
+              className={`${styles.item__status} ${styles[`item__status_${item.status}`]}`}
+            >
               {labels[item.status]}
             </span>
-            <h1>{item.title}</h1>
-            <small>{item.category}</small>
-            <p>{item.description}</p>
+            <h1 className={styles.item__title}>{item.title}</h1>
+            <small className={styles.item__category}>{item.category}</small>
+            <p className={styles.item__description}>{item.description}</p>
 
-            <h2>Хочу получить</h2>
+            <h2 className={styles.item__wantsTitle}>Хочу получить</h2>
             <div className={styles.item__wants}>
               {item.wants.map((want) => (
-                <span key={want}>{want}</span>
+                <span className={styles.item__want} key={want}>
+                  {want}
+                </span>
               ))}
             </div>
 
