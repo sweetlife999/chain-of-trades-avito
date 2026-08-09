@@ -97,6 +97,10 @@ export const cancelAdminExchange = async (id: string): Promise<void> => {
   await api.post(`/admin/exchanges/${id}/cancel`);
 };
 
+export const markAdminExchangeDelivered = async (id: string): Promise<void> => {
+  await api.post(`/admin/exchanges/${id}/mark-delivered`);
+};
+
 export const getAdminReports = async (
   request: TAdminReportsParams = {},
 ): Promise<TAdminReports> => {

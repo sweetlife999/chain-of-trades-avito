@@ -182,6 +182,8 @@ export const DashboardStats = () => {
               rows={[
                 { label: "Предложены", value: dashboardQuery.data.exchanges.proposed },
                 { label: "Подтверждены", value: dashboardQuery.data.exchanges.confirmed },
+                { label: "Доставляются", value: dashboardQuery.data.exchanges.delivering },
+                { label: "Ожидают получения", value: dashboardQuery.data.exchanges.delivered },
                 { label: "Завершены", value: dashboardQuery.data.exchanges.completed },
                 { label: "Отменены", value: dashboardQuery.data.exchanges.cancelled },
               ]}

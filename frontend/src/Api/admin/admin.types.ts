@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   ExchangeMessagesSchema,
   ExchangeParticipantSchema,
+  ExchangeStatusSchema,
 } from "../exchanges/exchanges.types";
 
 const StatisticsNumberSchema = z.number().int().nonnegative();
@@ -42,7 +43,7 @@ export const AdminExchangeSchema = z.object({
   created_at: z.string(),
   id: z.string(),
   participants: z.array(ExchangeParticipantSchema),
-  status: z.enum(["proposed", "confirmed"]),
+  status: ExchangeStatusSchema,
   updated_at: z.string(),
 });
 
