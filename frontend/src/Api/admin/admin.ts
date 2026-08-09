@@ -4,6 +4,11 @@ import api from "../client";
 import {
   AdminUserExchangesParamsSchema,
   AdminUserExchangesSchema,
+  AdminReportDecisionSchema,
+  AdminReportMessagesSchema,
+  AdminReportSchema,
+  AdminReportsParamsSchema,
+  AdminReportsSchema,
   CreatePickupPointSchema,
   DashboardSchema,
   PickupPointSchema,
@@ -12,6 +17,11 @@ import {
   type TCreatePickupPoint,
   type TAdminUserExchanges,
   type TAdminUserExchangesParams,
+  type TAdminReport,
+  type TAdminReportDecision,
+  type TAdminReportMessages,
+  type TAdminReports,
+  type TAdminReportsParams,
   type TDashboard,
   type TPickupPoint,
   type TUpdatePickupPoint,
@@ -85,4 +95,61 @@ export const getAdminUserExchanges = async (
 
 export const cancelAdminExchange = async (id: string): Promise<void> => {
   await api.post(`/admin/exchanges/${id}/cancel`);
+};
+
+export const markAdminExchangeDelivered = async (id: string): Promise<void> => {
+  await api.post(`/admin/exchanges/${id}/mark-delivered`);
+};
+
+export const getAdminReports = async (
+  request: TAdminReportsParams = {},
+): Promise<TAdminReports> => {
+  const params = AdminReportsParamsSchema.parse(request);
+  const { data } = await api.get("/admin/reports", { params });
+
+  return AdminReportsSchema.parse(data);
+};
+
+export const getAdminReport = async (id: string): Promise<TAdminReport> => {
+  const { data } = await api.get(`/admin/reports/${id}`);
+
+  return AdminReportSchema.parse(data);
+};
+
+export const assignAdminReport = async (id: string): Promise<TAdminReport> => {
+  const { data } = await api.post(`/admin/reports/${id}/assign`);
+
+  return AdminReportSchema.parse(data);
+};
+
+const decideAdminReport = async (
+  id: string,
+  decision: "reject" | "resolve",
+  request: TAdminReportDecision,
+): Promise<TAdminReport> => {
+  const payload = AdminReportDecisionSchema.parse(request);
+  const { data } = await api.post(
+    `/admin/reports/${id}/${decision}`,
+    payload,
+  );
+
+  return AdminReportSchema.parse(data);
+};
+
+export const rejectAdminReport = (
+  id: string,
+  request: TAdminReportDecision,
+) => decideAdminReport(id, "reject", request);
+
+export const resolveAdminReport = (
+  id: string,
+  request: TAdminReportDecision,
+) => decideAdminReport(id, "resolve", request);
+
+export const getAdminReportMessages = async (
+  id: string,
+): Promise<TAdminReportMessages> => {
+  const { data } = await api.get(`/admin/reports/${id}/messages`);
+
+  return AdminReportMessagesSchema.parse(data);
 };

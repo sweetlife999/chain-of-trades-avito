@@ -8,6 +8,7 @@ import type { TAdminExchange } from "../../../../Api/admin/admin.types";
 import { Button } from "../../../UI/Button/Button";
 import { Loader } from "../../../UI/Loader/Loader";
 import { CancelExchangeButton } from "../CancelExchangeButton/CancelExchangeButton";
+import { MarkDeliveredButton } from "../MarkDeliveredButton/MarkDeliveredButton";
 
 const PAGE_SIZE = 5;
 
@@ -19,6 +20,10 @@ type TAdminUserExchangesProps = {
 const statusLabels = {
   proposed: "Ожидает подтверждения",
   confirmed: "Подтверждён",
+  delivering: "Доставляется",
+  delivered: "Ожидает получения",
+  completed: "Завершён",
+  cancelled: "Отменён",
 } as const;
 
 const formatDate = (value: string) =>
@@ -80,7 +85,7 @@ export const AdminUserExchanges = ({
             Активные обмены пользователя
           </h2>
           <p className={styles.exchanges__description}>
-            Proposed и confirmed цепочки пользователя {userNickname}. Всего: {total}
+            Цепочки пользователя {userNickname}. Всего: {total}
           </p>
         </div>
 
@@ -144,7 +149,7 @@ export const AdminUserExchanges = ({
               Активных обменов нет
             </h3>
             <p className={styles.exchanges__stateDescription}>
-              У пользователя нет цепочек со статусом proposed или confirmed.
+              У пользователя нет доступных для администрирования цепочек.
             </p>
           </div>
         )}
@@ -198,14 +203,19 @@ export const AdminUserExchanges = ({
               </div>
 
               <div className={styles.exchanges__actions}>
-                <CancelExchangeButton
-                  exchangeId={exchange.id}
-                  onCancelled={() => {
-                    if (exchanges.length === 1 && page > 0) {
-                      setPage((currentPage) => currentPage - 1);
-                    }
-                  }}
-                />
+                {exchange.status === "delivering" && (
+                  <MarkDeliveredButton exchangeId={exchange.id} />
+                )}
+                {["proposed", "confirmed"].includes(exchange.status) && (
+                  <CancelExchangeButton
+                    exchangeId={exchange.id}
+                    onCancelled={() => {
+                      if (exchanges.length === 1 && page > 0) {
+                        setPage((currentPage) => currentPage - 1);
+                      }
+                    }}
+                  />
+                )}
               </div>
             </article>
           ))}

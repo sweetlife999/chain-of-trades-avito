@@ -19,17 +19,9 @@
   }
 
   &__photos {
-    display: grid;
-    align-content: start;
     min-width: 0;
-    gap: 12px;
-  }
-
-  &__photo {
     width: 100%;
-    max-height: min(60vh, 540px);
-    object-fit: cover;
-    border-radius: $border-radius;
+    max-width: 760px;
   }
 
   &__info {
@@ -66,6 +58,28 @@
     max-width: 70ch;
     color: #373b40;
     line-height: 1.6;
+    overflow-wrap: anywhere;
+  }
+
+  &__pickup {
+    display: grid;
+    gap: 5px;
+    width: min(100%, 520px);
+    padding: 14px;
+    color: #17462d;
+    background: #edf8f1;
+    border: 1px solid #cce8d7;
+    border-radius: 11px;
+  }
+
+  &__pickupLabel,
+  &__pickupAddress {
+    color: #52655a;
+    font-size: 12px;
+  }
+
+  &__pickupName,
+  &__pickupAddress {
     overflow-wrap: anywhere;
   }
 

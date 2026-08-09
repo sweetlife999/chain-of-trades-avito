@@ -14,6 +14,7 @@ import {
 import type { TCreateItemRequest } from "../../../../Api/items/items.types";
 import { Input } from "../../../UI/Input/Input";
 import { Button } from "../../../UI/Button/Button";
+import { PhotoGallery } from "../../../UI/PhotoGallery/PhotoGallery";
 
 const getRequestErrorMessage = (error: unknown) => {
   if (axios.isAxiosError<{ error?: string }>(error)) {
@@ -64,9 +65,9 @@ const CreateChainComponent = () => {
     name: "photo_urls",
   });
 
-  const previewUrl = photoValues?.find(
-    (photo) => photo.url.trim().length > 0,
-  )?.url;
+  const previewUrls = (photoValues ?? [])
+    .map((photo) => photo.url.trim())
+    .filter(Boolean);
 
   const createItemMutation = useMutation({
     mutationFn: (request: TCreateItemRequest) => createItem(request),
@@ -121,23 +122,23 @@ const CreateChainComponent = () => {
         >
           <div className={styles.createChain__content}>
             <div className={styles.createChain__photosColumn}>
-              <div className={styles.createChain__photoPreview}>
-                {previewUrl ? (
-                  <img
-                    className={styles.createChain__photoImage}
-                    src={previewUrl}
-                    alt="Предпросмотр товара"
-                  />
-                ) : (
+              <PhotoGallery
+                urls={previewUrls}
+                alt="Предпросмотр товара"
+                empty={
                   <div className={styles.createChain__photoPlaceholder}>
                     <span className={styles.createChain__photoPlus}>+</span>
 
-                    <strong>Добавить фотографии</strong>
+                    <strong className={styles.createChain__photoTitle}>
+                      Добавить фотографии
+                    </strong>
 
-                    <small>Вставьте ссылки, до 10 фотографий</small>
+                    <small className={styles.createChain__photoHint}>
+                      Вставьте ссылки, до 10 фотографий
+                    </small>
                   </div>
-                )}
-              </div>
+                }
+              />
 
               <div className={styles.createChain__photoFields}>
                 {photoFields.map((field, index) => (
@@ -192,7 +193,7 @@ const CreateChainComponent = () => {
 
               <label className={styles.createChain__field}>
                 <span className={styles.createChain__label}>
-                  Категория <b>*</b>
+                  Категория <b className={styles.createChain__required}>*</b>
                 </span>
 
                 <select
@@ -234,7 +235,8 @@ const CreateChainComponent = () => {
 
               <fieldset className={styles.createChain__wants}>
                 <legend className={styles.createChain__label}>
-                  Что хотите получить взамен <b>*</b>
+                  Что хотите получить взамен{" "}
+                  <b className={styles.createChain__required}>*</b>
                 </legend>
 
                 {categoriesQuery.isError ? (
@@ -245,17 +247,19 @@ const CreateChainComponent = () => {
                   <div className={styles.createChain__categories}>
                     {categories.map((category) => (
                       <label
-                        className={`${styles.createChain__category} ${styles.createChain__categoryLabel}`}
+                        className={styles.createChain__category}
                         key={category.slug}
                       >
                         <input
-                        className={styles.createChain__category}
+                          className={styles.createChain__categoryInput}
                           type="checkbox"
                           value={category.slug}
                           {...register("wants")}
                         />
 
-                        <span>{category.name}</span>
+                        <span className={styles.createChain__categoryLabel}>
+                          {category.name}
+                        </span>
                       </label>
                     ))}
                   </div>
@@ -271,7 +275,7 @@ const CreateChainComponent = () => {
           </div>
 
           {errors.root?.server && (
-            <p className={styles.createChain__serverError}>
+            <p className={styles.createChain__serverError} role="alert">
               {errors.root.server.message}
             </p>
           )}
@@ -279,7 +283,7 @@ const CreateChainComponent = () => {
           <div className={styles.createChain__actions}>
             <Button
               className={styles.createChain__action}
-              color="green"
+              color="transparent"
               type="button"
               disabled={createItemMutation.isPending}
               onClick={() => navigate(-1)}

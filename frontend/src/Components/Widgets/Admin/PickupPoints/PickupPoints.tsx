@@ -15,6 +15,7 @@ import {
   PickupPointForm,
   type TPickupPointFormMode,
 } from "../PickupPointForm/PickupPointForm";
+import { PickupPointDetails } from "../PickupPointDetails/PickupPointDetails";
 import styles from "./Styles.module.scss";
 
 type TFormState = {
@@ -30,6 +31,8 @@ const formatDate = (date: string) =>
 export const PickupPoints = () => {
   const [form, setForm] = useState<TFormState | null>(null);
   const [pickupPointToDelete, setPickupPointToDelete] =
+    useState<TPickupPoint | null>(null);
+  const [selectedPickupPoint, setSelectedPickupPoint] =
     useState<TPickupPoint | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -150,14 +153,19 @@ export const PickupPoints = () => {
               {pickupPointsQuery.data.map((pickupPoint) => (
                 <tr className={styles.points__tableRow} key={pickupPoint.id}>
                   <td className={styles.points__tableCell} data-label="ПВЗ">
-                    <span className={styles.points__name}>
+                    <button
+                      aria-label={`Открыть информацию о ${pickupPoint.name}`}
+                      className={styles.points__detailsButton}
+                      onClick={() => setSelectedPickupPoint(pickupPoint)}
+                      type="button"
+                    >
                       <span className={styles.points__nameIcon} aria-hidden="true">
                         <MapPin className={styles.points__nameIconImage} />
                       </span>
                       <strong className={styles.points__nameText}>
                         {pickupPoint.name}
                       </strong>
-                    </span>
+                    </button>
                   </td>
                   <td className={styles.points__tableCell} data-label="Адрес">
                     {pickupPoint.address}
@@ -209,6 +217,22 @@ export const PickupPoints = () => {
           onSaved={(message) => {
             setForm(null);
             setNotice(message);
+          }}
+        />
+      )}
+
+      {selectedPickupPoint && (
+        <PickupPointDetails
+          pickupPointId={selectedPickupPoint.id}
+          onClose={() => setSelectedPickupPoint(null)}
+          onDelete={() => {
+            deleteMutation.reset();
+            setPickupPointToDelete(selectedPickupPoint);
+            setSelectedPickupPoint(null);
+          }}
+          onEdit={() => {
+            openForm("edit", selectedPickupPoint.id);
+            setSelectedPickupPoint(null);
           }}
         />
       )}

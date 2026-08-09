@@ -31,6 +31,11 @@ const ItemCardComponent = ({ item }: TProps) => (
     <div className={styles.card__content}>
       <h2 className={styles.card__title}>{item.title}</h2>
       <span className={styles.card__category}>{item.category}</span>
+      {item.pickup_point && (
+        <span className={styles.card__pickup}>
+          В ПВЗ: {item.pickup_point.name}
+        </span>
+      )}
       <p className={styles.card__description}>{item.description}</p>
     </div>
   </Link>

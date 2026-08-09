@@ -1,0 +1,96 @@
+.pickupStage {
+  display: grid;
+  gap: 20px;
+  width: min(100%, 820px);
+  margin-inline: auto;
+  padding: clamp(18px, 3vw, 26px);
+  background: #fff;
+  border: 1px solid #e1e5e3;
+  border-radius: 16px;
+
+  &__header {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 13px;
+  }
+
+  &__icon {
+    display: grid;
+    width: 44px;
+    height: 44px;
+    place-items: center;
+    color: $green-button;
+    background: #ecfdf3;
+    border-radius: 12px;
+  }
+
+  &__iconImage { width: 23px; height: 23px; }
+  &__heading { display: grid; gap: 5px; min-width: 0; }
+  &__eyebrow { color: $green-button; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  &__title { overflow-wrap: anywhere; color: #202428; font-size: clamp(19px, 3vw, 23px); }
+  &__description { color: #686f76; font-size: 13px; line-height: 1.5; }
+
+  &__progress {
+    display: grid;
+    gap: 14px;
+    padding: 17px;
+    background: #f8f9fa;
+    border-radius: 13px;
+  }
+
+  &__progressHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  &__progressTitle { color: #31353a; font-size: 15px; }
+  &__progressCount { padding: 5px 9px; color: #166534; background: #e4f7ea; border-radius: 999px; font-size: 11px; font-weight: 700; }
+
+  &__participants {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+    gap: 9px;
+  }
+
+  &__participant {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 9px;
+    padding: 12px;
+    background: #fff;
+    border: 1px solid #e6e8ea;
+    border-radius: 10px;
+  }
+
+  &__participantIcon,
+  &__participantIcon_done { width: 19px; height: 19px; }
+  &__participantIcon { color: #9a6b12; }
+  &__participantIcon_done { color: $green-button; }
+  &__participantContent { display: grid; gap: 3px; min-width: 0; }
+  &__participantName { color: #30343a; font-size: 12px; }
+  &__participantItem { overflow-wrap: anywhere; color: #555c64; font-size: 11px; }
+  &__participantStatus { overflow-wrap: anywhere; color: #7a8189; font-size: 10px; line-height: 1.35; }
+
+  &__receiving {
+    display: grid;
+    gap: 5px;
+    padding: 16px;
+    background: #eef6ff;
+    border: 1px solid #d4e5f5;
+    border-radius: 12px;
+  }
+
+  &__receivingLabel { color: #5e7489; font-size: 11px; text-transform: uppercase; }
+  &__receivingTitle { color: #24445f; }
+  &__receivingAddress { color: #597086; font-size: 12px; line-height: 1.4; }
+}
+
+@media (max-width: 520px) {
+  .pickupStage {
+    &__header { grid-template-columns: minmax(0, 1fr); }
+    &__progressHeader { align-items: flex-start; flex-direction: column; }
+  }
+}

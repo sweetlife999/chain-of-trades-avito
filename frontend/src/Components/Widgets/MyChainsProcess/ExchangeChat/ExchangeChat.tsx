@@ -54,8 +54,16 @@ const getSystemMessageText = (message: TExchangeMessage) => {
       return nickname
         ? `${nickname} подтвердил получение вещи`
         : "Участник подтвердил получение вещи";
+    case "participant_delivered_item":
+      return nickname
+        ? `${nickname} передал вещь в пункт выдачи`
+        : "Участник передал вещь в пункт выдачи";
     case "exchange_confirmed":
       return "Все участники подтвердили обмен";
+    case "exchange_delivering":
+      return "Все вещи приняты — началась доставка";
+    case "exchange_delivered":
+      return "Вещи доставлены в пункты выдачи получателей";
     case "exchange_completed":
       return "Обмен успешно завершён";
     case "exchange_superseded":

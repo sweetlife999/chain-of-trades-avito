@@ -9,11 +9,19 @@ type TProps = {
   compact?: boolean;
 };
 
-const steps = ["Предложение", "Подтверждение", "Передача", "Получение"];
+const steps = [
+  "Предложение",
+  "Подтверждение",
+  "Передача в ПВЗ",
+  "Доставка",
+  "Получение",
+];
 const currentStep: Record<TExchangeStatus, number> = {
   proposed: 1,
   confirmed: 2,
-  completed: 4,
+  delivering: 3,
+  delivered: 4,
+  completed: 5,
   cancelled: 1,
 };
 

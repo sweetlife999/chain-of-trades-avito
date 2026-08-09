@@ -1,0 +1,90 @@
+.decision {
+  position: relative;
+  width: min(100%, 520px);
+  padding: clamp(18px, 3vw, 24px);
+  background: #fff;
+  border-radius: 17px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .24);
+
+  &__overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: grid;
+    place-items: center;
+    padding: 12px;
+    background: rgba(13, 18, 25, .6);
+  }
+
+  &__header {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 11px;
+  }
+
+  &__icon {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    border-radius: 11px;
+
+    &_resolve { color: #08783f; background: #ecfdf3; }
+    &_reject { color: #b42318; background: #fef3f2; }
+  }
+
+  &__heading { display: grid; gap: 4px; min-width: 0; }
+  &__title { color: #22262b; font-size: 19px; }
+  &__description { color: #747a82; font-size: 12px; line-height: 1.4; }
+
+  &__close {
+    display: grid;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    color: #737982;
+    background: #f3f4f5;
+    border-radius: 8px;
+
+    &:hover:not(:disabled) { color: #22262b; background: #e8eaec; }
+    &:focus-visible { outline: 3px solid rgba($green-button, .18); }
+  }
+
+  &__field { display: grid; gap: 8px; margin-top: 20px; }
+  &__label { color: #393e44; font-size: 13px; font-weight: 600; }
+
+  &__textarea {
+    width: 100%;
+    min-height: 110px;
+    padding: 12px;
+    resize: vertical;
+    color: #22262b;
+    background: #f8f9fa;
+    border: 1px solid #d8dce0;
+    border-radius: 10px;
+    outline: none;
+    font: inherit;
+    line-height: 1.5;
+
+    &:focus { background: #fff; border-color: $green-button; box-shadow: 0 0 0 4px rgba($green-button, .11); }
+  }
+
+  &__error { margin: 12px 0 0; color: #991b1b; font-size: 12px; line-height: 1.4; }
+
+  &__actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  &__action { width: 100%; }
+}
+
+@media (max-width: 480px) {
+  .decision {
+    &__header { grid-template-columns: auto minmax(0, 1fr); }
+    &__close { position: absolute; top: 20px; right: 20px; }
+    &__actions { grid-template-columns: minmax(0, 1fr); }
+  }
+}

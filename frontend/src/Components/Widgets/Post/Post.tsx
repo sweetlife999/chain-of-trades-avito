@@ -14,6 +14,8 @@ type TProps = {
 const statusLabels: Record<TExchangeStatus, string> = {
   proposed: "Предложение обмена",
   confirmed: "Обмен подтверждён",
+  delivering: "Вещи доставляются",
+  delivered: "Вещь ожидает в ПВЗ",
   completed: "Обмен завершён",
   cancelled: "Обмен отменён",
 };
