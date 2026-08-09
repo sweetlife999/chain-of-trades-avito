@@ -31,9 +31,11 @@ SELECT EXISTS (
     JOIN chains AS exchange ON exchange.id = participant.chain_id
     WHERE (participant.gives_item_id = sqlc.arg(item_id)
            OR participant.receives_item_id = sqlc.arg(item_id))
-      AND exchange.status IN ('proposed', 'confirmed')
+      AND exchange.status IN ('proposed', 'confirmed', 'delivering', 'delivered')
 );
 
+-- Пункт выдачи джойнится LEFT: у вещи дома его нет, и INNER молча выбросил бы её из
+-- карточки. Сам pickup_point_id приезжает в i.*, здесь добираются только имя и адрес.
 -- name: GetItemByID :one
 SELECT
     i.*,
@@ -44,9 +46,12 @@ SELECT
          JOIN categories want_category ON want_category.id = w.category_id
          WHERE w.item_id = i.id),
         '{}'
-    )::text[] AS wants
+    )::text[] AS wants,
+    pickup_point.name    AS pickup_point_name,
+    pickup_point.address AS pickup_point_address
 FROM items i
 JOIN categories c ON c.id = i.category_id
+LEFT JOIN pickup_points AS pickup_point ON pickup_point.id = i.pickup_point_id
 WHERE i.id = $1;
 
 -- Колонки те же и в том же порядке, что у GetItemByID: sqlc генерит идентичную
@@ -61,9 +66,12 @@ SELECT
          JOIN categories want_category ON want_category.id = w.category_id
          WHERE w.item_id = i.id),
         '{}'
-    )::text[] AS wants
+    )::text[] AS wants,
+    pickup_point.name    AS pickup_point_name,
+    pickup_point.address AS pickup_point_address
 FROM items i
 JOIN categories c ON c.id = i.category_id
+LEFT JOIN pickup_points AS pickup_point ON pickup_point.id = i.pickup_point_id
 WHERE i.owner_id = $1
 ORDER BY i.created_at DESC, i.id;
 

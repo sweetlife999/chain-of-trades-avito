@@ -26,31 +26,37 @@ type exchangeReadQueries interface {
 }
 
 type exchangeRecord struct {
-	ExchangeID              pgtype.UUID
-	ExchangeStatus          db.ChainStatus
-	ExchangeCreatedAt       pgtype.Timestamptz
-	ExchangeUpdatedAt       pgtype.Timestamptz
-	ExchangeClosedAt        pgtype.Timestamptz
-	UserID                  pgtype.UUID
-	Position                int32
-	ParticipantStatus       db.ParticipantStatus
-	DecidedAt               pgtype.Timestamptz
-	CompletionConfirmedAt   pgtype.Timestamptz
-	Nickname                string
-	UserPhotoURL            pgtype.Text
-	GivesItemID             pgtype.UUID
-	GivesItemTitle          string
-	GivesItemDescription    string
-	GivesItemStatus         db.ItemStatus
-	GivesCategorySlug       string
-	GivesCategoryName       string
-	ReceivesItemID          pgtype.UUID
-	ReceivesItemTitle       string
-	ReceivesItemDescription string
-	ReceivesItemStatus      db.ItemStatus
-	ReceivesCategorySlug    string
-	ReceivesCategoryName    string
-	UnreadCount             int64
+	ExchangeID                 pgtype.UUID
+	ExchangeStatus             db.ChainStatus
+	ExchangeCreatedAt          pgtype.Timestamptz
+	ExchangeUpdatedAt          pgtype.Timestamptz
+	ExchangeClosedAt           pgtype.Timestamptz
+	UserID                     pgtype.UUID
+	Position                   int32
+	ParticipantStatus          db.ParticipantStatus
+	DecidedAt                  pgtype.Timestamptz
+	CompletionConfirmedAt      pgtype.Timestamptz
+	Nickname                   string
+	UserPhotoURL               pgtype.Text
+	GivesItemID                pgtype.UUID
+	GivesItemTitle             string
+	GivesItemDescription       string
+	GivesItemStatus            db.ItemStatus
+	GivesCategorySlug          string
+	GivesCategoryName          string
+	GivesPickupPointID         pgtype.UUID
+	GivesPickupPointName       pgtype.Text
+	GivesPickupPointAddress    pgtype.Text
+	ReceivesItemID             pgtype.UUID
+	ReceivesItemTitle          string
+	ReceivesItemDescription    string
+	ReceivesItemStatus         db.ItemStatus
+	ReceivesCategorySlug       string
+	ReceivesCategoryName       string
+	ReceivesPickupPointID      pgtype.UUID
+	ReceivesPickupPointName    pgtype.Text
+	ReceivesPickupPointAddress pgtype.Text
+	UnreadCount                int64
 }
 
 func (r *Repository) ListByUser(ctx context.Context, userID uuid.UUID) ([]exchangemodel.Details, error) {
@@ -174,6 +180,11 @@ func participantFromRecord(record exchangeRecord) exchangemodel.DetailsParticipa
 				Slug: record.GivesCategorySlug,
 				Name: record.GivesCategoryName,
 			},
+			PickupPoint: pickupPointFromRecord(
+				record.GivesPickupPointID,
+				record.GivesPickupPointName,
+				record.GivesPickupPointAddress,
+			),
 		},
 		ReceivesItem: exchangemodel.ParticipantItem{
 			ID:          uuid.UUID(record.ReceivesItemID.Bytes),
@@ -184,6 +195,11 @@ func participantFromRecord(record exchangeRecord) exchangemodel.DetailsParticipa
 				Slug: record.ReceivesCategorySlug,
 				Name: record.ReceivesCategoryName,
 			},
+			PickupPoint: pickupPointFromRecord(
+				record.ReceivesPickupPointID,
+				record.ReceivesPickupPointName,
+				record.ReceivesPickupPointAddress,
+			),
 		},
 		Position:              record.Position,
 		Status:                string(record.ParticipantStatus),
@@ -192,93 +208,66 @@ func participantFromRecord(record exchangeRecord) exchangemodel.DetailsParticipa
 	}
 }
 
+// Строки трёх запросов чтения совпадают по колонкам, поэтому маппер один, а два запроса
+// приводятся к третьему конверсией типа. Разъедутся колонки — сломается сборка, а не ответ.
 func recordFromListRow(row db.ListExchangesByUserRow) exchangeRecord {
-	return exchangeRecord{
-		ExchangeID:              row.ExchangeID,
-		ExchangeStatus:          row.ExchangeStatus,
-		ExchangeCreatedAt:       row.ExchangeCreatedAt,
-		ExchangeUpdatedAt:       row.ExchangeUpdatedAt,
-		ExchangeClosedAt:        row.ExchangeClosedAt,
-		UserID:                  row.UserID,
-		Position:                row.Position,
-		ParticipantStatus:       row.ParticipantStatus,
-		DecidedAt:               row.DecidedAt,
-		CompletionConfirmedAt:   row.CompletionConfirmedAt,
-		Nickname:                row.Nickname,
-		UserPhotoURL:            row.UserPhotoUrl,
-		GivesItemID:             row.GivesItemID,
-		GivesItemTitle:          row.GivesItemTitle,
-		GivesItemDescription:    row.GivesItemDescription,
-		GivesItemStatus:         row.GivesItemStatus,
-		GivesCategorySlug:       row.GivesCategorySlug,
-		GivesCategoryName:       row.GivesCategoryName,
-		ReceivesItemID:          row.ReceivesItemID,
-		ReceivesItemTitle:       row.ReceivesItemTitle,
-		ReceivesItemDescription: row.ReceivesItemDescription,
-		ReceivesItemStatus:      row.ReceivesItemStatus,
-		ReceivesCategorySlug:    row.ReceivesCategorySlug,
-		ReceivesCategoryName:    row.ReceivesCategoryName,
-		UnreadCount:             row.UnreadCount,
-	}
+	return recordFromGetRow(db.GetExchangeByIDRow(row))
 }
 
 func recordFromAdminListRow(row db.ListActiveExchangesByUserForAdminRow) exchangeRecord {
-	return exchangeRecord{
-		ExchangeID:              row.ExchangeID,
-		ExchangeStatus:          row.ExchangeStatus,
-		ExchangeCreatedAt:       row.ExchangeCreatedAt,
-		ExchangeUpdatedAt:       row.ExchangeUpdatedAt,
-		ExchangeClosedAt:        row.ExchangeClosedAt,
-		UserID:                  row.UserID,
-		Position:                row.Position,
-		ParticipantStatus:       row.ParticipantStatus,
-		DecidedAt:               row.DecidedAt,
-		CompletionConfirmedAt:   row.CompletionConfirmedAt,
-		Nickname:                row.Nickname,
-		UserPhotoURL:            row.UserPhotoUrl,
-		GivesItemID:             row.GivesItemID,
-		GivesItemTitle:          row.GivesItemTitle,
-		GivesItemDescription:    row.GivesItemDescription,
-		GivesItemStatus:         row.GivesItemStatus,
-		GivesCategorySlug:       row.GivesCategorySlug,
-		GivesCategoryName:       row.GivesCategoryName,
-		ReceivesItemID:          row.ReceivesItemID,
-		ReceivesItemTitle:       row.ReceivesItemTitle,
-		ReceivesItemDescription: row.ReceivesItemDescription,
-		ReceivesItemStatus:      row.ReceivesItemStatus,
-		ReceivesCategorySlug:    row.ReceivesCategorySlug,
-		ReceivesCategoryName:    row.ReceivesCategoryName,
-		UnreadCount:             row.UnreadCount,
-	}
+	return recordFromGetRow(db.GetExchangeByIDRow(row))
 }
 
 func recordFromGetRow(row db.GetExchangeByIDRow) exchangeRecord {
 	return exchangeRecord{
-		ExchangeID:              row.ExchangeID,
-		ExchangeStatus:          row.ExchangeStatus,
-		ExchangeCreatedAt:       row.ExchangeCreatedAt,
-		ExchangeUpdatedAt:       row.ExchangeUpdatedAt,
-		ExchangeClosedAt:        row.ExchangeClosedAt,
-		UserID:                  row.UserID,
-		Position:                row.Position,
-		ParticipantStatus:       row.ParticipantStatus,
-		DecidedAt:               row.DecidedAt,
-		CompletionConfirmedAt:   row.CompletionConfirmedAt,
-		Nickname:                row.Nickname,
-		UserPhotoURL:            row.UserPhotoUrl,
-		GivesItemID:             row.GivesItemID,
-		GivesItemTitle:          row.GivesItemTitle,
-		GivesItemDescription:    row.GivesItemDescription,
-		GivesItemStatus:         row.GivesItemStatus,
-		GivesCategorySlug:       row.GivesCategorySlug,
-		GivesCategoryName:       row.GivesCategoryName,
-		ReceivesItemID:          row.ReceivesItemID,
-		ReceivesItemTitle:       row.ReceivesItemTitle,
-		ReceivesItemDescription: row.ReceivesItemDescription,
-		ReceivesItemStatus:      row.ReceivesItemStatus,
-		ReceivesCategorySlug:    row.ReceivesCategorySlug,
-		ReceivesCategoryName:    row.ReceivesCategoryName,
-		UnreadCount:             row.UnreadCount,
+		ExchangeID:                 row.ExchangeID,
+		ExchangeStatus:             row.ExchangeStatus,
+		ExchangeCreatedAt:          row.ExchangeCreatedAt,
+		ExchangeUpdatedAt:          row.ExchangeUpdatedAt,
+		ExchangeClosedAt:           row.ExchangeClosedAt,
+		UserID:                     row.UserID,
+		Position:                   row.Position,
+		ParticipantStatus:          row.ParticipantStatus,
+		DecidedAt:                  row.DecidedAt,
+		CompletionConfirmedAt:      row.CompletionConfirmedAt,
+		Nickname:                   row.Nickname,
+		UserPhotoURL:               row.UserPhotoUrl,
+		GivesItemID:                row.GivesItemID,
+		GivesItemTitle:             row.GivesItemTitle,
+		GivesItemDescription:       row.GivesItemDescription,
+		GivesItemStatus:            row.GivesItemStatus,
+		GivesCategorySlug:          row.GivesCategorySlug,
+		GivesCategoryName:          row.GivesCategoryName,
+		GivesPickupPointID:         row.GivesPickupPointID,
+		GivesPickupPointName:       row.GivesPickupPointName,
+		GivesPickupPointAddress:    row.GivesPickupPointAddress,
+		ReceivesItemID:             row.ReceivesItemID,
+		ReceivesItemTitle:          row.ReceivesItemTitle,
+		ReceivesItemDescription:    row.ReceivesItemDescription,
+		ReceivesItemStatus:         row.ReceivesItemStatus,
+		ReceivesCategorySlug:       row.ReceivesCategorySlug,
+		ReceivesCategoryName:       row.ReceivesCategoryName,
+		ReceivesPickupPointID:      row.ReceivesPickupPointID,
+		ReceivesPickupPointName:    row.ReceivesPickupPointName,
+		ReceivesPickupPointAddress: row.ReceivesPickupPointAddress,
+		UnreadCount:                row.UnreadCount,
+	}
+}
+
+// Пункт приезжает LEFT JOIN-ом: невалидный id означает, что вещь ещё дома.
+func pickupPointFromRecord(
+	id pgtype.UUID,
+	name pgtype.Text,
+	address pgtype.Text,
+) *exchangemodel.ParticipantPickupPoint {
+	if !id.Valid {
+		return nil
+	}
+
+	return &exchangemodel.ParticipantPickupPoint{
+		ID:      uuid.UUID(id.Bytes),
+		Name:    name.String,
+		Address: address.String,
 	}
 }
 

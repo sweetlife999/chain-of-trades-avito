@@ -38,7 +38,12 @@ func (r *Repository) CancelByAdmin(
 		if err != nil {
 			return fmt.Errorf("lock exchange for admin cancellation: %w", err)
 		}
-		if exchange.Status != db.ChainStatusProposed && exchange.Status != db.ChainStatusConfirmed {
+		// Отказаться участник может только до доставки, поэтому дальше обмен закрывает
+		// один администратор — принимаются все четыре незакрытых статуса.
+		switch exchange.Status {
+		case db.ChainStatusProposed, db.ChainStatusConfirmed,
+			db.ChainStatusDelivering, db.ChainStatusDelivered:
+		default:
 			return ErrConflict
 		}
 		signature = exchange.Signature
@@ -51,9 +56,12 @@ func (r *Repository) CancelByAdmin(
 			return ErrConflict
 		}
 
-		expectedStatus := db.ItemStatusAvailable
-		if exchange.Status == db.ChainStatusConfirmed {
-			expectedStatus = db.ItemStatusReserved
+		// Вещи резервируются при подтверждении и остаются reserved до конца: ни доставка,
+		// ни выдача их статус не меняют. Пункт хранения при отмене не сбрасываем — вещь
+		// физически осталась там же, и владелец забирает её отдельным действием.
+		expectedStatus := db.ItemStatusReserved
+		if exchange.Status == db.ChainStatusProposed {
+			expectedStatus = db.ItemStatusAvailable
 		}
 		for _, item := range items {
 			if item.Status != expectedStatus {
@@ -65,7 +73,7 @@ func (r *Repository) CancelByAdmin(
 			})
 		}
 
-		if exchange.Status == db.ChainStatusConfirmed {
+		if exchange.Status != db.ChainStatusProposed {
 			released, err := queries.ReleaseExchangeItems(ctx, pgUUID(exchangeID))
 			if err != nil {
 				return fmt.Errorf("release admin-cancelled exchange items: %w", err)

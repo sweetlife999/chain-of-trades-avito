@@ -32,6 +32,8 @@ exchange_stats AS (
         count(*)::bigint AS total,
         count(*) FILTER (WHERE status = 'proposed')::bigint AS proposed,
         count(*) FILTER (WHERE status = 'confirmed')::bigint AS confirmed,
+        count(*) FILTER (WHERE status = 'delivering')::bigint AS delivering,
+        count(*) FILTER (WHERE status = 'delivered')::bigint AS delivered,
         count(*) FILTER (WHERE status = 'completed')::bigint AS completed,
         count(*) FILTER (WHERE status = 'cancelled')::bigint AS cancelled
     FROM chains
@@ -47,6 +49,8 @@ SELECT
     exchange_stats.total AS exchanges_total,
     exchange_stats.proposed AS exchanges_proposed,
     exchange_stats.confirmed AS exchanges_confirmed,
+    exchange_stats.delivering AS exchanges_delivering,
+    exchange_stats.delivered AS exchanges_delivered,
     exchange_stats.completed AS exchanges_completed,
     exchange_stats.cancelled AS exchanges_cancelled
 FROM user_stats
@@ -56,18 +60,20 @@ CROSS JOIN exchange_stats
 `
 
 type GetAdminDashboardRow struct {
-	UsersTotal         int64
-	PickupPointsTotal  int64
-	ItemsTotal         int64
-	ItemsAvailable     int64
-	ItemsReserved      int64
-	ItemsTraded        int64
-	ItemsWithdrawn     int64
-	ExchangesTotal     int64
-	ExchangesProposed  int64
-	ExchangesConfirmed int64
-	ExchangesCompleted int64
-	ExchangesCancelled int64
+	UsersTotal          int64
+	PickupPointsTotal   int64
+	ItemsTotal          int64
+	ItemsAvailable      int64
+	ItemsReserved       int64
+	ItemsTraded         int64
+	ItemsWithdrawn      int64
+	ExchangesTotal      int64
+	ExchangesProposed   int64
+	ExchangesConfirmed  int64
+	ExchangesDelivering int64
+	ExchangesDelivered  int64
+	ExchangesCompleted  int64
+	ExchangesCancelled  int64
 }
 
 func (q *Queries) GetAdminDashboard(ctx context.Context) (GetAdminDashboardRow, error) {
@@ -84,6 +90,8 @@ func (q *Queries) GetAdminDashboard(ctx context.Context) (GetAdminDashboardRow, 
 		&i.ExchangesTotal,
 		&i.ExchangesProposed,
 		&i.ExchangesConfirmed,
+		&i.ExchangesDelivering,
+		&i.ExchangesDelivered,
 		&i.ExchangesCompleted,
 		&i.ExchangesCancelled,
 	)

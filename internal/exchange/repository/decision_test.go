@@ -81,6 +81,34 @@ func TestConfirmParticipationReservesItemsAfterLastAcceptance(t *testing.T) {
 	}
 }
 
+// Вещи могли уехать в пункты ещё до сборки обмена: тогда подтверждение — единственный
+// момент, когда цепочка может уйти в доставку, и сдавать после него уже нечего.
+func TestConfirmParticipationMovesPreDeliveredExchangeToDelivering(t *testing.T) {
+	t.Parallel()
+
+	queries := pendingDecisionQueries()
+	queries.items = []db.LockExchangeItemsRow{
+		{ID: pgUUID(uuid.New()), Status: db.ItemStatusAvailable},
+		{ID: pgUUID(uuid.New()), Status: db.ItemStatusAvailable},
+	}
+	queries.reserved = 2
+	queries.promoted = 1
+	transactions := &fakeTransactionManager{queries: queries}
+	repository := newRepository(&fakeNeighborQueries{}, transactions)
+
+	if err := repository.ConfirmParticipation(context.Background(), uuid.New(), uuid.New()); err != nil {
+		t.Fatalf("ConfirmParticipation() error = %v", err)
+	}
+
+	assertRecordedEvents(
+		t,
+		queries,
+		db.ChainMessageKindParticipantAccepted,
+		db.ChainMessageKindExchangeConfirmed,
+		db.ChainMessageKindExchangeDelivering,
+	)
+}
+
 func TestConfirmParticipationRejectsUnavailableItem(t *testing.T) {
 	t.Parallel()
 

@@ -34,13 +34,21 @@ func New(service Service) *Handler {
 	return &Handler{service: service}
 }
 
-// RegisterRoutes вызывается только внутри уже защищённой группы /admin.
+// RegisterRoutes вызывается только внутри уже защищённой группы /admin. Чтение здесь
+// дублирует публичные маршруты намеренно: на /admin/pickup-points ходит админка фронта.
 func (h *Handler) RegisterRoutes(router chi.Router) {
 	router.Post("/pickup-points", h.create)
 	router.Get("/pickup-points", h.list)
 	router.Get("/pickup-points/{id}", h.getByID)
 	router.Patch("/pickup-points/{id}", h.update)
 	router.Delete("/pickup-points/{id}", h.delete)
+}
+
+// RegisterPublicRoutes отдаёт справочник пунктов любому авторизованному пользователю:
+// без него нечего выбрать в POST /items/{id}/pickup. Запись остаётся за администратором.
+func (h *Handler) RegisterPublicRoutes(router chi.Router, requireAuth func(http.Handler) http.Handler) {
+	router.With(requireAuth).Get("/pickup-points", h.list)
+	router.With(requireAuth).Get("/pickup-points/{id}", h.getByID)
 }
 
 // @Summary     Создать ПВЗ
@@ -77,14 +85,17 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary     Получить список ПВЗ
-// @Description Доступно только администратору. Возвращает ПВЗ от новых к старым.
-// @Tags        admin pickup-points
+// @Description Возвращает ПВЗ от новых к старым. Читать список может любой авторизованный
+// @Description пользователь: без него не из чего выбирать пункт для POST /items/{id}/pickup.
+// @Description Заводить и править ПВЗ по-прежнему может только администратор.
+// @Tags        pickup-points
 // @Produce     json
 // @Success     200 {array} pickuppointdto.PickupPointResponse "Список ПВЗ"
 // @Failure     401 {object} pickuppointdto.PickupPointError "Пользователь не авторизован"
 // @Failure     403 {object} pickuppointdto.PickupPointError "Недостаточно прав"
 // @Failure     500 {object} pickuppointdto.PickupPointError "Внутренняя ошибка"
 // @Security    CookieAuth
+// @Router      /pickup-points [get]
 // @Router      /admin/pickup-points [get]
 func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	points, err := h.service.List(r.Context())
@@ -97,8 +108,8 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary     Получить ПВЗ по ID
-// @Description Доступно только администратору.
-// @Tags        admin pickup-points
+// @Description Доступно любому авторизованному пользователю — по той же причине, что и список.
+// @Tags        pickup-points
 // @Produce     json
 // @Param       id path string true "UUID ПВЗ"
 // @Success     200 {object} pickuppointdto.PickupPointResponse "ПВЗ"
@@ -108,6 +119,7 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 // @Failure     404 {object} pickuppointdto.PickupPointError "ПВЗ не найден"
 // @Failure     500 {object} pickuppointdto.PickupPointError "Внутренняя ошибка"
 // @Security    CookieAuth
+// @Router      /pickup-points/{id} [get]
 // @Router      /admin/pickup-points/{id} [get]
 func (h *Handler) getByID(w http.ResponseWriter, r *http.Request) {
 	id, ok := parseID(w, r)

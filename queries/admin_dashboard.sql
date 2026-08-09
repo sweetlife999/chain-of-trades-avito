@@ -21,6 +21,8 @@ exchange_stats AS (
         count(*)::bigint AS total,
         count(*) FILTER (WHERE status = 'proposed')::bigint AS proposed,
         count(*) FILTER (WHERE status = 'confirmed')::bigint AS confirmed,
+        count(*) FILTER (WHERE status = 'delivering')::bigint AS delivering,
+        count(*) FILTER (WHERE status = 'delivered')::bigint AS delivered,
         count(*) FILTER (WHERE status = 'completed')::bigint AS completed,
         count(*) FILTER (WHERE status = 'cancelled')::bigint AS cancelled
     FROM chains
@@ -36,6 +38,8 @@ SELECT
     exchange_stats.total AS exchanges_total,
     exchange_stats.proposed AS exchanges_proposed,
     exchange_stats.confirmed AS exchanges_confirmed,
+    exchange_stats.delivering AS exchanges_delivering,
+    exchange_stats.delivered AS exchanges_delivered,
     exchange_stats.completed AS exchanges_completed,
     exchange_stats.cancelled AS exchanges_cancelled
 FROM user_stats

@@ -11,6 +11,24 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const clearExchangeItemsPickupPoint = `-- name: ClearExchangeItemsPickupPoint :exec
+UPDATE items
+SET pickup_point_id = NULL
+WHERE id IN (
+    SELECT gives_item_id
+    FROM chain_participants
+    WHERE chain_id = $1
+)
+`
+
+// Вещи разъехались по новым владельцам, поэтому пункт хранения обнуляется вместе с
+// переходом в traded: иначе завершённая вещь навсегда осталась бы «лежащей в ПВЗ» и
+// держала бы его от удаления внешним ключом.
+func (q *Queries) ClearExchangeItemsPickupPoint(ctx context.Context, exchangeID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, clearExchangeItemsPickupPoint, exchangeID)
+	return err
+}
+
 const completeExchange = `-- name: CompleteExchange :exec
 UPDATE chains
 SET status = 'completed',

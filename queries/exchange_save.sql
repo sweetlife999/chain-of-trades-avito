@@ -4,7 +4,7 @@
 -- name: CreateExchange :one
 INSERT INTO chains (signature)
 VALUES (sqlc.arg(signature))
-ON CONFLICT (signature) WHERE status IN ('proposed', 'confirmed') DO NOTHING
+ON CONFLICT (signature) WHERE status IN ('proposed', 'confirmed', 'delivering', 'delivered') DO NOTHING
 RETURNING id;
 
 -- name: CreateExchangeParticipant :exec

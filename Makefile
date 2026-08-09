@@ -2,7 +2,7 @@
 export
 
 
-.PHONY: lint run up db down reset migrate-up migrate-down migrate-status sqlc smoke swagger test-exchange-integration test-user-blocks-integration test-exchange-recovery-integration test-exchange-refusal-integration test-exchange-messages-integration test-reports-integration
+.PHONY: lint run up db down reset migrate-up migrate-down migrate-status sqlc smoke swagger test-exchange-integration test-user-blocks-integration test-exchange-recovery-integration test-exchange-refusal-integration test-exchange-messages-integration test-delivery-integration test-reports-integration
 
 # Линтер. Требует golangci-lint v2 той же версии, что пиннится в CI:
 # go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
@@ -78,6 +78,12 @@ test-exchange-recovery-integration:
 test-exchange-refusal-integration:
 	go test -tags=integration ./internal/exchange/handler \
 		-run TestExchangeRefusalIntegration -count=1
+
+# Живой сценарий доставки: сдача вещей в пункт, переход в delivering с обеих сторон,
+# запрет «Товар получен» до выдачи и снятие пункта с завершённых вещей.
+test-delivery-integration:
+	go test -tags=integration ./internal/exchange/handler \
+		-run TestExchangeDeliveryIntegration -count=1
 
 # Живой сценарий жалоб: успешная жалоба и четыре запрета, два из которых держит база.
 test-reports-integration:

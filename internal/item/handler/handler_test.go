@@ -23,6 +23,22 @@ type fakeService struct {
 	update     func(context.Context, uuid.UUID, uuid.UUID, itemservice.UpdateInput) (itemmodel.Item, error)
 	remove     func(context.Context, uuid.UUID, uuid.UUID) error
 	categories func(context.Context) ([]itemmodel.Category, error)
+
+	setPickup   func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) error
+	clearPickup func(context.Context, uuid.UUID, uuid.UUID) error
+}
+
+func (f *fakeService) SetPickupPoint(
+	ctx context.Context,
+	id uuid.UUID,
+	userID uuid.UUID,
+	pickupPointID uuid.UUID,
+) error {
+	return f.setPickup(ctx, id, userID, pickupPointID)
+}
+
+func (f *fakeService) ClearPickupPoint(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
+	return f.clearPickup(ctx, id, userID)
 }
 
 func (f *fakeService) Create(ctx context.Context, input itemservice.CreateInput) (itemmodel.Item, error) {
@@ -201,6 +217,94 @@ func TestDeleteReturns204(t *testing.T) {
 	}
 }
 
+func TestSetPickupPointReturns204(t *testing.T) {
+	t.Parallel()
+
+	id, userID, pointID := uuid.New(), uuid.New(), uuid.New()
+	service := &fakeService{
+		setPickup: func(_ context.Context, actualID, actualUser, actualPoint uuid.UUID) error {
+			if actualID != id || actualUser != userID || actualPoint != pointID {
+				t.Fatalf("SetPickupPoint(%v, %v, %v)", actualID, actualUser, actualPoint)
+			}
+			return nil
+		},
+	}
+
+	response := performRequest(
+		service,
+		http.MethodPost,
+		"/items/"+id.String()+"/pickup",
+		`{"pickup_point_id":"`+pointID.String()+`"}`,
+		authenticateAs(userID),
+	)
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d; body = %s", response.Code, http.StatusNoContent, response.Body.String())
+	}
+}
+
+func TestSetPickupPointRejectsBrokenPoint(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		body       string
+		serviceErr error
+		wantStatus int
+	}{
+		"не UUID в теле":   {body: `{"pickup_point_id":"not-a-uuid"}`, wantStatus: http.StatusBadRequest},
+		"пункта нет":       {serviceErr: itemservice.ErrUnknownPickupPoint, wantStatus: http.StatusBadRequest},
+		"вещь вне оборота": {serviceErr: itemservice.ErrConflict, wantStatus: http.StatusConflict},
+	}
+
+	for name, test := range tests {
+		test := test
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			body := test.body
+			if body == "" {
+				body = `{"pickup_point_id":"` + uuid.New().String() + `"}`
+			}
+			service := &fakeService{
+				setPickup: func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) error {
+					return test.serviceErr
+				},
+			}
+
+			response := performRequest(
+				service,
+				http.MethodPost,
+				"/items/"+uuid.New().String()+"/pickup",
+				body,
+				authenticateAs(uuid.New()),
+			)
+			if response.Code != test.wantStatus {
+				t.Fatalf("status = %d, want %d; body = %s", response.Code, test.wantStatus, response.Body.String())
+			}
+		})
+	}
+}
+
+func TestClearPickupPointReturns409ForItemInChain(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeService{
+		clearPickup: func(context.Context, uuid.UUID, uuid.UUID) error {
+			return itemservice.ErrItemInChain
+		},
+	}
+
+	response := performRequest(
+		service,
+		http.MethodDelete,
+		"/items/"+uuid.New().String()+"/pickup",
+		"",
+		authenticateAs(uuid.New()),
+	)
+	if response.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want %d; body = %s", response.Code, http.StatusConflict, response.Body.String())
+	}
+}
+
 func TestListCategoriesReturns200(t *testing.T) {
 	t.Parallel()
 
@@ -232,10 +336,16 @@ func TestProtectedRoutesRequireAuthenticatedUser(t *testing.T) {
 		{method: http.MethodGet, path: "/items"},
 		{method: http.MethodPatch, path: "/items/" + id.String(), body: `{"title":"Новый"}`},
 		{method: http.MethodDelete, path: "/items/" + id.String()},
+		{
+			method: http.MethodPost,
+			path:   "/items/" + id.String() + "/pickup",
+			body:   `{"pickup_point_id":"` + uuid.New().String() + `"}`,
+		},
+		{method: http.MethodDelete, path: "/items/" + id.String() + "/pickup"},
 	}
 
 	for _, test := range tests {
-		t.Run(test.method, func(t *testing.T) {
+		t.Run(test.method+" "+test.path, func(t *testing.T) {
 			t.Parallel()
 
 			// Фейк без единой заданной функции: если хэндлер всё же дойдёт до сервиса,

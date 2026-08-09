@@ -129,12 +129,12 @@ const docTemplate = `{
                         "CookieAuth": []
                     }
                 ],
-                "description": "Доступно только администратору. Возвращает ПВЗ от новых к старым.",
+                "description": "Возвращает ПВЗ от новых к старым. Читать список может любой авторизованный\nпользователь: без него не из чего выбирать пункт для POST /items/{id}/pickup.\nЗаводить и править ПВЗ по-прежнему может только администратор.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "admin pickup-points"
+                    "pickup-points"
                 ],
                 "summary": "Получить список ПВЗ",
                 "responses": {
@@ -236,12 +236,12 @@ const docTemplate = `{
                         "CookieAuth": []
                     }
                 ],
-                "description": "Доступно только администратору.",
+                "description": "Доступно любому авторизованному пользователю — по той же причине, что и список.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "admin pickup-points"
+                    "pickup-points"
                 ],
                 "summary": "Получить ПВЗ по ID",
                 "parameters": [
@@ -1693,6 +1693,254 @@ const docTemplate = `{
                 }
             }
         },
+        "/items/{id}/pickup": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Отмечает, что вещь лежит в указанном ПВЗ. Отнести можно и вещь, которая ни в\nкаком обмене не участвует — к моменту сборки цепочки она уже будет на месте.\nКогда в пунктах окажутся все вещи подтверждённого обмена, он переходит в доставку.\nСписок пунктов: GET /pickup-points.",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "items"
+                ],
+                "summary": "Отнести вещь в пункт выдачи",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID объявления",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Пункт выдачи",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.SetPickupPointRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Вещь отмечена как сданная в пункт"
+                    },
+                    "400": {
+                        "description": "ID не UUID, тело не JSON или такого пункта нет",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "401": {
+                        "description": "Нет или истекла cookie access_token",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "403": {
+                        "description": "Объявление принадлежит другому пользователю",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "404": {
+                        "description": "Объявление не найдено",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "409": {
+                        "description": "Вещь уже обменяна или снята с публикации",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Возвращает вещь домой. Пока вещь занята в незавершённом обмене, забрать её\nнельзя: остальные участники рассчитывают на то, что она лежит на месте.\nИдемпотентен: у вещи без отметки забирать нечего.",
+                "tags": [
+                    "items"
+                ],
+                "summary": "Забрать вещь из пункта выдачи",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID объявления",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Вещь снова дома"
+                    },
+                    "400": {
+                        "description": "ID не является UUID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "401": {
+                        "description": "Нет или истекла cookie access_token",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "403": {
+                        "description": "Объявление принадлежит другому пользователю",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "404": {
+                        "description": "Объявление не найдено",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "409": {
+                        "description": "Вещь участвует в незавершённом обмене",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    }
+                }
+            }
+        },
+        "/pickup-points": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Возвращает ПВЗ от новых к старым. Читать список может любой авторизованный\nпользователь: без него не из чего выбирать пункт для POST /items/{id}/pickup.\nЗаводить и править ПВЗ по-прежнему может только администратор.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "pickup-points"
+                ],
+                "summary": "Получить список ПВЗ",
+                "responses": {
+                    "200": {
+                        "description": "Список ПВЗ",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.PickupPointResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointError"
+                        }
+                    },
+                    "403": {
+                        "description": "Недостаточно прав",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointError"
+                        }
+                    }
+                }
+            }
+        },
+        "/pickup-points/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Доступно любому авторизованному пользователю — по той же причине, что и список.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "pickup-points"
+                ],
+                "summary": "Получить ПВЗ по ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID ПВЗ",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ПВЗ",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный UUID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointError"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointError"
+                        }
+                    },
+                    "403": {
+                        "description": "Недостаточно прав",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointError"
+                        }
+                    },
+                    "404": {
+                        "description": "ПВЗ не найден",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PickupPointError"
+                        }
+                    }
+                }
+            }
+        },
         "/reports": {
             "post": {
                 "security": [
@@ -2384,6 +2632,12 @@ const docTemplate = `{
                 "confirmed": {
                     "type": "integer"
                 },
+                "delivered": {
+                    "type": "integer"
+                },
+                "delivering": {
+                    "type": "integer"
+                },
                 "proposed": {
                     "type": "integer"
                 },
@@ -2396,6 +2650,20 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ItemPickupPoint": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
                     "type": "string"
                 }
             }
@@ -2423,6 +2691,15 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "pickup_point": {
+                    "description": "null — вещь дома у владельца.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.ItemPickupPoint"
+                        }
+                    ],
+                    "x-nullable": true
                 },
                 "status": {
                     "type": "string"
@@ -2525,7 +2802,10 @@ const docTemplate = `{
                         "participant_accepted",
                         "participant_declined",
                         "participant_completed",
+                        "participant_delivered_item",
                         "exchange_confirmed",
+                        "exchange_delivering",
+                        "exchange_delivered",
                         "exchange_completed",
                         "exchange_superseded"
                     ]
@@ -2544,10 +2824,33 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "pickup_point": {
+                    "description": "null — вещь ещё дома у владельца. По этому полю видно, кого из участников ждут.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.ParticipantPickupPointResponse"
+                        }
+                    ],
+                    "x-nullable": true
+                },
                 "status": {
                     "type": "string"
                 },
                 "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ParticipantPickupPointResponse": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
                     "type": "string"
                 }
             }
@@ -2648,6 +2951,15 @@ const docTemplate = `{
                 },
                 "status": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.SetPickupPointRequest": {
+            "type": "object",
+            "properties": {
+                "pickup_point_id": {
+                    "type": "string",
+                    "example": "6f1c1c53-1f0e-4a0a-9d0f-2f0b6c7a1e11"
                 }
             }
         },

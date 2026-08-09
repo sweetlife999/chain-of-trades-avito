@@ -25,17 +25,31 @@ type UpdateItemRequest struct {
 	Wants       []string `json:"wants"       example:"consoles"`
 }
 
+type SetPickupPointRequest struct {
+	PickupPointID string `json:"pickup_point_id" example:"6f1c1c53-1f0e-4a0a-9d0f-2f0b6c7a1e11"`
+}
+
+// Имя не PickupPointResponse: такой тип уже есть в pickuppoint/dto, и swag развёл бы
+// коллизию нечитаемыми именами схем — тот же случай, что с ItemError.
+type ItemPickupPoint struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Address string `json:"address"`
+}
+
 type ItemResponse struct {
-	ID          string    `json:"id"`
-	OwnerID     string    `json:"owner_id"`
-	Category    string    `json:"category"`
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	PhotoURLs   []string  `json:"photo_urls"`
-	Wants       []string  `json:"wants"`
-	Status      string    `json:"status"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID          string   `json:"id"`
+	OwnerID     string   `json:"owner_id"`
+	Category    string   `json:"category"`
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	PhotoURLs   []string `json:"photo_urls"`
+	Wants       []string `json:"wants"`
+	Status      string   `json:"status"`
+	// null — вещь дома у владельца.
+	PickupPoint *ItemPickupPoint `json:"pickup_point" extensions:"x-nullable"`
+	CreatedAt   time.Time        `json:"created_at"`
+	UpdatedAt   time.Time        `json:"updated_at"`
 }
 
 type CategoryResponse struct {
@@ -59,8 +73,21 @@ func FromModel(item itemmodel.Item) ItemResponse {
 		PhotoURLs:   item.PhotoURLs,
 		Wants:       item.Wants,
 		Status:      item.Status,
+		PickupPoint: pickupPointFromModel(item.PickupPoint),
 		CreatedAt:   item.CreatedAt,
 		UpdatedAt:   item.UpdatedAt,
+	}
+}
+
+func pickupPointFromModel(point *itemmodel.PickupPoint) *ItemPickupPoint {
+	if point == nil {
+		return nil
+	}
+
+	return &ItemPickupPoint{
+		ID:      point.ID.String(),
+		Name:    point.Name,
+		Address: point.Address,
 	}
 }
 
