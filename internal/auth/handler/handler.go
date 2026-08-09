@@ -58,6 +58,7 @@ func (h *Handler) RegisterRoutes(router chi.Router, requireAuth func(http.Handle
 // @Success     200     {object} authdto.AuthenticatedUserResponse "Вошедший пользователь и его роль, cookie в заголовке Set-Cookie"
 // @Failure     400     {object} userdto.ErrorResponse "Некорректное тело запроса"
 // @Failure     401     {object} userdto.ErrorResponse "Неверный nickname или пароль"
+// @Failure     403     {object} userdto.ErrorResponse "Аккаунт глобально заблокирован"
 // @Failure     500     {object} userdto.ErrorResponse "Внутренняя ошибка"
 // @Router      /auth/login [post]
 func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
@@ -165,6 +166,8 @@ func handleServiceError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusUnauthorized, "invalid nickname or password")
 	case errors.Is(err, authservice.ErrUnauthorized):
 		writeError(w, http.StatusUnauthorized, "unauthorized")
+	case errors.Is(err, authservice.ErrAccountBlocked):
+		writeError(w, http.StatusForbidden, "account is blocked")
 	default:
 		log.Printf("auth handler: %v", err)
 		writeError(w, http.StatusInternalServerError, "internal server error")

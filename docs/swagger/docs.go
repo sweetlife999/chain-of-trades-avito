@@ -15,6 +15,89 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/admin/audit-log": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Возвращает журнал действий с фильтрами по администратору, действию и диапазону дат RFC3339.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-audit"
+                ],
+                "summary": "История действий администраторов",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID администратора",
+                        "name": "admin_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Тип действия",
+                        "name": "action",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Начало периода RFC3339",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Конец периода RFC3339",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Размер страницы (1-100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Смещение",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/dashboard": {
             "get": {
                 "security": [
@@ -109,6 +192,70 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "Обмен уже завершён или отменён либо объявления находятся в несовместимом состоянии",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/exchanges/{id}/mark-delivered": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Переводит обмен из delivering в delivered после доставки всех вещей в ПВЗ. После этого участники могут подтвердить получение. Повторный запрос для delivered безопасен.",
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Завершить доставку обмена",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID обмена",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Обмен переведён к получению"
+                    },
+                    "400": {
+                        "description": "ID не является UUID",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Недостаточно прав",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Обмен не найден",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Обмен не доставляется или не все вещи находятся в ПВЗ",
                         "schema": {
                             "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse"
                         }
@@ -887,6 +1034,133 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/users/{id}/block": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Блокировка сразу запрещает новый вход и использование ранее выданного JWT. Личный список user_blocks не изменяется.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-audit"
+                ],
+                "summary": "Глобально заблокировать пользователя",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID пользователя",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.UserBlockResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/users/{id}/unblock": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-audit"
+                ],
+                "summary": "Снять глобальную блокировку пользователя",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID пользователя",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.UserBlockResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/users/{user_id}/exchanges": {
             "get": {
                 "security": [
@@ -1007,6 +1281,12 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Неверный nickname или пароль",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Аккаунт глобально заблокирован",
                         "schema": {
                             "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse"
                         }
@@ -2874,6 +3154,32 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.EntryResponse": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "admin_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "type": "object"
+                },
+                "target_id": {
+                    "type": "string"
+                },
+                "target_type": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.ExchangeStatisticsResponse": {
             "type": "object",
             "properties": {
@@ -3063,6 +3369,26 @@ const docTemplate = `{
                         "exchange_completed",
                         "exchange_superseded"
                     ]
+                }
+            }
+        },
+        "dto.PageResponse": {
+            "type": "object",
+            "properties": {
+                "entries": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.EntryResponse"
+                    }
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },
@@ -3280,6 +3606,26 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.UserBlockResponse": {
+            "type": "object",
+            "properties": {
+                "blocked_at": {
+                    "type": "string"
+                },
+                "blocked_by": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_blocked": {
+                    "type": "boolean"
+                },
+                "nickname": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.UserResponse": {
             "type": "object",
             "properties": {
@@ -3308,6 +3654,14 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
                     "type": "string"
                 }
             }

@@ -12,6 +12,9 @@ import (
 
 	// Регистрирует сгенерированную спеку, которую отдаёт /swagger. Обновляется через make swagger.
 	_ "github.com/sweetlife999/chain-of-trades-avito/docs/swagger"
+	adminaudithandler "github.com/sweetlife999/chain-of-trades-avito/internal/adminaudit/handler"
+	adminauditrepository "github.com/sweetlife999/chain-of-trades-avito/internal/adminaudit/repository"
+	adminauditservice "github.com/sweetlife999/chain-of-trades-avito/internal/adminaudit/service"
 	admindashboardhandler "github.com/sweetlife999/chain-of-trades-avito/internal/admindashboard/handler"
 	admindashboardrepository "github.com/sweetlife999/chain-of-trades-avito/internal/admindashboard/repository"
 	admindashboardservice "github.com/sweetlife999/chain-of-trades-avito/internal/admindashboard/service"
@@ -89,9 +92,10 @@ func main() {
 	reportsRepository := reportrepository.New(queries)
 	reports := reportservice.New(reportsRepository)
 	adminReports := reportservice.NewAdmin(reportsRepository, exchangesRepository)
+	adminAudit := adminauditservice.New(adminauditrepository.New(queries))
 
 	tokens := authtoken.NewManager(cfg.JWTSecret, authTokenTTL)
-	authenticator := authmiddleware.New(tokens)
+	authenticator := authmiddleware.New(tokens, users)
 	adminAuthorizer := authmiddleware.NewAdminAuthorizer(users)
 	auth := authservice.New(usersRepository, tokens)
 
@@ -117,6 +121,7 @@ func main() {
 		pickupPointsHandler.RegisterRoutes(adminRouter)
 		exchangesHandler.RegisterAdminRoutes(adminRouter)
 		reporthandler.NewAdmin(adminReports).RegisterRoutes(adminRouter)
+		adminaudithandler.New(adminAudit).RegisterRoutes(adminRouter)
 	})
 
 	router.Get("/health", health)

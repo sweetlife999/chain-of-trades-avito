@@ -200,7 +200,7 @@ func TestExchangeDecisionsIntegration(t *testing.T) {
 	}
 
 	// Подтвердить получение можно только после того, как пункты выдали вещи.
-	deliverExchange(ctx, t, pool, confirmedExchangeID)
+	deliverExchange(ctx, t, pool, service, confirmedExchangeID, users[0])
 
 	for index := 0; index < len(participants)-1; index++ {
 		if err := service.CompleteParticipation(ctx, confirmedExchangeID, participants[index].UserID); err != nil {

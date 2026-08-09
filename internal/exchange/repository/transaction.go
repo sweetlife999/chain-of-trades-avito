@@ -30,6 +30,7 @@ type exchangeWriteQueries interface {
 	FindConfirmedExchangeForItem(context.Context, pgtype.UUID) (pgtype.UUID, error)
 	SetItemPickupPoint(context.Context, db.SetItemPickupPointParams) (int64, error)
 	PromoteExchangeToDelivering(context.Context, pgtype.UUID) (int64, error)
+	MarkExchangeDelivered(context.Context, pgtype.UUID) (int64, error)
 	CancelCompetingProposedExchanges(context.Context, pgtype.UUID) (int64, error)
 	CancelExchange(context.Context, pgtype.UUID) error
 	CreateChainSystemMessage(context.Context, db.CreateChainSystemMessageParams) error
@@ -48,6 +49,7 @@ type exchangeWriteQueries interface {
 	ClearExchangeItemsPickupPoint(context.Context, pgtype.UUID) error
 	CompleteExchange(context.Context, pgtype.UUID) error
 	IncrementExchangeParticipantsDealsCompleted(context.Context, pgtype.UUID) (int64, error)
+	CreateAdminAuditLog(context.Context, db.CreateAdminAuditLogParams) (db.AdminAuditLog, error)
 }
 
 type transactionManager interface {

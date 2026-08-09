@@ -11,6 +11,97 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AdminAuditAction string
+
+const (
+	AdminAuditActionReportAssigned       AdminAuditAction = "report_assigned"
+	AdminAuditActionReportResolved       AdminAuditAction = "report_resolved"
+	AdminAuditActionReportRejected       AdminAuditAction = "report_rejected"
+	AdminAuditActionReportMessagesViewed AdminAuditAction = "report_messages_viewed"
+	AdminAuditActionUserBlocked          AdminAuditAction = "user_blocked"
+	AdminAuditActionUserUnblocked        AdminAuditAction = "user_unblocked"
+	AdminAuditActionExchangeCancelled    AdminAuditAction = "exchange_cancelled"
+	AdminAuditActionExchangeDelivered    AdminAuditAction = "exchange_delivered"
+)
+
+func (e *AdminAuditAction) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = AdminAuditAction(s)
+	case string:
+		*e = AdminAuditAction(s)
+	default:
+		return fmt.Errorf("unsupported scan type for AdminAuditAction: %T", src)
+	}
+	return nil
+}
+
+type NullAdminAuditAction struct {
+	AdminAuditAction AdminAuditAction
+	Valid            bool // Valid is true if AdminAuditAction is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullAdminAuditAction) Scan(value interface{}) error {
+	if value == nil {
+		ns.AdminAuditAction, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.AdminAuditAction.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullAdminAuditAction) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.AdminAuditAction), nil
+}
+
+type AdminAuditTarget string
+
+const (
+	AdminAuditTargetReport   AdminAuditTarget = "report"
+	AdminAuditTargetUser     AdminAuditTarget = "user"
+	AdminAuditTargetExchange AdminAuditTarget = "exchange"
+)
+
+func (e *AdminAuditTarget) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = AdminAuditTarget(s)
+	case string:
+		*e = AdminAuditTarget(s)
+	default:
+		return fmt.Errorf("unsupported scan type for AdminAuditTarget: %T", src)
+	}
+	return nil
+}
+
+type NullAdminAuditTarget struct {
+	AdminAuditTarget AdminAuditTarget
+	Valid            bool // Valid is true if AdminAuditTarget is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullAdminAuditTarget) Scan(value interface{}) error {
+	if value == nil {
+		ns.AdminAuditTarget, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.AdminAuditTarget.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullAdminAuditTarget) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.AdminAuditTarget), nil
+}
+
 type ChainMessageKind string
 
 const (
@@ -280,6 +371,16 @@ func (ns NullReportStatus) Value() (driver.Value, error) {
 	return string(ns.ReportStatus), nil
 }
 
+type AdminAuditLog struct {
+	ID         pgtype.UUID
+	AdminID    pgtype.UUID
+	Action     AdminAuditAction
+	TargetType AdminAuditTarget
+	TargetID   pgtype.UUID
+	Metadata   []byte
+	CreatedAt  pgtype.Timestamptz
+}
+
 type Category struct {
 	ID   int16
 	Slug string
@@ -376,6 +477,9 @@ type User struct {
 	CreatedAt      pgtype.Timestamptz
 	UpdatedAt      pgtype.Timestamptz
 	IsAdmin        bool
+	IsBlocked      bool
+	BlockedAt      pgtype.Timestamptz
+	BlockedBy      pgtype.UUID
 }
 
 type UserBlock struct {

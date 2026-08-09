@@ -339,8 +339,21 @@ type fakeExchangeWriteQueries struct {
 	setPickupErr                 error
 	promoted                     int64
 	promoteErr                   error
+	delivered                    int64
+	deliverErr                   error
+	deliverCalled                bool
 	pickupCleared                bool
 	clearPickupErr               error
+	adminAudit                   []db.CreateAdminAuditLogParams
+	adminAuditErr                error
+}
+
+func (f *fakeExchangeWriteQueries) CreateAdminAuditLog(
+	_ context.Context,
+	params db.CreateAdminAuditLogParams,
+) (db.AdminAuditLog, error) {
+	f.adminAudit = append(f.adminAudit, params)
+	return db.AdminAuditLog{}, f.adminAuditErr
 }
 
 func (f *fakeExchangeWriteQueries) LockItemPickup(context.Context, pgtype.UUID) error {
@@ -505,6 +518,14 @@ func (f *fakeExchangeWriteQueries) ReserveExchangeItems(
 func (f *fakeExchangeWriteQueries) ConfirmExchange(context.Context, pgtype.UUID) error {
 	f.confirmed = true
 	return f.confirmErr
+}
+
+func (f *fakeExchangeWriteQueries) MarkExchangeDelivered(
+	context.Context,
+	pgtype.UUID,
+) (int64, error) {
+	f.deliverCalled = true
+	return f.delivered, f.deliverErr
 }
 
 func (f *fakeExchangeWriteQueries) CancelCompetingProposedExchanges(

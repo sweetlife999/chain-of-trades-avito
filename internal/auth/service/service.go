@@ -17,6 +17,7 @@ import (
 var (
 	ErrInvalidCredentials = errors.New("invalid nickname or password")
 	ErrUnauthorized       = errors.New("unauthorized")
+	ErrAccountBlocked     = errors.New("account is blocked")
 )
 
 type Repository interface {
@@ -62,6 +63,9 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (LoginResult, err
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.Password)); err != nil {
 		return LoginResult{}, ErrInvalidCredentials
+	}
+	if user.IsBlocked {
+		return LoginResult{}, ErrAccountBlocked
 	}
 
 	signedToken, expiresAt, err := s.tokens.Generate(user.ID)

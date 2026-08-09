@@ -26,6 +26,7 @@ type AdminRepository interface {
 	GetForAdmin(context.Context, uuid.UUID) (reportmodel.AdminReport, error)
 	AssignForAdmin(context.Context, uuid.UUID, uuid.UUID) error
 	DecideForAdmin(context.Context, uuid.UUID, uuid.UUID, string, string) error
+	RecordMessagesViewed(context.Context, uuid.UUID, uuid.UUID) error
 }
 
 // MessageRepository нужен только для чтения треда. AdminService намеренно не получает
@@ -174,6 +175,7 @@ func (s *AdminService) Decide(
 func (s *AdminService) ListMessages(
 	ctx context.Context,
 	reportID uuid.UUID,
+	adminID uuid.UUID,
 ) (reportmodel.AdminReport, []exchangemodel.Message, error) {
 	report, err := s.Get(ctx, reportID)
 	if err != nil {
@@ -186,6 +188,9 @@ func (s *AdminService) ListMessages(
 	}
 	if messages == nil {
 		messages = []exchangemodel.Message{}
+	}
+	if err := s.reports.RecordMessagesViewed(ctx, reportID, adminID); err != nil {
+		return reportmodel.AdminReport{}, nil, fmt.Errorf("record report messages view: %w", err)
 	}
 
 	return report, messages, nil

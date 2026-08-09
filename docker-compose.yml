@@ -1,3 +1,8 @@
+# pull_policy: build у всех трёх собираемых сервисов — чтобы обычный `docker compose up`
+# пересобирал образ, а не поднимал прошлый local-тег. Без этого правка в Go или в
+# Caddyfile не доезжает до контейнера, пока кто-нибудь не вспомнит про --build.
+# Прод собирать не должен: там образы из GHCR, оверлей возвращает политику по умолчанию.
+
 # Один DSN на migrate и api: разъедутся — окажутся на разных базах.
 x-database-url: &database-url postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
 
@@ -25,6 +30,7 @@ services:
   migrate:
     build: .
     image: chain-of-trades:local
+    pull_policy: build
     depends_on:
       postgres:
         condition: service_healthy
@@ -37,6 +43,7 @@ services:
   api:
     build: .
     image: chain-of-trades:local
+    pull_policy: build
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -55,6 +62,7 @@ services:
   web:
     build: ./frontend
     image: chain-of-trades-web:local
+    pull_policy: build
     depends_on:
       api:
         condition: service_healthy

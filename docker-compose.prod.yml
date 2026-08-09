@@ -5,13 +5,20 @@
 # build: из базового файла остаётся, но --no-build его не трогает, а pull идёт
 # по image, поэтому гасить сборку отдельно не требуется.
 #
+# pull_policy возвращается к дефолтному missing: в базовом файле стоит build ради
+# локального `docker compose up`, а `docker compose pull` такие сервисы пропускает —
+# и на сервер приехал бы не тот образ, что собрал CI.
+#
 # IMAGE_TAG задаёт .github/workflows/cd.yml. Откат — тот же up с прошлым sha.
 services:
   migrate:
     image: ghcr.io/sweetlife999/chain-of-trades-avito/api:${IMAGE_TAG}
+    pull_policy: missing
 
   api:
     image: ghcr.io/sweetlife999/chain-of-trades-avito/api:${IMAGE_TAG}
+    pull_policy: missing
 
   web:
     image: ghcr.io/sweetlife999/chain-of-trades-avito/web:${IMAGE_TAG}
+    pull_policy: missing

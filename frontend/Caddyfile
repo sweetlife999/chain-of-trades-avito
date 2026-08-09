@@ -18,7 +18,15 @@ handle /swagger* {
 # Swagger UI шлёт запросы на абсолютные пути (@BasePath /), а не под /api, поэтому без
 # этого блока каждый Execute со страницы /swagger попадал бы в SPA-фоллбэк ниже и получал
 # index.html вместо JSON. Список префиксов — тот же, что регистрирует cmd/api/main.go.
-@api path /auth* /users* /items* /categories* /exchanges* /health /admin*
+#
+# Часть этих путей (/admin, /exchanges, /items/:id) есть и в SPA-роутере, поэтому
+# переходы по адресной строке и F5 из списка исключены: браузер шлёт на документ
+# Sec-Fetch-Dest: document, а fetch со страницы /swagger — empty. Без исключения
+# перезагрузка /admin уходила в API и отдавала 404 (маршрута GET /admin там нет).
+@api {
+	path /auth* /users* /items* /categories* /exchanges* /health /admin*
+	not header Sec-Fetch-Dest document
+}
 handle @api {
 	reverse_proxy api:8080
 }

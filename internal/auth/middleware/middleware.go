@@ -22,12 +22,17 @@ type AdminChecker interface {
 	IsAdmin(context.Context, uuid.UUID) (bool, error)
 }
 
-type Authenticator struct {
-	tokens TokenParser
+type AccountChecker interface {
+	CanAuthenticate(context.Context, uuid.UUID) (bool, error)
 }
 
-func New(tokens TokenParser) *Authenticator {
-	return &Authenticator{tokens: tokens}
+type Authenticator struct {
+	tokens   TokenParser
+	accounts AccountChecker
+}
+
+func New(tokens TokenParser, accounts AccountChecker) *Authenticator {
+	return &Authenticator{tokens: tokens, accounts: accounts}
 }
 
 type AdminAuthorizer struct {
@@ -48,6 +53,17 @@ func (a *Authenticator) RequireAuthentication(next http.Handler) http.Handler {
 
 		userID, err := a.tokens.Parse(cookie.Value)
 		if err != nil {
+			writeUnauthorized(w)
+			return
+		}
+
+		allowed, err := a.accounts.CanAuthenticate(r.Context(), userID)
+		if err != nil {
+			log.Printf("authentication account check: %v", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
+			return
+		}
+		if !allowed {
 			writeUnauthorized(w)
 			return
 		}

@@ -25,6 +25,7 @@ type AdminService interface {
 	ListMessages(
 		context.Context,
 		uuid.UUID,
+		uuid.UUID,
 	) (reportmodel.AdminReport, []exchangemodel.Message, error)
 }
 
@@ -124,8 +125,12 @@ func (h *AdminHandler) listMessages(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	adminID, ok := adminIDFromRequest(w, r)
+	if !ok {
+		return
+	}
 
-	report, messages, err := h.service.ListMessages(r.Context(), reportID)
+	report, messages, err := h.service.ListMessages(r.Context(), reportID, adminID)
 	if err != nil {
 		handleAdminServiceError(w, err)
 		return

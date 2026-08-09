@@ -39,7 +39,8 @@ type Repository interface {
 	GetByID(context.Context, uuid.UUID, uuid.UUID) (exchangemodel.Details, error)
 	ConfirmParticipation(context.Context, uuid.UUID, uuid.UUID) error
 	DeclineParticipation(context.Context, uuid.UUID, uuid.UUID) ([]exchangemodel.Node, string, error)
-	CancelByAdmin(context.Context, uuid.UUID) ([]exchangemodel.Node, string, error)
+	CancelByAdmin(context.Context, uuid.UUID, uuid.UUID) ([]exchangemodel.Node, string, error)
+	MarkDeliveredByAdmin(context.Context, uuid.UUID, uuid.UUID) error
 	CompleteParticipation(context.Context, uuid.UUID, uuid.UUID) error
 	RecordItemPickup(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) error
 	ExchangeAccess(context.Context, uuid.UUID, uuid.UUID) (string, bool, error)
@@ -293,8 +294,8 @@ func (s *Service) DeclineParticipation(
 // CancelByAdmin принудительно закрывает активный обмен. В отличие от отказа
 // участника, административная отмена не помечает никого виновным и не меняет
 // пользовательскую статистику. Освободившиеся объявления сразу возвращаются в поиск.
-func (s *Service) CancelByAdmin(ctx context.Context, exchangeID uuid.UUID) error {
-	recoveryNodes, cancelledSignature, err := s.repository.CancelByAdmin(ctx, exchangeID)
+func (s *Service) CancelByAdmin(ctx context.Context, exchangeID, adminID uuid.UUID) error {
+	recoveryNodes, cancelledSignature, err := s.repository.CancelByAdmin(ctx, exchangeID, adminID)
 	if err != nil {
 		return fmt.Errorf("cancel exchange by admin: %w", err)
 	}
@@ -302,6 +303,15 @@ func (s *Service) CancelByAdmin(ctx context.Context, exchangeID uuid.UUID) error
 	// Сама отмена уже зафиксирована транзакцией. Повторный поиск — best effort:
 	// его сбой не должен превращать успешный административный запрос в HTTP 500.
 	s.recoverExchanges(ctx, recoveryNodes, cancelledSignature)
+
+	return nil
+}
+
+// MarkDeliveredByAdmin открывает участникам этап подтверждения получения.
+func (s *Service) MarkDeliveredByAdmin(ctx context.Context, exchangeID, adminID uuid.UUID) error {
+	if err := s.repository.MarkDeliveredByAdmin(ctx, exchangeID, adminID); err != nil {
+		return fmt.Errorf("mark exchange delivered by admin: %w", err)
+	}
 
 	return nil
 }
