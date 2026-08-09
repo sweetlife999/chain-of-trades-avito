@@ -4,8 +4,6 @@ import (
 	"context"
 	"log"
 	"time"
-
-	exchangemodel "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/model"
 )
 
 const (
@@ -15,7 +13,7 @@ const (
 )
 
 type Finder interface {
-	FindAndSaveAll(context.Context, exchangemodel.Node) (exchangemodel.SearchResults, error)
+	ProcessSearchJob(context.Context, Job) error
 }
 
 type workerLogger interface {
@@ -79,12 +77,12 @@ func (w *Worker) Run(ctx context.Context) {
 }
 
 func (w *Worker) process(ctx context.Context, job Job) {
-	defer w.queue.Complete(job.Node.ItemID)
+	defer w.queue.Complete(job)
 
 	var lastErr error
 	for attempt := 1; attempt <= w.maxAttempts; attempt++ {
 		searchCtx, cancel := context.WithTimeout(ctx, w.searchTimeout)
-		_, lastErr = w.finder.FindAndSaveAll(searchCtx, job.Node)
+		lastErr = w.finder.ProcessSearchJob(searchCtx, job)
 		cancel()
 		if lastErr == nil {
 			return
@@ -111,8 +109,8 @@ func (w *Worker) process(ctx context.Context, job Job) {
 	}
 
 	w.logger.Printf(
-		"asynchronous exchange search for item %s failed after %d attempts: %v",
-		job.Node.ItemID,
+		"asynchronous exchange search job %s failed after %d attempts: %v",
+		job.key,
 		w.maxAttempts,
 		lastErr,
 	)

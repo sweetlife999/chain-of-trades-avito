@@ -20,7 +20,8 @@ func TestWorkerProcessesJobAndReleasesDeduplication(t *testing.T) {
 	finder := newFakeFinder()
 	worker := testWorker(queue, finder, log.Default())
 	node := testNode()
-	if added, err := queue.Enqueue(node); err != nil || !added {
+	job := NewItemJob(node)
+	if added, err := queue.Enqueue(job); err != nil || !added {
 		t.Fatalf("Enqueue() = (%t, %v)", added, err)
 	}
 
@@ -30,10 +31,10 @@ func TestWorkerProcessesJobAndReleasesDeduplication(t *testing.T) {
 		close(runDone)
 	}()
 
-	waitNode(t, finder.called, node)
-	waitEnqueue(t, queue, node)
+	waitJob(t, finder.called, job)
+	waitEnqueue(t, queue, job)
 	queue.Close()
-	waitNode(t, finder.called, node)
+	waitJob(t, finder.called, job)
 	waitSignal(t, runDone, "worker did not drain closed queue")
 }
 
@@ -43,7 +44,7 @@ func TestWorkerRetriesAndEventuallySucceeds(t *testing.T) {
 	queue := newTestQueue(t, 1)
 	finder := newFakeFinder(errors.New("temporary one"), errors.New("temporary two"), nil)
 	worker := testWorker(queue, finder, log.Default())
-	if added, err := queue.Enqueue(testNode()); err != nil || !added {
+	if added, err := queue.Enqueue(NewItemJob(testNode())); err != nil || !added {
 		t.Fatalf("Enqueue() = (%t, %v)", added, err)
 	}
 	queue.Close()
@@ -68,7 +69,7 @@ func TestWorkerLogsFinalErrorAndContinues(t *testing.T) {
 	worker := testWorker(queue, finder, log.New(&logs, "", 0))
 	first, second := testNode(), testNode()
 	for _, node := range []exchangemodel.Node{first, second} {
-		if added, err := queue.Enqueue(node); err != nil || !added {
+		if added, err := queue.Enqueue(NewItemJob(node)); err != nil || !added {
 			t.Fatalf("Enqueue() = (%t, %v)", added, err)
 		}
 	}
@@ -78,7 +79,7 @@ func TestWorkerLogsFinalErrorAndContinues(t *testing.T) {
 	if calls := finder.callCount(); calls != 4 {
 		t.Fatalf("FindAndSaveAll() calls = %d, want 4", calls)
 	}
-	if !strings.Contains(logs.String(), first.ItemID.String()) ||
+	if !strings.Contains(logs.String(), NewItemJob(first).key) ||
 		!strings.Contains(logs.String(), "failed after 3 attempts") {
 		t.Fatalf("worker log = %q", logs.String())
 	}
@@ -90,7 +91,7 @@ func TestWorkerCancellationInterruptsRetryDelay(t *testing.T) {
 	queue := newTestQueue(t, 1)
 	finder := newFakeFinder(errors.New("temporary"))
 	worker := newWorker(queue, finder, log.Default(), time.Second, 3, time.Hour)
-	if added, err := queue.Enqueue(testNode()); err != nil || !added {
+	if added, err := queue.Enqueue(NewItemJob(testNode())); err != nil || !added {
 		t.Fatalf("Enqueue() = (%t, %v)", added, err)
 	}
 
@@ -112,7 +113,7 @@ func TestWorkerAppliesSearchTimeout(t *testing.T) {
 	queue := newTestQueue(t, 1)
 	finder := &blockingFinder{contexts: make(chan context.Context, 1)}
 	worker := newWorker(queue, finder, log.Default(), 10*time.Millisecond, 1, time.Millisecond)
-	if added, err := queue.Enqueue(testNode()); err != nil || !added {
+	if added, err := queue.Enqueue(NewItemJob(testNode())); err != nil || !added {
 		t.Fatalf("Enqueue() = (%t, %v)", added, err)
 	}
 	queue.Close()
@@ -128,20 +129,20 @@ type fakeFinder struct {
 	mu     sync.Mutex
 	errors []error
 	calls  int
-	called chan exchangemodel.Node
+	called chan Job
 }
 
 func newFakeFinder(results ...error) *fakeFinder {
 	return &fakeFinder{
 		errors: results,
-		called: make(chan exchangemodel.Node, 16),
+		called: make(chan Job, 16),
 	}
 }
 
-func (f *fakeFinder) FindAndSaveAll(
+func (f *fakeFinder) ProcessSearchJob(
 	_ context.Context,
-	node exchangemodel.Node,
-) (exchangemodel.SearchResults, error) {
+	job Job,
+) error {
 	f.mu.Lock()
 	index := f.calls
 	f.calls++
@@ -151,8 +152,8 @@ func (f *fakeFinder) FindAndSaveAll(
 	}
 	f.mu.Unlock()
 
-	f.called <- node
-	return exchangemodel.SearchResults{}, err
+	f.called <- job
+	return err
 }
 
 func (f *fakeFinder) callCount() int {
@@ -165,26 +166,26 @@ type blockingFinder struct {
 	contexts chan context.Context
 }
 
-func (f *blockingFinder) FindAndSaveAll(
+func (f *blockingFinder) ProcessSearchJob(
 	ctx context.Context,
-	_ exchangemodel.Node,
-) (exchangemodel.SearchResults, error) {
+	_ Job,
+) error {
 	f.contexts <- ctx
 	<-ctx.Done()
-	return exchangemodel.SearchResults{}, ctx.Err()
+	return ctx.Err()
 }
 
 func testWorker(queue *Queue, finder Finder, logger workerLogger) *Worker {
 	return newWorker(queue, finder, logger, time.Second, 3, time.Millisecond)
 }
 
-func waitNode(t *testing.T, nodes <-chan exchangemodel.Node, want exchangemodel.Node) {
+func waitJob(t *testing.T, jobs <-chan Job, want Job) {
 	t.Helper()
 
 	select {
-	case got := <-nodes:
-		if got != want {
-			t.Fatalf("processed node = %+v, want %+v", got, want)
+	case got := <-jobs:
+		if got.key != want.key {
+			t.Fatalf("processed job = %+v, want %+v", got, want)
 		}
 	case <-time.After(time.Second):
 		t.Fatal("worker did not process job")
@@ -201,12 +202,12 @@ func waitSignal(t *testing.T, signal <-chan struct{}, failure string) {
 	}
 }
 
-func waitEnqueue(t *testing.T, queue *Queue, node exchangemodel.Node) {
+func waitEnqueue(t *testing.T, queue *Queue, job Job) {
 	t.Helper()
 
 	deadline := time.Now().Add(time.Second)
 	for time.Now().Before(deadline) {
-		added, err := queue.Enqueue(node)
+		added, err := queue.Enqueue(job)
 		if err != nil {
 			t.Fatalf("Enqueue() after processing error = %v", err)
 		}

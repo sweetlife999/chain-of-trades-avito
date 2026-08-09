@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	exchangemodel "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/model"
+	exchangesearch "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/search"
 )
 
 func TestFindCycleSupportedLengths(t *testing.T) {
@@ -641,6 +642,61 @@ func TestFindAndSaveAllStopsAtMaximumResults(t *testing.T) {
 	}
 }
 
+func TestScheduleSearchEnqueuesItemJob(t *testing.T) {
+	t.Parallel()
+
+	queue := &fakeSearchQueue{}
+	start := testNode(1)
+	service := newWithDependencies(&fakeRepository{}, queue, &fakeLogger{})
+
+	if err := service.ScheduleSearch(context.Background(), start); err != nil {
+		t.Fatalf("ScheduleSearch() error = %v", err)
+	}
+	if queue.calls != 1 || len(queue.job.Nodes) != 1 || queue.job.Nodes[0] != start {
+		t.Fatalf("queued job = %+v, calls = %d", queue.job, queue.calls)
+	}
+}
+
+func TestScheduleSearchWrapsQueueError(t *testing.T) {
+	t.Parallel()
+
+	queueError := errors.New("queue full")
+	queue := &fakeSearchQueue{err: queueError}
+	service := newWithDependencies(&fakeRepository{}, queue, &fakeLogger{})
+
+	if err := service.ScheduleSearch(context.Background(), testNode(1)); !errors.Is(err, queueError) {
+		t.Fatalf("ScheduleSearch() error = %v, want wrapped %v", err, queueError)
+	}
+}
+
+func TestProcessRecoveryJobExcludesCancelledComposition(t *testing.T) {
+	t.Parallel()
+
+	start := testNode(1)
+	refused := testNode(2)
+	alternative := testNode(3)
+	repository := &fakeRepository{
+		neighbors: map[uuid.UUID][]exchangemodel.Node{
+			start.ItemID:       {refused, alternative},
+			refused.ItemID:     {start},
+			alternative.ItemID: {start},
+		},
+		savedExchangeID: uuid.New(),
+	}
+	job := exchangesearch.NewRecoveryJob(
+		[]exchangemodel.Node{start},
+		compositionKey([]exchangemodel.Node{start, refused}),
+	)
+
+	if err := New(repository).ProcessSearchJob(context.Background(), job); err != nil {
+		t.Fatalf("ProcessSearchJob() error = %v", err)
+	}
+	if len(repository.savedExchanges) != 1 ||
+		repository.savedExchanges[0].Participants[1].GivesItemID != alternative.ItemID {
+		t.Fatalf("saved exchanges = %+v, want only alternative composition", repository.savedExchanges)
+	}
+}
+
 func TestListForUser(t *testing.T) {
 	t.Parallel()
 
@@ -859,13 +915,40 @@ func TestDeclineParticipationKeepsSuccessWhenRecoveryFails(t *testing.T) {
 		errors:          map[uuid.UUID]error{nodes[0].ItemID: databaseError},
 	}
 
-	err := newWithDependencies(repository, logger).
+	err := newWithDependencies(repository, nil, logger).
 		DeclineParticipation(context.Background(), uuid.New(), nodes[0].OwnerID)
 	if err != nil {
 		t.Fatalf("DeclineParticipation() error = %v, want successful decline", err)
 	}
 	if logger.calls == 0 {
 		t.Fatal("recovery error was not logged")
+	}
+}
+
+func TestDeclineParticipationSchedulesRecoveryJob(t *testing.T) {
+	t.Parallel()
+
+	nodes := makeNodes(3)
+	cancelledComposition := compositionKey(nodes)
+	repository := &fakeRepository{
+		declineRecovery:    nodes,
+		declineComposition: cancelledComposition,
+	}
+	queue := &fakeSearchQueue{}
+	service := newWithDependencies(repository, queue, &fakeLogger{})
+
+	if err := service.DeclineParticipation(context.Background(), uuid.New(), nodes[0].OwnerID); err != nil {
+		t.Fatalf("DeclineParticipation() error = %v", err)
+	}
+	if queue.calls != 1 || len(queue.job.Nodes) != len(nodes) {
+		t.Fatalf("recovery queue calls = %d, job = %+v", queue.calls, queue.job)
+	}
+	if len(queue.job.ExcludedCompositions) != 1 ||
+		queue.job.ExcludedCompositions[0] != cancelledComposition {
+		t.Fatalf("excluded compositions = %v, want [%s]", queue.job.ExcludedCompositions, cancelledComposition)
+	}
+	if repository.saveCalls != 0 {
+		t.Fatalf("synchronous SaveExchange() calls = %d, want 0", repository.saveCalls)
 	}
 }
 
@@ -1214,6 +1297,18 @@ type fakeRepository struct {
 	readUserID          uuid.UUID
 	readLastMessageID   uuid.UUID
 	readErr             error
+}
+
+type fakeSearchQueue struct {
+	job   exchangesearch.Job
+	calls int
+	err   error
+}
+
+func (f *fakeSearchQueue) Enqueue(job exchangesearch.Job) (bool, error) {
+	f.job = job
+	f.calls++
+	return f.err == nil, f.err
 }
 
 func (f *fakeRepository) ExchangeAccess(

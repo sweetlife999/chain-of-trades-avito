@@ -13,6 +13,7 @@ import (
 
 	exchangemodel "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/model"
 	exchangerepository "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/repository"
+	exchangesearch "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/search"
 )
 
 const (
@@ -52,20 +53,30 @@ type Repository interface {
 }
 
 type Service struct {
-	repository Repository
-	logger     errorLogger
+	repository  Repository
+	searchQueue SearchQueue
+	logger      errorLogger
 }
 
 type errorLogger interface {
 	Printf(string, ...any)
 }
 
-func New(repository Repository) *Service {
-	return newWithDependencies(repository, log.Default())
+type SearchQueue interface {
+	Enqueue(exchangesearch.Job) (bool, error)
 }
 
-func newWithDependencies(repository Repository, logger errorLogger) *Service {
-	return &Service{repository: repository, logger: logger}
+func New(repository Repository, searchQueues ...SearchQueue) *Service {
+	var searchQueue SearchQueue
+	if len(searchQueues) > 0 {
+		searchQueue = searchQueues[0]
+	}
+
+	return newWithDependencies(repository, searchQueue, log.Default())
+}
+
+func newWithDependencies(repository Repository, searchQueue SearchQueue, logger errorLogger) *Service {
+	return &Service{repository: repository, searchQueue: searchQueue, logger: logger}
 }
 
 // FindCycle is the backwards-compatible single-result search. New automatic
@@ -249,6 +260,34 @@ func (s *Service) FindAndSaveAll(
 	return exchangemodel.SearchResults{ExchangeIDs: ids, Found: len(ids) > 0}, nil
 }
 
+// ScheduleSearch ставит обычный поиск в фоновую очередь. Отсутствие очереди оставлено как
+// синхронный fallback для изолированных сервисов и интеграционных тестов.
+func (s *Service) ScheduleSearch(ctx context.Context, start exchangemodel.Node) error {
+	if s.searchQueue == nil {
+		_, err := s.FindAndSaveAll(ctx, start)
+		return err
+	}
+
+	_, err := s.searchQueue.Enqueue(exchangesearch.NewItemJob(start))
+	if err != nil {
+		return fmt.Errorf("enqueue exchange search: %w", err)
+	}
+
+	return nil
+}
+
+// ProcessSearchJob реализует контракт фонового worker. Исключения передаются внутри job,
+// поэтому recovery не может немедленно собрать только что отменённый состав.
+func (s *Service) ProcessSearchJob(ctx context.Context, job exchangesearch.Job) error {
+	excludedCompositions := make(map[string]struct{}, len(job.ExcludedCompositions))
+	for _, composition := range job.ExcludedCompositions {
+		excludedCompositions[composition] = struct{}{}
+	}
+
+	_, err := s.findAndSave(ctx, job.Nodes, maxSearchResults, excludedCompositions)
+	return err
+}
+
 func (s *Service) findAndSave(
 	ctx context.Context,
 	starts []exchangemodel.Node,
@@ -394,11 +433,15 @@ func (s *Service) recoverExchanges(
 		return
 	}
 
-	// Ключ берётся из БД: он описывает набор вещей без привязки к направлению DFS.
-	// Поэтому отменённый состав нельзя тут же пересобрать другой перестановкой.
-	excludedCompositions := map[string]struct{}{cancelledComposition: {}}
+	job := exchangesearch.NewRecoveryJob(nodes, cancelledComposition)
+	if s.searchQueue != nil {
+		if _, err := s.searchQueue.Enqueue(job); err != nil {
+			s.logger.Printf("enqueue exchange recovery after cancellation: %v", err)
+		}
+		return
+	}
 
-	if _, err := s.findAndSave(ctx, nodes, maxSearchResults, excludedCompositions); err != nil {
+	if err := s.ProcessSearchJob(ctx, job); err != nil {
 		s.logger.Printf("recover exchanges after cancellation: %v", err)
 	}
 }
