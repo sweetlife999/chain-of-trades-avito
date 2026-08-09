@@ -101,6 +101,41 @@ func TestThreeUserExchangeIntegration(t *testing.T) {
 	}
 }
 
+// deliverExchange доводит подтверждённый обмен до состояния, из которого участники могут
+// подтверждать получение: вещи уезжают в пункт, а перевод «доставка -> доставлено» делает
+// администратор. Его ручка живёт вне этой задачи, поэтому здесь она заменена запросом.
+func deliverExchange(ctx context.Context, t *testing.T, pool *pgxpool.Pool, exchangeID uuid.UUID) {
+	t.Helper()
+
+	var pointID uuid.UUID
+	err := pool.QueryRow(ctx, `
+		INSERT INTO pickup_points (name, address)
+		VALUES ('integration-' || gen_random_uuid(), 'ул. Тестовая, 1')
+		RETURNING id`).Scan(&pointID)
+	if err != nil {
+		t.Fatalf("create pickup point: %v", err)
+	}
+
+	_, err = pool.Exec(ctx, `
+		UPDATE items
+		SET pickup_point_id = $2
+		WHERE id IN (SELECT gives_item_id FROM chain_participants WHERE chain_id = $1)`,
+		exchangeID,
+		pointID,
+	)
+	if err != nil {
+		t.Fatalf("move exchange items to pickup point: %v", err)
+	}
+
+	if _, err := pool.Exec(
+		ctx,
+		"UPDATE chains SET status = 'delivered' WHERE id = $1",
+		exchangeID,
+	); err != nil {
+		t.Fatalf("mark exchange delivered: %v", err)
+	}
+}
+
 func cleanupIntegrationData(
 	ctx context.Context,
 	pool *pgxpool.Pool,
@@ -124,4 +159,8 @@ func cleanupIntegrationData(
 	for _, userID := range users {
 		_, _ = pool.Exec(ctx, "DELETE FROM users WHERE id = $1", userID)
 	}
+
+	// Пункты уходят последними: пока на них ссылается хоть одна вещь, внешний ключ их
+	// не отпускает.
+	_, _ = pool.Exec(ctx, "DELETE FROM pickup_points WHERE name LIKE 'integration-%'")
 }

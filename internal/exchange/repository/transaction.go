@@ -26,6 +26,10 @@ type exchangeWriteQueries interface {
 	LockExchangeItems(context.Context, pgtype.UUID) ([]db.LockExchangeItemsRow, error)
 	ReserveExchangeItems(context.Context, pgtype.UUID) (int64, error)
 	ConfirmExchange(context.Context, pgtype.UUID) error
+	LockItemPickup(context.Context, pgtype.UUID) error
+	FindConfirmedExchangeForItem(context.Context, pgtype.UUID) (pgtype.UUID, error)
+	SetItemPickupPoint(context.Context, db.SetItemPickupPointParams) (int64, error)
+	PromoteExchangeToDelivering(context.Context, pgtype.UUID) (int64, error)
 	CancelCompetingProposedExchanges(context.Context, pgtype.UUID) (int64, error)
 	CancelExchange(context.Context, pgtype.UUID) error
 	CreateChainSystemMessage(context.Context, db.CreateChainSystemMessageParams) error
@@ -41,6 +45,7 @@ type exchangeWriteQueries interface {
 	) error
 	CountIncompleteExchangeParticipants(context.Context, pgtype.UUID) (int64, error)
 	MarkExchangeItemsTraded(context.Context, pgtype.UUID) (int64, error)
+	ClearExchangeItemsPickupPoint(context.Context, pgtype.UUID) error
 	CompleteExchange(context.Context, pgtype.UUID) error
 	IncrementExchangeParticipantsDealsCompleted(context.Context, pgtype.UUID) (int64, error)
 }

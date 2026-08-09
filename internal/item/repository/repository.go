@@ -130,6 +130,21 @@ func (r *Repository) Update(ctx context.Context, id uuid.UUID, changes itemmodel
 	return r.commit(ctx, transaction, queries, pgUUID(id))
 }
 
+// ClearPickupPoint возвращает вещь домой. Идемпотентен: у вещи без отметки и у вещи вне
+// оборота снимать нечего, и повтор запроса — то же самое, что первый.
+// Отметку ставит exchange-репозиторий: там она может утянуть за собой переход обмена в
+// доставку, а снять её можно только когда обмена нет, — тянуть нечего.
+func (r *Repository) ClearPickupPoint(ctx context.Context, id uuid.UUID, ownerID uuid.UUID) error {
+	if _, err := r.queries.ClearItemPickupPoint(ctx, db.ClearItemPickupPointParams{
+		ItemID:  pgUUID(id),
+		OwnerID: pgUUID(ownerID),
+	}); err != nil {
+		return fmt.Errorf("clear item pickup point: %w", err)
+	}
+
+	return nil
+}
+
 func (r *Repository) Delete(ctx context.Context, id uuid.UUID) error {
 	deleted, err := r.queries.DeleteItem(ctx, pgUUID(id))
 	if err != nil {

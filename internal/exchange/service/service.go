@@ -22,12 +22,13 @@ const (
 )
 
 var (
-	ErrInvalidCycle      = errors.New("invalid exchange cycle")
-	ErrValidation        = errors.New("invalid exchange input")
-	ErrForbidden         = exchangerepository.ErrNotParticipant
-	ErrConflict          = exchangerepository.ErrConflict
-	ErrNotFound          = exchangerepository.ErrNotFound
-	ErrDuplicateExchange = exchangerepository.ErrDuplicateExchange
+	ErrInvalidCycle       = errors.New("invalid exchange cycle")
+	ErrValidation         = errors.New("invalid exchange input")
+	ErrForbidden          = exchangerepository.ErrNotParticipant
+	ErrConflict           = exchangerepository.ErrConflict
+	ErrNotFound           = exchangerepository.ErrNotFound
+	ErrDuplicateExchange  = exchangerepository.ErrDuplicateExchange
+	ErrUnknownPickupPoint = exchangerepository.ErrUnknownPickupPoint
 )
 
 type Repository interface {
@@ -40,6 +41,7 @@ type Repository interface {
 	DeclineParticipation(context.Context, uuid.UUID, uuid.UUID) ([]exchangemodel.Node, string, error)
 	CancelByAdmin(context.Context, uuid.UUID) ([]exchangemodel.Node, string, error)
 	CompleteParticipation(context.Context, uuid.UUID, uuid.UUID) error
+	RecordItemPickup(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) error
 	ExchangeAccess(context.Context, uuid.UUID, uuid.UUID) (string, bool, error)
 	CreateMessage(context.Context, uuid.UUID, uuid.UUID, string) (exchangemodel.Message, error)
 	ListMessages(context.Context, uuid.UUID) ([]exchangemodel.Message, error)
@@ -369,6 +371,22 @@ func (s *Service) CompleteParticipation(
 	return nil
 }
 
+// RecordItemPickup запоминает пункт, в который владелец отнёс вещь. Живёт в этом сервисе,
+// а не в item: транзакция трогает вещь, обмен и его тред разом, и переход в доставку обязан
+// быть в ней же. Вещь вне обмена сдаётся тем же способом — обмена для этого не требуется.
+func (s *Service) RecordItemPickup(
+	ctx context.Context,
+	itemID uuid.UUID,
+	ownerID uuid.UUID,
+	pickupPointID uuid.UUID,
+) error {
+	if err := s.repository.RecordItemPickup(ctx, itemID, ownerID, pickupPointID); err != nil {
+		return fmt.Errorf("record item pickup: %w", err)
+	}
+
+	return nil
+}
+
 // PostMessage добавляет сообщение участника в тред обмена.
 func (s *Service) PostMessage(
 	ctx context.Context,
@@ -400,8 +418,13 @@ func (s *Service) PostMessage(
 	if !isParticipant {
 		return exchangemodel.Message{}, ErrForbidden
 	}
-	// Тред закрытого обмена остаётся историей сделки и дописывать её уже нельзя.
-	if status != exchangerepository.StatusProposed && status != exchangerepository.StatusConfirmed {
+	// Тред закрытого обмена остаётся историей сделки и дописывать её уже нельзя. Пока
+	// обмен едет, договариваться нужно как раз сильнее всего, поэтому открыты все
+	// незакрытые статусы, включая доставку.
+	switch status {
+	case exchangerepository.StatusProposed, exchangerepository.StatusConfirmed,
+		exchangerepository.StatusDelivering, exchangerepository.StatusDelivered:
+	default:
 		return exchangemodel.Message{}, ErrConflict
 	}
 

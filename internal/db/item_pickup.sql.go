@@ -32,6 +32,20 @@ func (q *Queries) ClearItemPickupPoint(ctx context.Context, arg ClearItemPickupP
 	return result.RowsAffected(), nil
 }
 
+const lockItemPickup = `-- name: LockItemPickup :exec
+SELECT pg_advisory_xact_lock(hashtextextended(($1::uuid)::text, 0))
+`
+
+// Тот же ключ, что LockExchangeDecisionItems берёт на каждую вещь обмена. Сдача вещи и
+// решения по обмену через него выполняются последовательно, а не параллельно, поэтому
+// подтверждение обмена не может проскочить между «есть ли у вещи обмен» и записью пункта.
+// Блокировка здесь ровно одна, а дальше порядок тот же, что во всех остальных операциях —
+// advisory, потом строка обмена, потом строки вещей, — так что цикла ожидания не выходит.
+func (q *Queries) LockItemPickup(ctx context.Context, itemID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, lockItemPickup, itemID)
+	return err
+}
+
 const setItemPickupPoint = `-- name: SetItemPickupPoint :execrows
 UPDATE items
 SET pickup_point_id = $1

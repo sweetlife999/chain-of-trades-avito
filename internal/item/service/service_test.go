@@ -21,6 +21,17 @@ type fakeRepository struct {
 	remove     func(context.Context, uuid.UUID) error
 	categories func(context.Context) ([]itemmodel.Category, error)
 	hasOpen    func(context.Context, uuid.UUID) (bool, error)
+
+	clearedPickupItem  uuid.UUID
+	clearedPickupOwner uuid.UUID
+	clearPickupErr     error
+}
+
+func (f *fakeRepository) ClearPickupPoint(_ context.Context, id uuid.UUID, ownerID uuid.UUID) error {
+	f.clearedPickupItem = id
+	f.clearedPickupOwner = ownerID
+
+	return f.clearPickupErr
 }
 
 func (f *fakeRepository) Create(ctx context.Context, item itemmodel.NewItem) (itemmodel.Item, error) {
@@ -491,6 +502,24 @@ type fakeExchangeFinder struct {
 	err    error
 	node   exchangemodel.Node
 	calls  int
+
+	pickupItem  uuid.UUID
+	pickupOwner uuid.UUID
+	pickupPoint uuid.UUID
+	pickupErr   error
+}
+
+func (f *fakeExchangeFinder) RecordItemPickup(
+	_ context.Context,
+	itemID uuid.UUID,
+	ownerID uuid.UUID,
+	pickupPointID uuid.UUID,
+) error {
+	f.pickupItem = itemID
+	f.pickupOwner = ownerID
+	f.pickupPoint = pickupPointID
+
+	return f.pickupErr
 }
 
 func (f *fakeExchangeFinder) FindAndSave(
@@ -504,6 +533,94 @@ func (f *fakeExchangeFinder) FindAndSave(
 
 func stringPointer(value string) *string {
 	return &value
+}
+
+func TestSetPickupPointDelegatesToExchange(t *testing.T) {
+	t.Parallel()
+
+	ownerID, itemID, pointID := uuid.New(), uuid.New(), uuid.New()
+	repository := &fakeRepository{
+		get: func(context.Context, uuid.UUID) (itemmodel.Item, error) {
+			return itemmodel.Item{ID: itemID, OwnerID: ownerID}, nil
+		},
+	}
+	finder := &fakeExchangeFinder{}
+	service := newWithDependencies(repository, finder, log.Default())
+
+	if err := service.SetPickupPoint(context.Background(), itemID, ownerID, pointID); err != nil {
+		t.Fatalf("SetPickupPoint() error = %v", err)
+	}
+	if finder.pickupItem != itemID || finder.pickupOwner != ownerID || finder.pickupPoint != pointID {
+		t.Fatalf(
+			"RecordItemPickup(%s, %s, %s), want (%s, %s, %s)",
+			finder.pickupItem, finder.pickupOwner, finder.pickupPoint, itemID, ownerID, pointID,
+		)
+	}
+}
+
+func TestSetPickupPointRejectsForeignItem(t *testing.T) {
+	t.Parallel()
+
+	repository := &fakeRepository{
+		get: func(context.Context, uuid.UUID) (itemmodel.Item, error) {
+			return itemmodel.Item{OwnerID: uuid.New()}, nil
+		},
+	}
+	finder := &fakeExchangeFinder{}
+	service := newWithDependencies(repository, finder, log.Default())
+
+	err := service.SetPickupPoint(context.Background(), uuid.New(), uuid.New(), uuid.New())
+	if !errors.Is(err, ErrForbidden) {
+		t.Fatalf("SetPickupPoint() error = %v, want ErrForbidden", err)
+	}
+	if finder.pickupItem != uuid.Nil {
+		t.Fatal("SetPickupPoint() не должен доходить до обмена для чужой вещи")
+	}
+}
+
+// Пока вещь занята в обмене, остальные участники уже рассчитывают на то, что она лежит
+// в пункте: забрать её домой в этот момент нельзя.
+func TestClearPickupPointRejectsItemInChain(t *testing.T) {
+	t.Parallel()
+
+	ownerID := uuid.New()
+	repository := &fakeRepository{
+		get: func(context.Context, uuid.UUID) (itemmodel.Item, error) {
+			return itemmodel.Item{OwnerID: ownerID}, nil
+		},
+		hasOpen: func(context.Context, uuid.UUID) (bool, error) {
+			return true, nil
+		},
+	}
+
+	err := New(repository).ClearPickupPoint(context.Background(), uuid.New(), ownerID)
+	if !errors.Is(err, ErrItemInChain) {
+		t.Fatalf("ClearPickupPoint() error = %v, want ErrItemInChain", err)
+	}
+	if repository.clearedPickupItem != uuid.Nil {
+		t.Fatal("ClearPickupPoint() не должен доходить до repository для вещи в обмене")
+	}
+}
+
+func TestClearPickupPointReturnsItemHome(t *testing.T) {
+	t.Parallel()
+
+	ownerID, itemID := uuid.New(), uuid.New()
+	repository := &fakeRepository{
+		get: func(context.Context, uuid.UUID) (itemmodel.Item, error) {
+			return itemmodel.Item{ID: itemID, OwnerID: ownerID}, nil
+		},
+	}
+
+	if err := New(repository).ClearPickupPoint(context.Background(), itemID, ownerID); err != nil {
+		t.Fatalf("ClearPickupPoint() error = %v", err)
+	}
+	if repository.clearedPickupItem != itemID || repository.clearedPickupOwner != ownerID {
+		t.Fatalf(
+			"ClearPickupPoint(%s, %s), want (%s, %s)",
+			repository.clearedPickupItem, repository.clearedPickupOwner, itemID, ownerID,
+		)
+	}
 }
 
 func photos(n int) []string {

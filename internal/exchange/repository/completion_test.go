@@ -56,6 +56,9 @@ func TestCompleteParticipationFinalizesExchange(t *testing.T) {
 	if !queries.completed {
 		t.Fatal("exchange was not marked completed")
 	}
+	if !queries.pickupCleared {
+		t.Fatal("pickup points were not cleared from traded items")
+	}
 	if !transactions.committed {
 		t.Fatal("finalized exchange was not committed")
 	}
@@ -124,6 +127,20 @@ func TestCompleteParticipationRejectsInvalidState(t *testing.T) {
 			wantErr: ErrConflict,
 		},
 		{
+			name: "exchange has not been delivered yet",
+			prepare: func(queries *fakeExchangeWriteQueries) {
+				queries.chainStatus = db.ChainStatusConfirmed
+			},
+			wantErr: ErrConflict,
+		},
+		{
+			name: "exchange is still being delivered",
+			prepare: func(queries *fakeExchangeWriteQueries) {
+				queries.chainStatus = db.ChainStatusDelivering
+			},
+			wantErr: ErrConflict,
+		},
+		{
 			name: "item is not reserved",
 			prepare: func(queries *fakeExchangeWriteQueries) {
 				queries.items = []db.LockExchangeItemsRow{{Status: db.ItemStatusAvailable}}
@@ -163,7 +180,9 @@ func TestCompleteParticipationRejectsInvalidState(t *testing.T) {
 
 func completionQueries() *fakeExchangeWriteQueries {
 	return &fakeExchangeWriteQueries{
-		chainStatus: db.ChainStatusConfirmed,
+		// Получение подтверждают после того, как пункты выдали вещи, поэтому исходное
+		// состояние успешного сценария — delivered, а не confirmed.
+		chainStatus: db.ChainStatusDelivered,
 		completionParticipant: db.LockExchangeCompletionParticipantRow{
 			Status: db.ParticipantStatusAccepted,
 		},

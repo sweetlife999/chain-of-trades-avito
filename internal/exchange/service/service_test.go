@@ -1034,6 +1034,10 @@ type fakeRepository struct {
 	completedExchangeID uuid.UUID
 	completedUserID     uuid.UUID
 	completeErr         error
+	pickupItemID        uuid.UUID
+	pickupOwnerID       uuid.UUID
+	pickupPointID       uuid.UUID
+	pickupErr           error
 	accessStatus        string
 	accessIsParticipant bool
 	accessErr           error
@@ -1198,6 +1202,19 @@ type fakeAdminCancellation struct {
 	recovery   []exchangemodel.Node
 	signature  string
 	err        error
+}
+
+func (f *fakeRepository) RecordItemPickup(
+	_ context.Context,
+	itemID uuid.UUID,
+	ownerID uuid.UUID,
+	pickupPointID uuid.UUID,
+) error {
+	f.pickupItemID = itemID
+	f.pickupOwnerID = ownerID
+	f.pickupPointID = pickupPointID
+
+	return f.pickupErr
 }
 
 func (f *fakeRepository) CompleteParticipation(
