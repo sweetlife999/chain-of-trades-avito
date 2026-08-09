@@ -17,8 +17,10 @@ import (
 )
 
 const (
-	maxParticipants  = 5
-	maxSearchResults = 10
+	maxParticipants       = 5
+	maxSearchResults      = 10
+	maxRankingCandidates  = 100
+	rankingPoolMultiplier = 10
 	// Тред нужен, чтобы договориться о передаче вещей, а не для длинных писем.
 	maxMessageLength = 2000
 )
@@ -37,6 +39,7 @@ var (
 type Repository interface {
 	FindNeighbors(context.Context, uuid.UUID) ([]exchangemodel.Node, error)
 	HasUserBlockConflict(context.Context, uuid.UUID, []uuid.UUID) (bool, error)
+	GetSearchUserStats(context.Context, []uuid.UUID) (map[uuid.UUID]exchangemodel.SearchUserStats, error)
 	SaveExchange(context.Context, exchangemodel.Exchange) (uuid.UUID, error)
 	ListByUser(context.Context, uuid.UUID) ([]exchangemodel.Details, error)
 	GetByID(context.Context, uuid.UUID, uuid.UUID) (exchangemodel.Details, error)
@@ -298,43 +301,91 @@ func (s *Service) findAndSave(
 		excludedCompositions = make(map[string]struct{})
 	}
 	exchangeIDs := make([]uuid.UUID, 0, limit)
+	candidateLimit := min(limit*rankingPoolMultiplier, maxRankingCandidates)
 
-	for _, start := range starts {
-		for len(exchangeIDs) < limit {
-			cycles, err := s.findCycles(
-				ctx,
-				start,
-				limit-len(exchangeIDs),
-				excludedCompositions,
-			)
+	for len(exchangeIDs) < limit {
+		cycles, err := s.findCandidateCycles(ctx, starts, candidateLimit, excludedCompositions)
+		if err != nil {
+			return exchangeIDs, fmt.Errorf("search exchanges: %w", err)
+		}
+		if len(cycles) == 0 {
+			break
+		}
+
+		userIDs := cycleOwnerIDs(cycles)
+		stats, err := s.repository.GetSearchUserStats(ctx, userIDs)
+		if err != nil {
+			return exchangeIDs, fmt.Errorf("load exchange ranking stats: %w", err)
+		}
+
+		for _, cycle := range exchangesearch.RankCycles(cycles, stats) {
+			exchangeID, err := s.SaveCycle(ctx, cycle)
+			if errors.Is(err, ErrDuplicateExchange) || errors.Is(err, ErrStaleSearchResult) {
+				continue
+			}
 			if err != nil {
-				return exchangeIDs, fmt.Errorf("search exchanges: %w", err)
-			}
-			if len(cycles) == 0 {
-				break
+				return exchangeIDs, fmt.Errorf("persist found exchange: %w", err)
 			}
 
-			for _, cycle := range cycles {
-				composition := compositionKey(cycle)
-				excludedCompositions[composition] = struct{}{}
-
-				exchangeID, err := s.SaveCycle(ctx, cycle)
-				if errors.Is(err, ErrDuplicateExchange) || errors.Is(err, ErrStaleSearchResult) {
-					continue
-				}
-				if err != nil {
-					return exchangeIDs, fmt.Errorf("persist found exchange: %w", err)
-				}
-
-				exchangeIDs = append(exchangeIDs, exchangeID)
-				if len(exchangeIDs) == limit {
-					return exchangeIDs, nil
-				}
+			exchangeIDs = append(exchangeIDs, exchangeID)
+			if len(exchangeIDs) == limit {
+				return exchangeIDs, nil
 			}
+		}
+
+		// A partially filled pool means every start node was exhausted. A full
+		// pool may have more candidates, so another batch is useful when some
+		// ranked candidates became duplicate or stale before persistence.
+		if len(cycles) < candidateLimit {
+			break
 		}
 	}
 
 	return exchangeIDs, nil
+}
+
+func (s *Service) findCandidateCycles(
+	ctx context.Context,
+	starts []exchangemodel.Node,
+	limit int,
+	excludedCompositions map[string]struct{},
+) ([][]exchangemodel.Node, error) {
+	cycles := make([][]exchangemodel.Node, 0, limit)
+	for _, start := range starts {
+		if len(cycles) == limit {
+			break
+		}
+
+		found, err := s.findCycles(ctx, start, limit-len(cycles), excludedCompositions)
+		if err != nil {
+			return nil, err
+		}
+		for _, cycle := range found {
+			excludedCompositions[compositionKey(cycle)] = struct{}{}
+			cycles = append(cycles, cycle)
+		}
+	}
+
+	return cycles, nil
+}
+
+func cycleOwnerIDs(cycles [][]exchangemodel.Node) []uuid.UUID {
+	unique := make(map[uuid.UUID]struct{})
+	for _, cycle := range cycles {
+		for _, node := range cycle {
+			unique[node.OwnerID] = struct{}{}
+		}
+	}
+
+	userIDs := make([]uuid.UUID, 0, len(unique))
+	for userID := range unique {
+		userIDs = append(userIDs, userID)
+	}
+	sort.Slice(userIDs, func(first, second int) bool {
+		return userIDs[first].String() < userIDs[second].String()
+	})
+
+	return userIDs
 }
 
 func (s *Service) ListForUser(ctx context.Context, userID uuid.UUID) ([]exchangemodel.Details, error) {

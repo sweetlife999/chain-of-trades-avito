@@ -593,6 +593,95 @@ func TestFindAndSaveAllSavesSeveralAlternatives(t *testing.T) {
 	}
 }
 
+func TestFindAndSaveAllRanksCandidatesBeforeSaving(t *testing.T) {
+	t.Parallel()
+
+	start := testNode(1)
+	lowRated := testNode(2)
+	highRated := testNode(3)
+	repository := &fakeRepository{
+		neighbors: map[uuid.UUID][]exchangemodel.Node{
+			start.ItemID:     {lowRated, highRated},
+			lowRated.ItemID:  {start},
+			highRated.ItemID: {start},
+		},
+		searchStats: map[uuid.UUID]exchangemodel.SearchUserStats{
+			start.OwnerID:     {UserID: start.OwnerID, Rating: 3},
+			lowRated.OwnerID:  {UserID: lowRated.OwnerID, Rating: 1},
+			highRated.OwnerID: {UserID: highRated.OwnerID, Rating: 5},
+		},
+		savedExchangeID: uuid.New(),
+	}
+
+	result, err := New(repository).FindAndSaveAll(context.Background(), start)
+	if err != nil {
+		t.Fatalf("FindAndSaveAll() error = %v", err)
+	}
+	if len(result.ExchangeIDs) != 2 || len(repository.savedExchanges) != 2 {
+		t.Fatalf("results = %d, saves = %d, want 2", len(result.ExchangeIDs), len(repository.savedExchanges))
+	}
+	if repository.savedExchanges[0].Participants[1].GivesItemID != highRated.ItemID {
+		t.Fatalf("first saved exchange = %+v, want high-rated alternative", repository.savedExchanges[0])
+	}
+}
+
+func TestFindAndSaveAllRanksBeyondResultLimit(t *testing.T) {
+	t.Parallel()
+
+	start := testNode(1)
+	alternatives := make([]exchangemodel.Node, maxSearchResults+2)
+	neighbors := make(map[uuid.UUID][]exchangemodel.Node, len(alternatives)+1)
+	stats := map[uuid.UUID]exchangemodel.SearchUserStats{
+		start.OwnerID: {UserID: start.OwnerID, Rating: 3},
+	}
+	for index := range alternatives {
+		alternatives[index] = testNode(byte(index + 2))
+		neighbors[alternatives[index].ItemID] = []exchangemodel.Node{start}
+		stats[alternatives[index].OwnerID] = exchangemodel.SearchUserStats{
+			UserID: alternatives[index].OwnerID,
+			Rating: 1,
+		}
+	}
+	best := alternatives[len(alternatives)-1]
+	stats[best.OwnerID] = exchangemodel.SearchUserStats{UserID: best.OwnerID, Rating: 5}
+	neighbors[start.ItemID] = alternatives
+	repository := &fakeRepository{
+		neighbors:       neighbors,
+		searchStats:     stats,
+		savedExchangeID: uuid.New(),
+	}
+
+	result, err := New(repository).FindAndSaveAll(context.Background(), start)
+	if err != nil {
+		t.Fatalf("FindAndSaveAll() error = %v", err)
+	}
+	if len(result.ExchangeIDs) != maxSearchResults {
+		t.Fatalf("results = %d, want %d", len(result.ExchangeIDs), maxSearchResults)
+	}
+	if repository.savedExchanges[0].Participants[1].GivesItemID != best.ItemID {
+		t.Fatalf("first saved exchange = %+v, want best candidate beyond output limit", repository.savedExchanges[0])
+	}
+}
+
+func TestFindAndSaveRankingStatsError(t *testing.T) {
+	t.Parallel()
+
+	databaseError := errors.New("stats unavailable")
+	nodes := makeNodes(2)
+	repository := &fakeRepository{
+		neighbors:        cycleGraph(nodes),
+		searchStatsError: databaseError,
+	}
+
+	_, err := New(repository).FindAndSave(context.Background(), nodes[0])
+	if !errors.Is(err, databaseError) {
+		t.Fatalf("FindAndSave() error = %v, want wrapped %v", err, databaseError)
+	}
+	if repository.saveCalls != 0 {
+		t.Fatalf("SaveExchange() calls = %d, want 0", repository.saveCalls)
+	}
+}
+
 func TestFindAndSaveAllSkipsDuplicateAndStaleCandidates(t *testing.T) {
 	t.Parallel()
 
@@ -1272,6 +1361,9 @@ type fakeRepository struct {
 	blockConflicts      map[uuid.UUID]bool
 	blockConflictErrors map[uuid.UUID]error
 	blockChecks         map[uuid.UUID][]uuid.UUID
+	searchStats         map[uuid.UUID]exchangemodel.SearchUserStats
+	searchStatsError    error
+	searchStatsUserIDs  []uuid.UUID
 	completedExchangeID uuid.UUID
 	completedUserID     uuid.UUID
 	completeErr         error
@@ -1376,6 +1468,14 @@ func (f *fakeRepository) HasUserBlockConflict(
 		return false, err
 	}
 	return f.blockConflicts[candidateUserID], nil
+}
+
+func (f *fakeRepository) GetSearchUserStats(
+	_ context.Context,
+	userIDs []uuid.UUID,
+) (map[uuid.UUID]exchangemodel.SearchUserStats, error) {
+	f.searchStatsUserIDs = append([]uuid.UUID(nil), userIDs...)
+	return f.searchStats, f.searchStatsError
 }
 
 func (f *fakeRepository) SaveExchange(
