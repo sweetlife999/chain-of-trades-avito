@@ -87,6 +87,33 @@ UPDATE chains
 SET status = 'confirmed'
 WHERE id = sqlc.arg(exchange_id);
 
+-- Вещь может лежать в нескольких предложенных обменах, но подтверждённый у неё ровно
+-- один: подтверждение резервирует её вещи и гасит конкурентов. Поэтому :one, а pgx.ErrNoRows
+-- здесь — нормальный ответ «вещь ни в каком подтверждённом обмене не участвует».
+-- name: FindConfirmedExchangeForItem :one
+SELECT exchange.id
+FROM chains AS exchange
+JOIN chain_participants AS participant ON participant.chain_id = exchange.id
+WHERE participant.gives_item_id = sqlc.arg(item_id)
+  AND exchange.status = 'confirmed';
+
+-- Переход в доставку — одно выражение, а не «прочитать вещи в Go и потом записать статус»:
+-- иначе проверка гонялась бы с параллельной сдачей вещи соседом. Условие status = 'confirmed'
+-- делает вызов идемпотентным, поэтому его безопасно дёргать и из сдачи вещи, и из последнего
+-- подтверждения участия. closed_at не трогаем: обмен не закрыт, он едет.
+-- name: PromoteExchangeToDelivering :execrows
+UPDATE chains
+SET status = 'delivering'
+WHERE chains.id = sqlc.arg(exchange_id)
+  AND chains.status = 'confirmed'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM chain_participants AS participant
+      JOIN items AS item ON item.id = participant.gives_item_id
+      WHERE participant.chain_id = sqlc.arg(exchange_id)
+        AND item.pickup_point_id IS NULL
+  );
+
 -- После победы одного обмена все ещё открытые предложения с любым общим
 -- объявлением больше не выполнимы и сразу закрываются для frontend. Отмена и запись
 -- события в тред каждой отменённой цепочки — одно выражение: участник не может

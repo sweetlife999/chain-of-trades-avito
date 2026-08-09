@@ -27,6 +27,18 @@ WHERE id IN (
 )
   AND status = 'reserved';
 
+-- Вещи разъехались по новым владельцам, поэтому пункт хранения обнуляется вместе с
+-- переходом в traded: иначе завершённая вещь навсегда осталась бы «лежащей в ПВЗ» и
+-- держала бы его от удаления внешним ключом.
+-- name: ClearExchangeItemsPickupPoint :exec
+UPDATE items
+SET pickup_point_id = NULL
+WHERE id IN (
+    SELECT gives_item_id
+    FROM chain_participants
+    WHERE chain_id = sqlc.arg(exchange_id)
+);
+
 -- name: CompleteExchange :exec
 UPDATE chains
 SET status = 'completed',
