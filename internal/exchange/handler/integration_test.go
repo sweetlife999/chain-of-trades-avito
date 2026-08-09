@@ -101,10 +101,8 @@ func TestThreeUserExchangeIntegration(t *testing.T) {
 	}
 }
 
-// deliverExchange доводит подтверждённый обмен до состояния, из которого участники могут
-// подтверждать получение: вещи уезжают в пункт, а перевод «доставка -> доставлено» делает
-// администратор. Его ручка живёт вне этой задачи, поэтому здесь она заменена запросом.
-func deliverExchange(ctx context.Context, t *testing.T, pool *pgxpool.Pool, exchangeID uuid.UUID) {
+// Имя с префиксом integration-: по нему пункты вычищает cleanupIntegrationData.
+func createPickupPoint(ctx context.Context, t *testing.T, pool *pgxpool.Pool) uuid.UUID {
 	t.Helper()
 
 	var pointID uuid.UUID
@@ -116,7 +114,18 @@ func deliverExchange(ctx context.Context, t *testing.T, pool *pgxpool.Pool, exch
 		t.Fatalf("create pickup point: %v", err)
 	}
 
-	_, err = pool.Exec(ctx, `
+	return pointID
+}
+
+// deliverExchange доводит подтверждённый обмен до состояния, из которого участники могут
+// подтверждать получение: вещи уезжают в пункт, а перевод «доставка -> доставлено» делает
+// администратор. Его ручка живёт вне этой задачи, поэтому здесь она заменена запросом.
+func deliverExchange(ctx context.Context, t *testing.T, pool *pgxpool.Pool, exchangeID uuid.UUID) {
+	t.Helper()
+
+	pointID := createPickupPoint(ctx, t, pool)
+
+	_, err := pool.Exec(ctx, `
 		UPDATE items
 		SET pickup_point_id = $2
 		WHERE id IN (SELECT gives_item_id FROM chain_participants WHERE chain_id = $1)`,
