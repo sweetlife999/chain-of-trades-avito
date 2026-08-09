@@ -30,6 +30,7 @@ type fakeExchanges struct {
 	listErr    error
 	countErr   error
 	gotUserID  uuid.UUID
+	gotStatus  string
 	gotLimit   int32
 	gotOffset  int32
 	listCalled bool
@@ -49,6 +50,24 @@ func (f *fakeExchanges) ListActiveByUser(
 }
 
 func (f *fakeExchanges) CountActiveByUser(context.Context, uuid.UUID) (int64, error) {
+	return f.total, f.countErr
+}
+
+func (f *fakeExchanges) ListActiveForAdmin(
+	_ context.Context,
+	status string,
+	limit int32,
+	offset int32,
+) ([]exchangemodel.Details, error) {
+	f.listCalled = true
+	f.gotStatus = status
+	f.gotLimit = limit
+	f.gotOffset = offset
+	return f.items, f.listErr
+}
+
+func (f *fakeExchanges) CountActiveForAdmin(_ context.Context, status string) (int64, error) {
+	f.gotStatus = status
 	return f.total, f.countErr
 }
 
@@ -142,5 +161,69 @@ func TestListActiveByUserWrapsRepositoryErrors(t *testing.T) {
 		ListActiveByUser(context.Background(), uuid.New(), DefaultLimit, 0)
 	if !errors.Is(err, databaseError) {
 		t.Fatalf("error = %v, want wrapped %v", err, databaseError)
+	}
+}
+
+func TestListActiveFiltersByStatus(t *testing.T) {
+	t.Parallel()
+
+	exchangeID := uuid.New()
+	exchanges := &fakeExchanges{
+		items: []exchangemodel.Details{{ID: exchangeID, Status: "delivering"}},
+		total: 2,
+	}
+
+	page, err := New(&fakeUsers{}, exchanges).
+		ListActive(context.Background(), "delivering", 10, 5)
+	if err != nil {
+		t.Fatalf("ListActive() error = %v", err)
+	}
+	if exchanges.gotStatus != "delivering" || exchanges.gotLimit != 10 || exchanges.gotOffset != 5 {
+		t.Fatalf("arguments = %q, %d, %d", exchanges.gotStatus, exchanges.gotLimit, exchanges.gotOffset)
+	}
+	if len(page.Exchanges) != 1 || page.Exchanges[0].ID != exchangeID || page.Total != 2 {
+		t.Fatalf("page = %+v", page)
+	}
+}
+
+func TestListActiveReturnsEmptyArray(t *testing.T) {
+	t.Parallel()
+
+	page, err := New(&fakeUsers{}, &fakeExchanges{}).
+		ListActive(context.Background(), "delivering", DefaultLimit, 0)
+	if err != nil {
+		t.Fatalf("ListActive() error = %v", err)
+	}
+	if page.Exchanges == nil {
+		t.Fatal("Exchanges = nil, want []")
+	}
+}
+
+func TestListActiveValidationStopsBeforeRepository(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		status string
+		limit  int32
+		offset int32
+	}{
+		{name: "missing status", limit: DefaultLimit},
+		{name: "unknown status", status: "cancelled", limit: DefaultLimit},
+		{name: "zero limit", status: "delivering"},
+		{name: "negative offset", status: "delivering", limit: DefaultLimit, offset: -1},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			exchanges := &fakeExchanges{}
+			_, err := New(&fakeUsers{}, exchanges).
+				ListActive(context.Background(), test.status, test.limit, test.offset)
+			if !errors.Is(err, ErrValidation) {
+				t.Fatalf("error = %v, want %v", err, ErrValidation)
+			}
+			if exchanges.listCalled {
+				t.Fatal("repository called for invalid request")
+			}
+		})
 	}
 }

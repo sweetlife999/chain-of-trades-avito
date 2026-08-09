@@ -15,7 +15,7 @@ type ListResponse struct {
 
 type ExchangeResponse struct {
 	ID           string                            `json:"id"`
-	Status       string                            `json:"status" enums:"proposed,confirmed"`
+	Status       string                            `json:"status" enums:"proposed,confirmed,delivering,delivered"`
 	Participants []exchangedto.ParticipantResponse `json:"participants"`
 	CreatedAt    time.Time                         `json:"created_at"`
 	UpdatedAt    time.Time                         `json:"updated_at"`

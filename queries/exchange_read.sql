@@ -131,14 +131,26 @@ LEFT JOIN pickup_points AS receives_pickup
 WHERE exchange.id = sqlc.arg(exchange_id)
 ORDER BY participant.position;
 
--- name: ListActiveExchangesByUserForAdmin :many
+-- Общий список для администратора: существующая ручка фильтрует его по user_id,
+-- очередь доставки — по status. Пустой status означает любой активный этап.
+-- name: ListActiveExchangesForAdmin :many
 WITH selected_exchanges AS (
     SELECT exchange.id, exchange.created_at
     FROM chains AS exchange
-    JOIN chain_participants AS selected_participant
-        ON selected_participant.chain_id = exchange.id
-       AND selected_participant.user_id = sqlc.arg(user_id)
     WHERE exchange.status IN ('proposed', 'confirmed', 'delivering', 'delivered')
+      AND (
+          sqlc.narg(user_id)::uuid IS NULL
+          OR EXISTS (
+              SELECT 1
+              FROM chain_participants AS selected_participant
+              WHERE selected_participant.chain_id = exchange.id
+                AND selected_participant.user_id = sqlc.narg(user_id)::uuid
+          )
+      )
+      AND (
+          sqlc.arg(exchange_status)::text = ''
+          OR exchange.status::text = sqlc.arg(exchange_status)::text
+      )
     ORDER BY exchange.created_at DESC, exchange.id
     LIMIT sqlc.arg(page_limit)
     OFFSET sqlc.arg(page_offset)
@@ -197,10 +209,20 @@ LEFT JOIN pickup_points AS receives_pickup
     ON receives_pickup.id = receives_item.pickup_point_id
 ORDER BY exchange.created_at DESC, exchange.id, participant.position;
 
--- name: CountActiveExchangesByUserForAdmin :one
+-- name: CountActiveExchangesForAdmin :one
 SELECT count(*)
 FROM chains AS exchange
-JOIN chain_participants AS participant
-    ON participant.chain_id = exchange.id
-   AND participant.user_id = sqlc.arg(user_id)
-WHERE exchange.status IN ('proposed', 'confirmed', 'delivering', 'delivered');
+WHERE exchange.status IN ('proposed', 'confirmed', 'delivering', 'delivered')
+  AND (
+      sqlc.narg(user_id)::uuid IS NULL
+      OR EXISTS (
+          SELECT 1
+          FROM chain_participants AS selected_participant
+          WHERE selected_participant.chain_id = exchange.id
+            AND selected_participant.user_id = sqlc.narg(user_id)::uuid
+      )
+  )
+  AND (
+      sqlc.arg(exchange_status)::text = ''
+      OR exchange.status::text = sqlc.arg(exchange_status)::text
+  );

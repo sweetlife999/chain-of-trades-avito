@@ -11,17 +11,32 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const countActiveExchangesByUserForAdmin = `-- name: CountActiveExchangesByUserForAdmin :one
+const countActiveExchangesForAdmin = `-- name: CountActiveExchangesForAdmin :one
 SELECT count(*)
 FROM chains AS exchange
-JOIN chain_participants AS participant
-    ON participant.chain_id = exchange.id
-   AND participant.user_id = $1
 WHERE exchange.status IN ('proposed', 'confirmed', 'delivering', 'delivered')
+  AND (
+      $1::uuid IS NULL
+      OR EXISTS (
+          SELECT 1
+          FROM chain_participants AS selected_participant
+          WHERE selected_participant.chain_id = exchange.id
+            AND selected_participant.user_id = $1::uuid
+      )
+  )
+  AND (
+      $2::text = ''
+      OR exchange.status::text = $2::text
+  )
 `
 
-func (q *Queries) CountActiveExchangesByUserForAdmin(ctx context.Context, userID pgtype.UUID) (int64, error) {
-	row := q.db.QueryRow(ctx, countActiveExchangesByUserForAdmin, userID)
+type CountActiveExchangesForAdminParams struct {
+	UserID         pgtype.UUID
+	ExchangeStatus string
+}
+
+func (q *Queries) CountActiveExchangesForAdmin(ctx context.Context, arg CountActiveExchangesForAdminParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countActiveExchangesForAdmin, arg.UserID, arg.ExchangeStatus)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -184,17 +199,27 @@ func (q *Queries) GetExchangeByID(ctx context.Context, arg GetExchangeByIDParams
 	return items, nil
 }
 
-const listActiveExchangesByUserForAdmin = `-- name: ListActiveExchangesByUserForAdmin :many
+const listActiveExchangesForAdmin = `-- name: ListActiveExchangesForAdmin :many
 WITH selected_exchanges AS (
     SELECT exchange.id, exchange.created_at
     FROM chains AS exchange
-    JOIN chain_participants AS selected_participant
-        ON selected_participant.chain_id = exchange.id
-       AND selected_participant.user_id = $1
     WHERE exchange.status IN ('proposed', 'confirmed', 'delivering', 'delivered')
+      AND (
+          $1::uuid IS NULL
+          OR EXISTS (
+              SELECT 1
+              FROM chain_participants AS selected_participant
+              WHERE selected_participant.chain_id = exchange.id
+                AND selected_participant.user_id = $1::uuid
+          )
+      )
+      AND (
+          $2::text = ''
+          OR exchange.status::text = $2::text
+      )
     ORDER BY exchange.created_at DESC, exchange.id
-    LIMIT $3
-    OFFSET $2
+    LIMIT $4
+    OFFSET $3
 )
 SELECT
     exchange.id          AS exchange_id,
@@ -250,13 +275,14 @@ LEFT JOIN pickup_points AS receives_pickup
 ORDER BY exchange.created_at DESC, exchange.id, participant.position
 `
 
-type ListActiveExchangesByUserForAdminParams struct {
-	UserID     pgtype.UUID
-	PageOffset int32
-	PageLimit  int32
+type ListActiveExchangesForAdminParams struct {
+	UserID         pgtype.UUID
+	ExchangeStatus string
+	PageOffset     int32
+	PageLimit      int32
 }
 
-type ListActiveExchangesByUserForAdminRow struct {
+type ListActiveExchangesForAdminRow struct {
 	ExchangeID                 pgtype.UUID
 	ExchangeStatus             ChainStatus
 	ExchangeCreatedAt          pgtype.Timestamptz
@@ -290,16 +316,23 @@ type ListActiveExchangesByUserForAdminRow struct {
 	UnreadCount                int64
 }
 
+// Общий список для администратора: существующая ручка фильтрует его по user_id,
+// очередь доставки — по status. Пустой status означает любой активный этап.
 // LEFT: вещь дома пункта не имеет, INNER выбросил бы её участника из ответа целиком.
-func (q *Queries) ListActiveExchangesByUserForAdmin(ctx context.Context, arg ListActiveExchangesByUserForAdminParams) ([]ListActiveExchangesByUserForAdminRow, error) {
-	rows, err := q.db.Query(ctx, listActiveExchangesByUserForAdmin, arg.UserID, arg.PageOffset, arg.PageLimit)
+func (q *Queries) ListActiveExchangesForAdmin(ctx context.Context, arg ListActiveExchangesForAdminParams) ([]ListActiveExchangesForAdminRow, error) {
+	rows, err := q.db.Query(ctx, listActiveExchangesForAdmin,
+		arg.UserID,
+		arg.ExchangeStatus,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListActiveExchangesByUserForAdminRow
+	var items []ListActiveExchangesForAdminRow
 	for rows.Next() {
-		var i ListActiveExchangesByUserForAdminRow
+		var i ListActiveExchangesForAdminRow
 		if err := rows.Scan(
 			&i.ExchangeID,
 			&i.ExchangeStatus,
