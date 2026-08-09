@@ -22,9 +22,19 @@ const ButtonComponent = ({
   disabled,
   className,
 }: TButton): JSX.Element => {
+  const buttonClassName = [
+    styles.button,
+    styles[`button_${color}`],
+    styles[`button_${size}`],
+    centered ? styles.button_centered : "",
+    className ?? "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <button
-      className={`${styles.button} ${styles[`button_${color}`]} ${styles[`button_${size}`]} ${centered && styles.button_centered} ${className}`}
+      className={buttonClassName}
       onClick={onClick}
       type={type}
       disabled={disabled}

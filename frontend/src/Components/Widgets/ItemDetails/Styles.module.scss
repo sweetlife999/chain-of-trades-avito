@@ -1,60 +1,83 @@
 .item {
   width: 100%;
 
-  > a {
+  &__back {
+    display: inline-flex;
+    padding: 6px 0;
     color: $green-button;
+    border-radius: 6px;
+
+    &:hover { color: $light-green-button; }
+    &:focus-visible { outline: 3px solid rgba($green-button, .18); }
   }
 
   &__grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 40px;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 1fr);
+    gap: clamp(24px, 5vw, 48px);
     margin-top: 24px;
   }
 
   &__photos {
     display: grid;
+    align-content: start;
+    min-width: 0;
     gap: 12px;
+  }
 
-    img {
-      width: 100%;
-      max-height: 460px;
-      object-fit: cover;
-      border-radius: $border-radius;
-    }
+  &__photo {
+    width: 100%;
+    max-height: min(60vh, 540px);
+    object-fit: cover;
+    border-radius: $border-radius;
   }
 
   &__info {
     display: grid;
     align-content: start;
     justify-items: start;
+    min-width: 0;
     gap: 16px;
-
-    > span {
-      padding: 6px 10px;
-      border-radius: 14px;
-    }
-
-    h1 {
-      font-size: 32px;
-    }
-
-    p {
-      line-height: 1.5;
-    }
   }
+
+  &__status,
+  &__want {
+    padding: 6px 10px;
+    border-radius: 14px;
+  }
+
+  &__status {
+    &_available { color: #166534; background: #e4f7ea; }
+    &_reserved { color: #155b89; background: #e3f2ff; }
+    &_traded { color: #5b21b6; background: #f0e8ff; }
+    &_withdrawn { color: #555; background: #eee; }
+  }
+
+  &__title {
+    max-width: 100%;
+    font-size: clamp(26px, 4vw, 36px);
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+  }
+
+  &__category { color: #747a81; }
+
+  &__description {
+    max-width: 70ch;
+    color: #373b40;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+  }
+
+  &__wantsTitle { font-size: clamp(18px, 2.4vw, 22px); }
 
   &__wants {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-
-    span {
-      padding: 6px 10px;
-      background: #edf8f1;
-      border-radius: 14px;
-    }
   }
+
+  &__want { background: #edf8f1; }
 
   &__actions {
     display: flex;
@@ -62,30 +85,22 @@
     gap: 12px;
     margin-top: 8px;
   }
+
+  &__state {
+    padding: 32px;
+    color: #666;
+    text-align: center;
+
+    &_error {
+      @extend .item__state;
+      color: #991b1b;
+    }
+  }
 }
 
-.status_available {
-  color: #166534;
-  background: #e4f7ea;
-}
-
-.status_reserved {
-  color: #155b89;
-  background: #e3f2ff;
-}
-
-.status_traded {
-  color: #5b21b6;
-  background: #f0e8ff;
-}
-
-.status_withdrawn {
-  color: #555;
-  background: #eee;
-}
-
-@media (max-width: 700px) {
-  .item__grid {
-    grid-template-columns: 1fr;
+@media (max-width: 760px) {
+  .item {
+    &__grid { grid-template-columns: 1fr; }
+    &__actions { width: 100%; }
   }
 }

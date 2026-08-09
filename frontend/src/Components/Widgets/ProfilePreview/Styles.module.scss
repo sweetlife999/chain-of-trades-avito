@@ -4,7 +4,8 @@
   display: inline-flex;
   align-items: center;
 
-  &:hover {
+  &:hover,
+  &:focus-within {
     .profile__content {
       transform: translateY(-1px);
     }
@@ -120,9 +121,10 @@
     background-color: #fff;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 
-    > button {
-      width: 100%;
-    }
+  }
+
+  &__logout {
+    width: 100%;
   }
 }
 
@@ -138,13 +140,11 @@
     }
 
     &__nickname {
-      max-width: 90px;
-
-      font-size: 14px;
+      display: none;
     }
 
     &__rating {
-      font-size: 14px;
+      display: none;
     }
 
     &__star {

@@ -1,5 +1,5 @@
 .chat {
-  max-width: 760px;
+  width: min(100%, 760px);
   margin: 24px auto 0;
   overflow: hidden;
   background: #fff;
@@ -14,15 +14,17 @@
     padding: 22px 24px;
     border-bottom: 1px solid #eee;
 
-    h2 { margin: 0 0 6px; font-size: 20px; }
-    p { margin: 0; color: #666; font-size: 13px; }
-    > span { color: #777; font-size: 11px; white-space: nowrap; }
   }
+
+  &__heading { display: grid; min-width: 0; gap: 6px; }
+  &__title { font-size: clamp(18px, 3vw, 20px); }
+  &__description { color: #666; font-size: 13px; line-height: 1.45; }
+  &__mode { color: #777; font-size: 11px; white-space: nowrap; }
 
   &__messages {
     display: flex;
-    min-height: 280px;
-    max-height: 430px;
+    min-height: min(280px, 45dvh);
+    max-height: min(430px, 55dvh);
     padding: 20px 24px;
     overflow-y: auto;
     flex-direction: column;
@@ -64,10 +66,6 @@
       }
     }
 
-    strong { font-size: 11px; }
-    p { margin: 0; font-size: 13px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
-    time { justify-self: end; color: #888; font-size: 10px; }
-
     &_own {
       align-self: flex-end;
 
@@ -78,6 +76,21 @@
         border-radius: 12px 12px 4px;
       }
     }
+  }
+
+  &__authorName { font-size: 11px; }
+
+  &__messageText {
+    font-size: 13px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  &__messageTime {
+    justify-self: end;
+    color: #888;
+    font-size: 10px;
   }
 
   &__reportAction {
@@ -113,12 +126,9 @@
     background: #f59e0b;
     border-radius: 50%;
 
-    img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
   }
+
+  &__avatarImage { width: 100%; height: 100%; object-fit: cover; }
 
   &__systemAuthor {
     color: #444;
@@ -140,8 +150,10 @@
     background: #eceff2;
     border-radius: 999px;
 
-    time { color: #8a8a8a; font-size: 10px; }
   }
+
+  &__systemText { line-height: 1.35; }
+  &__systemTime { color: #8a8a8a; font-size: 10px; }
 
   &__form {
     display: grid;
@@ -149,20 +161,23 @@
     padding: 18px 24px;
     border-top: 1px solid #eee;
 
-    textarea {
-      width: 100%;
-      min-height: 70px;
-      padding: 12px;
-      resize: vertical;
-      border: 1px solid #ddd;
-      border-radius: 10px;
-      outline: none;
-      font: inherit;
-      font-size: 13px;
-      line-height: 1.45;
+  }
 
-      &:focus { border-color: $green-button; }
-    }
+  &__textarea {
+    width: 100%;
+    min-height: 70px;
+    padding: 12px;
+    resize: vertical;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    outline: none;
+    font: inherit;
+    font-size: 13px;
+    line-height: 1.45;
+    transition: border-color .2s ease, box-shadow .2s ease;
+
+    &:hover { border-color: #a9cdb9; }
+    &:focus { border-color: $green-button; box-shadow: 0 0 0 4px rgba($green-button, .12); }
   }
 
   &__formFooter {
@@ -171,21 +186,24 @@
     justify-content: space-between;
     gap: 12px;
 
-    span { color: #888; font-size: 11px; }
-
-    button {
-      padding: 10px 18px;
-      color: #fff;
-      background: $green-button;
-      border: 0;
-      border-radius: 8px;
-
-      &:disabled {
-        cursor: not-allowed;
-        opacity: .55;
-      }
-    }
   }
+
+  &__counter { color: #888; font-size: 11px; }
+
+  &__submit {
+    padding: 10px 18px;
+    color: #fff;
+    background: $green-button;
+    border-radius: 8px;
+    transition: background-color .2s ease, transform .15s ease;
+
+    &:hover:not(:disabled) { background: $light-green-button; }
+    &:active:not(:disabled) { transform: translateY(1px); }
+    &:focus-visible { outline: 3px solid rgba($green-button, .2); }
+    &:disabled { cursor: not-allowed; opacity: .55; }
+  }
+
+  &__end { min-height: 1px; }
 
   &__error {
     margin: 0;
@@ -208,7 +226,17 @@
     &__header {
       flex-direction: column;
 
-      > span { white-space: normal; }
+    }
+
+    &__mode { white-space: normal; }
+
+    &__message { max-width: 92%; }
+
+    &__system {
+      max-width: 100%;
+      flex-wrap: wrap;
+      justify-content: center;
+      text-align: center;
     }
 
     &__messages,
@@ -216,7 +244,6 @@
       padding-inline: 16px;
     }
 
-    &__message { max-width: 92%; }
   }
 }
 

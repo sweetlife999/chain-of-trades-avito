@@ -111,7 +111,7 @@ const ParticipantList = ({
           : `/profile/${participant.user.id}`;
 
       return (
-        <div key={participant.user.id}>
+        <div className={styles.details__participant} key={participant.user.id}>
           <Link className={styles.details__avatarLink} to={profilePath}>
             <span
               className={`${styles.details__avatar} ${
@@ -121,6 +121,7 @@ const ParticipantList = ({
               {participant.user.photo_url ? (
                 <img
                   alt={participant.user.nickname}
+                  className={styles.details__avatarImage}
                   src={participant.user.photo_url}
                 />
               ) : (
@@ -129,9 +130,13 @@ const ParticipantList = ({
             </span>
           </Link>
           <Link className={styles.details__nameLink} to={profilePath}>
-            <strong>{participant.user.nickname}</strong>
+            <strong className={styles.details__participantName}>
+              {participant.user.nickname}
+            </strong>
           </Link>
-          <span>{getParticipantStatus(participant, exchangeStatus)}</span>
+          <span className={styles.details__participantStatus}>
+            {getParticipantStatus(participant, exchangeStatus)}
+          </span>
         </div>
       );
     })}
@@ -178,11 +183,15 @@ const ExchangeDetailsComponent = () => {
   });
 
   if (isPending) {
-    return <p>Загрузка цепочки...</p>;
+    return <p className={styles.details__state}>Загрузка цепочки...</p>;
   }
 
   if (isError || !exchange) {
-    return <p>Не удалось загрузить цепочку</p>;
+    return (
+      <p className={`${styles.details__state} ${styles.details__state_error}`}>
+        Не удалось загрузить цепочку
+      </p>
+    );
   }
 
   const current = exchange.participants.find(
@@ -225,18 +234,20 @@ const ExchangeDetailsComponent = () => {
   return (
     <section className={styles.details}>
       <header className={styles.details__header}>
-        <div>
-          <Link to={returnTo}>
+        <div className={styles.details__heading}>
+          <Link className={styles.details__back} to={returnTo}>
             ← {returnLabel}
           </Link>
-          <h1>{title}</h1>
-          <p>
+          <h1 className={styles.details__title}>{title}</h1>
+          <p className={styles.details__meta}>
             {exchange.participants.length} участника · создана{" "}
             {formatDate(exchange.created_at)}
           </p>
         </div>
         <div className={styles.details__headerActions}>
-          <span className={styles[`status_${exchange.status}`]}>
+          <span
+            className={`${styles.details__status} ${styles[`details__status_${exchange.status}`]}`}
+          >
             {statusLabels[exchange.status]}
           </span>
           {adminCanCancel && (
@@ -257,18 +268,26 @@ const ExchangeDetailsComponent = () => {
       {exchange.status === "proposed" && (
         <div className={styles.details__columns}>
           <section className={styles.details__scheme}>
-            <h2>Кто и что получает</h2>
+            <h2 className={styles.details__sectionTitle}>
+              Кто и что получает
+            </h2>
             {current && (
               <div className={styles.details__current}>
-                <span>Вы</span>
-                <strong>{current.gives_item.title}</strong>
-                <small>Отдаёте эту вещь</small>
+                <span className={styles.details__currentAvatar}>Вы</span>
+                <strong className={styles.details__itemTitle}>
+                  {current.gives_item.title}
+                </strong>
+                <small className={styles.details__itemHint}>
+                  Отдаёте эту вещь
+                </small>
               </div>
             )}
             {current && (
               <div className={styles.details__receive}>
-                <small>Вы получаете</small>
-                <strong>{current.receives_item.title}</strong>
+                <small className={styles.details__itemHint}>Вы получаете</small>
+                <strong className={styles.details__itemTitle}>
+                  {current.receives_item.title}
+                </strong>
               </div>
             )}
             <ParticipantList
@@ -281,11 +300,15 @@ const ExchangeDetailsComponent = () => {
           <aside className={styles.details__actions}>
             {isParticipant ? (
               <>
-                <h2>Что нужно сделать</h2>
+                <h2 className={styles.details__sectionTitle}>
+                  Что нужно сделать
+                </h2>
                 <div className={styles.details__notice}>
                   Подтвердите участие. До подтверждения ваша вещь остаётся у вас.
                 </div>
-                <h3>Подтверждения участников</h3>
+                <h3 className={styles.details__subsectionTitle}>
+                  Подтверждения участников
+                </h3>
                 <ParticipantList
                   currentUserId={user?.id}
                   exchangeStatus={exchange.status}
@@ -323,8 +346,12 @@ const ExchangeDetailsComponent = () => {
               </>
             ) : (
               <>
-                <h2>Хотите принять участие в этой цепочке?</h2>
-                <h3>Подтверждения участников</h3>
+                <h2 className={styles.details__sectionTitle}>
+                  Хотите принять участие в этой цепочке?
+                </h2>
+                <h3 className={styles.details__subsectionTitle}>
+                  Подтверждения участников
+                </h3>
                 <ParticipantList
                   currentUserId={user?.id}
                   exchangeStatus={exchange.status}
@@ -342,35 +369,51 @@ const ExchangeDetailsComponent = () => {
       {exchange.status === "confirmed" && (
         <>
           <section className={styles.details__pvz}>
-            <h2>Сдайте вещь в пункт выдачи</h2>
-            <p>ПВЗ проверит товар и зафиксирует его состояние.</p>
+            <h2 className={styles.details__sectionTitle}>
+              Сдайте вещь в пункт выдачи
+            </h2>
+            <p className={styles.details__pvzDescription}>
+              ПВЗ проверит товар и зафиксирует его состояние.
+            </p>
             <div className={styles.details__address}>
-              <strong>ПВЗ на Невском проспекте</strong>
-              <span>Санкт-Петербург, Невский проспект, 88</span>
-              <span>Сегодня до 22:00 · 1,2 км от вас</span>
+              <strong className={styles.details__addressTitle}>
+                ПВЗ на Невском проспекте
+              </strong>
+              <span className={styles.details__addressLine}>
+                Санкт-Петербург, Невский проспект, 88
+              </span>
+              <span className={styles.details__addressLine}>
+                Сегодня до 22:00 · 1,2 км от вас
+              </span>
             </div>
             <div className={styles.details__qrRow}>
               <div className={styles.details__qr}>QR</div>
-              <div>
-                <h3>Покажите QR-код сотруднику</h3>
-                <p>
+              <div className={styles.details__qrContent}>
+                <h3 className={styles.details__qrTitle}>
+                  Покажите QR-код сотруднику
+                </h3>
+                <p className={styles.details__qrDescription}>
                   Сотрудник примет вещь, сверит описание и отметит передачу.
                 </p>
-                <span>После сдачи статус обновится автоматически</span>
+                <span className={styles.details__qrHint}>
+                  После сдачи статус обновится автоматически
+                </span>
               </div>
             </div>
           </section>
 
           {isParticipant && (
             <section className={styles.details__receipt}>
-              <div>
-                <span>Этап получения</span>
-                <h2>
+              <div className={styles.details__receiptHeading}>
+                <span className={styles.details__receiptStage}>
+                  Этап получения
+                </span>
+                <h2 className={styles.details__sectionTitle}>
                   {receiptConfirmed
                     ? "Получение подтверждено"
                     : "Вы получили вещь?"}
                 </h2>
-                <p>
+                <p className={styles.details__receiptDescription}>
                   {receiptConfirmed
                     ? "Ожидаем подтверждения остальных участников."
                     : "Подтвердите получение только после проверки вещи."}
@@ -378,7 +421,9 @@ const ExchangeDetailsComponent = () => {
               </div>
 
               <div className={styles.details__participantProgress}>
-                <h3>Получение участников</h3>
+                <h3 className={styles.details__subsectionTitle}>
+                  Получение участников
+                </h3>
                 <ParticipantList
                   currentUserId={user?.id}
                   exchangeStatus={exchange.status}
@@ -423,14 +468,18 @@ const ExchangeDetailsComponent = () => {
       {exchange.status === "completed" && (
         <section className={styles.details__result}>
           <span className={styles.details__resultIcon}>✓</span>
-          <h2>Обмен завершён</h2>
-          <p>Все участники получили свои вещи.</p>
+          <h2 className={styles.details__resultTitle}>Обмен завершён</h2>
+          <p className={styles.details__resultDescription}>
+            Все участники получили свои вещи.
+          </p>
           <ParticipantList
             currentUserId={user?.id}
             exchangeStatus={exchange.status}
             participants={exchange.participants}
           />
-          <Link to="/exchanges">Вернуться к цепочкам</Link>
+          <Link className={styles.details__resultAction} to="/exchanges">
+            Вернуться к цепочкам
+          </Link>
         </section>
       )}
 
@@ -441,19 +490,26 @@ const ExchangeDetailsComponent = () => {
           >
             !
           </span>
-          <h2>
+          <h2 className={styles.details__resultTitle}>
             {cancelledByAdmin
               ? "Обмен отменён администратором"
               : "Один из участников отказался"}
           </h2>
-          <p>
+          <p className={styles.details__resultDescription}>
             {cancelledByAdmin
               ? "Объявления освобождены, для них снова может начаться поиск обмена."
               : "Ваша вещь не передана и остаётся доступной."}
           </p>
           <div className={styles.details__resultButtons}>
-            <Link to="/">Искать новую цепочку</Link>
-            <Link to="/myItems">Вернуть вещь в каталог</Link>
+            <Link className={styles.details__resultAction} to="/">
+              Искать новую цепочку
+            </Link>
+            <Link
+              className={`${styles.details__resultAction} ${styles.details__resultAction_secondary}`}
+              to="/myItems"
+            >
+              Вернуть вещь в каталог
+            </Link>
           </div>
         </section>
       )}

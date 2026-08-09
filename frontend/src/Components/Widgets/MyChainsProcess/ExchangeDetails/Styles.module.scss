@@ -1,120 +1,165 @@
 .details {
   width: 100%;
-
+  min-width: 0;
+  &__state {
+    padding: clamp(28px, 6vw, 64px) 16px;
+    color: #555;
+    text-align: center;
+    &_error {
+      color: #991b1b;
+    }
+  }
   &__header {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
     gap: 24px;
-
-    a { color: $green-button; font-size: 14px; }
-    h1 { margin: 14px 0 10px; font-size: 32px; font-weight: 500; }
-    p { color: #666; font-size: 13px; }
-
-    > span {
-      padding: 8px 12px;
-      font-size: 12px;
-      border-radius: 6px;
+  }
+  &__heading {
+    min-width: 0;
+  }
+  &__back {
+    color: $green-button;
+    font-size: 14px;
+    transition: color 0.2s ease;
+    &:hover {
+      color: #124c2a;
+    }
+    &:focus-visible {
+      outline: 3px solid rgba(22, 101, 52, 0.2);
+      outline-offset: 4px;
+      border-radius: 4px;
     }
   }
-
+  &__title {
+    margin: 14px 0 10px;
+    overflow-wrap: anywhere;
+    font-size: clamp(25px, 4vw, 32px);
+    font-weight: 500;
+  }
+  &__meta {
+    color: #666;
+    font-size: 13px;
+  }
+  &__headerActions {
+    display: flex;
+    flex-shrink: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  &__status {
+    padding: 8px 12px;
+    font-size: 12px;
+    text-align: center;
+    border-radius: 6px;
+    &_proposed {
+      color: #6b5310;
+      background: #fff5cf;
+    }
+    &_confirmed {
+      color: #155b89;
+      background: #e3f2ff;
+    }
+    &_completed {
+      color: #166534;
+      background: #e4f7ea;
+    }
+    &_cancelled {
+      color: #991b1b;
+      background: #feecec;
+    }
+  }
   &__progress {
-    margin: 34px 0;
-    padding: 24px 12px;
+    margin: clamp(24px, 4vw, 34px) 0;
+    padding: 24px clamp(4px, 2vw, 12px);
     border-block: 1px solid #eee;
   }
-
   &__columns {
     display: grid;
-    grid-template-columns: 1.8fr 1fr;
+    grid-template-columns: minmax(0, 1.8fr) minmax(280px, 1fr);
     gap: 24px;
   }
-
   &__scheme,
   &__actions,
   &__pvz,
   &__receipt {
-    padding: 24px;
+    min-width: 0;
+    padding: clamp(18px, 3vw, 24px);
     background: #fff;
     border: 1px solid #eee;
     border-radius: 14px;
-
-    h2 { margin-bottom: 20px; font-size: 20px; }
   }
-
+  &__sectionTitle,
+  &__subsectionTitle,
+  &__resultTitle {
+    margin: 0;
+  }
+  &__sectionTitle {
+    font-size: clamp(18px, 2.5vw, 20px);
+  }
+  &__subsectionTitle {
+    font-size: 14px;
+  }
   &__scheme {
     display: grid;
     justify-items: center;
     gap: 20px;
-
-    h2 { justify-self: start; }
   }
-
+  &__scheme &__sectionTitle {
+    justify-self: start;
+  }
   &__current,
   &__receive {
     display: grid;
     justify-items: center;
     gap: 5px;
-
-    span {
-      display: grid;
-      width: 68px;
-      height: 68px;
-      place-items: center;
-      color: #fff;
-      background: #1688f0;
-      border-radius: 50%;
-    }
-
-    small { color: #666; }
+    max-width: 100%;
+    text-align: center;
   }
-
+  &__currentAvatar {
+    display: grid;
+    width: 68px;
+    height: 68px;
+    place-items: center;
+    color: #fff;
+    background: #1688f0;
+    border-radius: 50%;
+  }
+  &__itemTitle {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+  &__itemHint {
+    color: #666;
+  }
   &__receive {
-    padding: 14px 28px;
+    padding: 14px clamp(18px, 4vw, 28px);
     background: #e7f7ef;
     border-radius: 12px;
   }
-
   &__participants {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 26px;
-    // max-height: 110px;
-
-    > div {
-      display: grid;
-      justify-items: center;
-      gap: 6px;
-      min-width: 90px;
-      font-size: 12px;
-    }
+    gap: 22px;
+    width: 100%;
   }
-
-  &__headerActions{
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-
+  &__participant {
+    display: grid;
+    justify-items: center;
+    gap: 6px;
+    min-width: 90px;
+    font-size: 12px;
   }
-
   &__avatarLink {
     display: block;
     border-radius: 50%;
-  }
-
-  &__nameLink {
-    color: #171717;
-    max-width: 80px;
-    overflow: hidden;
-
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    &:hover {
-      color: $green-button;
+    &:focus-visible {
+      outline: 3px solid rgba(22, 101, 52, 0.22);
+      outline-offset: 3px;
     }
   }
-
   &__avatar {
     display: grid;
     width: 48px;
@@ -124,161 +169,190 @@
     color: #fff;
     background: #f59e0b;
     border-radius: 50%;
-    transition: background-color .2s ease, box-shadow .2s ease;
-
-    img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
     &_confirmed {
       background: $green-button;
-      box-shadow: 0 0 0 4px rgba(22, 101, 52, .12);
+      box-shadow: 0 0 0 4px rgba(22, 101, 52, 0.12);
     }
   }
-
+  &__avatarImage {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  &__nameLink {
+    max-width: 100px;
+    overflow: hidden;
+    color: #171717;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: color 0.2s ease;
+    &:hover,
+    &:focus-visible {
+      color: $green-button;
+    }
+  }
+  &__participantName {
+    font-weight: 600;
+  }
+  &__participantStatus {
+    color: #666;
+    text-align: center;
+  }
   &__actions {
     display: grid;
     align-content: start;
     gap: 18px;
-
-    h2, h3 { margin: 0; }
-    h3 { font-size: 14px; }
   }
-
   &__notice,
   &__address {
     display: grid;
     gap: 8px;
     padding: 18px;
-    background: #e7f2ff;
-    border-radius: 12px;
     font-size: 13px;
     line-height: 1.4;
+    border-radius: 12px;
   }
-
+  &__notice {
+    background: #e7f2ff;
+  }
+  &__address {
+    margin-bottom: 24px;
+    background: #e7f2ff;
+  }
+  &__addressTitle {
+    overflow-wrap: anywhere;
+  }
+  &__addressLine {
+    color: #555;
+  }
   &__buttons {
     display: flex;
     gap: 10px;
-
-    button {
-      flex: 1;
-      min-height: 42px;
-      padding: 11px;
-      border-radius: 8px;
-      transition: opacity .2s ease;
+  }
+  &__primaryButton,
+  &__dangerButton {
+    flex: 1;
+    min-height: 42px;
+    padding: 11px;
+    border-radius: 8px;
+    transition: transform 0.16s ease, opacity 0.2s ease, box-shadow 0.2s ease;
+    &:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 14px rgba(17, 24, 39, 0.1);
     }
-
-    button:disabled {
+    &:active:not(:disabled) {
+      transform: translateY(0);
+    }
+    &:focus-visible {
+      outline: 3px solid rgba(22, 101, 52, 0.2);
+      outline-offset: 2px;
+    }
+    &:disabled {
       cursor: not-allowed;
-      opacity: .55;
+      opacity: 0.55;
     }
   }
-
   &__primaryButton {
     color: #fff;
     background: $green-button;
     border: 1px solid $green-button;
   }
-
   &__dangerButton {
     color: #991b1b;
     background: #fff;
     border: 1px solid #efcaca;
   }
-
   &__error {
     margin: 0;
     color: #991b1b;
     font-size: 12px;
     line-height: 1.4;
   }
-
-  &__pvz {
+  &__pvz,
+  &__receipt {
     max-width: 660px;
-    margin: 0 auto;
-
-    > p { margin-bottom: 20px; color: #555; }
+    margin-inline: auto;
   }
-
-  &__address { margin-bottom: 24px; }
-
+  &__pvzDescription,
+  &__receiptDescription,
+  &__qrDescription,
+  &__resultDescription {
+    color: #555;
+    line-height: 1.5;
+  }
+  &__pvzDescription {
+    margin: 10px 0 20px;
+  }
   &__qrRow {
     display: grid;
-    grid-template-columns: 150px 1fr;
+    grid-template-columns: minmax(110px, 150px) minmax(0, 1fr);
     align-items: center;
     gap: 24px;
-
-    h3 { margin-bottom: 10px; }
-    p { margin-bottom: 16px; color: #555; font-size: 13px; line-height: 1.4; }
-    span { display: block; padding: 12px; background: #e7f7ef; border-radius: 10px; font-size: 12px; }
   }
-
   &__qr {
     display: grid;
+    width: 100%;
     aspect-ratio: 1;
     place-items: center;
-    font-size: 38px;
+    font-size: clamp(28px, 5vw, 38px);
     font-weight: 700;
     letter-spacing: 4px;
     background: repeating-conic-gradient(#111 0 25%, #fff 0 50%) 0 / 28px 28px;
     border: 10px solid #fff;
     outline: 1px solid #ddd;
   }
-
+  &__qrContent,
+  &__receiptHeading {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+  }
+  &__qrTitle {
+    margin: 0;
+    font-size: 16px;
+  }
+  &__qrDescription,
+  &__receiptDescription {
+    margin: 0;
+    font-size: 13px;
+  }
+  &__qrHint {
+    display: block;
+    padding: 12px;
+    background: #e7f7ef;
+    border-radius: 10px;
+    font-size: 12px;
+  }
   &__receipt {
     display: grid;
-    max-width: 660px;
-    margin: 24px auto 0;
+    margin-top: 24px;
     gap: 20px;
-
-    > div:first-child {
-      display: grid;
-      gap: 8px;
-
-      > span {
-        color: $green-button;
-        font-size: 12px;
-        font-weight: 600;
-        text-transform: uppercase;
-      }
-    }
-
-    h2 { margin: 0; }
-    p { margin: 0; color: #555; font-size: 13px; line-height: 1.5; }
   }
-
+  &__receiptStage {
+    color: $green-button;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
   &__participantProgress {
     display: grid;
     gap: 16px;
     padding: 18px;
     background: #f7f8fa;
     border-radius: 12px;
-
-    h3 {
-      margin: 0;
-      font-size: 14px;
-      text-align: center;
-    }
+    text-align: center;
   }
-
   &__result {
     display: grid;
     justify-items: center;
     gap: 16px;
-    padding: 54px 20px;
+    padding: clamp(36px, 8vw, 54px) 16px;
     text-align: center;
-
-    p { color: #555; }
-
-    .details__participants {
-      margin: 8px 0;
-    }
-
-    > a, .details__resultButtons a { padding: 12px 18px; color: #fff; background: $green-button; border-radius: 9px; }
   }
-
+  &__resultDescription {
+    margin: 0;
+  }
   &__resultIcon {
     display: grid;
     width: 68px;
@@ -288,35 +362,79 @@
     font-size: 28px;
     background: #e4f7ea;
     border-radius: 50%;
-
-    &_error { color: #991b1b; background: #feecec; }
+    &_error {
+      color: #991b1b;
+      background: #feecec;
+    }
   }
-
   &__resultButtons {
     display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
     gap: 12px;
-
-    a:last-child { color: #333; background: #fff; border: 1px solid #ddd; }
+  }
+  &__resultAction,
+  &__join {
+    padding: 12px 18px;
+    color: #fff;
+    text-align: center;
+    background: $green-button;
+    border: 1px solid $green-button;
+    border-radius: 9px;
+    transition: transform 0.16s ease, box-shadow 0.2s ease;
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 14px rgba(22, 101, 52, 0.16);
+    }
+    &:active {
+      transform: translateY(0);
+    }
+    &:focus-visible {
+      outline: 3px solid rgba(22, 101, 52, 0.2);
+      outline-offset: 2px;
+    }
+  }
+  &__resultAction_secondary {
+    color: #333;
+    background: #fff;
+    border-color: #ddd;
+  }
+  &__join {
+    display: block;
+    width: 100%;
   }
 }
-
-.status_proposed { color: #6b5310; background: #fff5cf; }
-.status_confirmed { color: #155b89; background: #e3f2ff; }
-.status_completed { color: #166534; background: #e4f7ea; }
-.status_cancelled { color: #991b1b; background: #feecec; }
-
-@media (max-width: 760px) {
+@media (max-width: 800px) {
   .details {
-    &__header { flex-direction: column; }
-    &__columns, &__qrRow { grid-template-columns: 1fr; }
-    &__buttons, &__resultButtons { flex-direction: column; }
+    &__header,
+    &__buttons,
+    &__resultButtons {
+      flex-direction: column;
+    }
+    &__headerActions,
+    &__primaryButton,
+    &__dangerButton,
+    &__resultAction {
+      width: 100%;
+    }
+    &__columns,
+    &__qrRow {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    &__qr {
+      width: min(150px, 100%);
+      justify-self: center;
+    }
   }
 }
-
-.details__join {
-  padding: 12px;
-  color: #fff;
-  text-align: center;
-  background: $green-button;
-  border-radius: 8px;
+@media (prefers-reduced-motion: reduce) {
+  .details {
+    &__back,
+    &__primaryButton,
+    &__dangerButton,
+    &__resultAction,
+    &__join {
+      transition: none;
+    }
+  }
 }

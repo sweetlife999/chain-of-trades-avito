@@ -16,10 +16,10 @@ export const AuthRequiredState = ({
 }: TAuthRequiredStateProps) => (
   <div className={styles.authState}>
     <span className={styles.authState__icon} aria-hidden="true">
-      <LogIn />
+      <LogIn className={styles.authState__iconGraphic} />
     </span>
-    <h2>{title}</h2>
-    <p>{description}</p>
+    <h2 className={styles.authState__title}>{title}</h2>
+    <p className={styles.authState__description}>{description}</p>
     <div className={styles.authState__actions}>
       <Link
         className={styles.authState__primary}

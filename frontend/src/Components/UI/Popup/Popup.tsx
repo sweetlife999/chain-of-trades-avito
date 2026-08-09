@@ -52,7 +52,14 @@ const PopupComponent = ({ children }: PopupProps) => {
   return (
     <div className={styles.popup__overlay} onClick={handleOverlayClick}>
       <div className={styles.popup}>
-        <img className={styles.popup__close} onClick={closePopup} src={CloseIcon} />
+        <button
+          aria-label="Закрыть"
+          className={styles.popup__closeButton}
+          type="button"
+          onClick={closePopup}
+        >
+          <img className={styles.popup__closeIcon} alt="" src={CloseIcon} />
+        </button>
         {children}
       </div>
     </div>

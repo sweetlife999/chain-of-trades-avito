@@ -9,8 +9,10 @@ const AdminComponent = () => {
     <section className={styles.admin}>
       <header className={styles.admin__header}>
         <span className={styles.admin__eyebrow}>Администрирование</span>
-        <h1>Панель управления</h1>
-        <p>Статистика сервиса и управление пунктами выдачи</p>
+        <h1 className={styles.admin__title}>Панель управления</h1>
+        <p className={styles.admin__description}>
+          Статистика сервиса и управление пунктами выдачи
+        </p>
       </header>
 
       <DashboardStats />

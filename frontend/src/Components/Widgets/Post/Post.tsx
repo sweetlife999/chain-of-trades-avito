@@ -52,10 +52,12 @@ const PostComponent = ({ exchange }: TProps) => {
         >
           {statusLabels[exchange.status]}
         </span>
-        <span>{exchange.participants.length} участников</span>
+        <span className={styles.post__participantsCount}>
+          {exchange.participants.length} участников
+        </span>
       </div>
 
-      <h2>{getTitle(exchange)}</h2>
+      <h2 className={styles.post__title}>{getTitle(exchange)}</h2>
 
       <div className={styles.post__participants}>
         {exchange.participants.slice(0, 4).map(({ user }) => (
@@ -69,7 +71,11 @@ const PostComponent = ({ exchange }: TProps) => {
             onKeyDown={(event) => event.stopPropagation()}
           >
             {user.photo_url ? (
-              <img alt={user.nickname} src={user.photo_url} />
+              <img
+                className={styles.post__participantImage}
+                alt={user.nickname}
+                src={user.photo_url}
+              />
             ) : (
               user.nickname.charAt(0).toUpperCase()
             )}

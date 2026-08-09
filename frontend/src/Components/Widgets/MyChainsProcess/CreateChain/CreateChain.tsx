@@ -245,10 +245,11 @@ const CreateChainComponent = () => {
                   <div className={styles.createChain__categories}>
                     {categories.map((category) => (
                       <label
-                        className={styles.createChain__category}
+                        className={`${styles.createChain__category} ${styles.createChain__categoryLabel}`}
                         key={category.slug}
                       >
                         <input
+                        className={styles.createChain__category}
                           type="checkbox"
                           value={category.slug}
                           {...register("wants")}

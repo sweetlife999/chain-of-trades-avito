@@ -1,6 +1,6 @@
 import { memo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import clsx from "clsx";
 
 import styles from "./Styles.module.scss";
@@ -11,6 +11,7 @@ import type {
 } from "../../../../Api/exchanges/exchanges.types";
 import { useAuthSelector } from "../../../../Hooks/useAuthDispatch";
 import { ExchangeProgress } from "../ExchangeProgress/ExchangeProgress";
+import { Button } from "../../../UI/Button/Button";
 
 type TTab = "active" | "completed" | "cancelled";
 
@@ -41,40 +42,59 @@ const getTitle = (exchange: TExchange, userId?: string) => {
 };
 
 const MyChainsComponent = () => {
+  const navigate = useNavigate();
+  const { isAuth } = useAuthSelector();
   const [tab, setTab] = useState<TTab>("active");
   const { user } = useAuthSelector();
-  const { data = [], isPending, isError } = useQuery({
+  const {
+    data = [],
+    isPending,
+    isError,
+  } = useQuery({
     queryKey: ["exchanges"],
     queryFn: getExchanges,
   });
 
   const exchanges = data.filter(
     (exchange) =>
-      exchange.participants.some((participant) => participant.user.id === user?.id) &&
-      statusData[exchange.status].tab === tab,
+      exchange.participants.some(
+        (participant) => participant.user.id === user?.id,
+      ) && statusData[exchange.status].tab === tab,
   );
 
   return (
     <section className={styles.chains}>
       <header className={styles.chains__header}>
         <h1>Мои цепочки</h1>
-        <Link className={styles.chains__create} to="/exchanges/create">
+        <Button
+          className={styles.chains__create}
+          onClick={() =>
+            isAuth
+              ? navigate("/exchanges/create")
+              : navigate("/login", {
+                  state: { from: "/exchanges/create" },
+                })
+          }
+        >
           Создать цепочку
-        </Link>
+        </Button>
       </header>
 
-      <div className={styles.chains__tabs}>
-        {tabs.map(({ value, label }) => (
-          <button
-            className={clsx(tab === value && styles.active)}
-            key={value}
-            type="button"
-            onClick={() => setTab(value)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <div className={styles.chains__filters}>
+            {tabs.map(({ value, label }) => (
+              <button
+                className={clsx(
+                  styles.chains__filter,
+                  tab === value && styles.chains__filter_active,
+                )}
+                key={value}
+                type="button"
+                onClick={() => setTab(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
 
       {isPending && <p className={styles.chains__message}>Загрузка...</p>}
       {isError && (

@@ -53,8 +53,10 @@ const ConfirmationPopupComponent = ({
         role="dialog"
       >
         <div className={styles.confirmation__content}>
-          <h2 id="confirmation-title">{title}</h2>
-          <p>{description}</p>
+          <h2 className={styles.confirmation__title} id="confirmation-title">
+            {title}
+          </h2>
+          <p className={styles.confirmation__description}>{description}</p>
           {error && <p className={styles.confirmation__error}>{error}</p>}
         </div>
 

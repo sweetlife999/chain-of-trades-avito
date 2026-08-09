@@ -1,83 +1,88 @@
 .header {
-  width: 100%;
+  position: sticky;
+  top: 0;
+  z-index: 100;
   display: flex;
   justify-content: center;
-  padding: 20px 24px;
-  margin-bottom: 30px;
+  width: 100%;
+  margin-bottom: clamp(18px, 3vw, 30px);
+  padding: 14px clamp(8px, 2vw, 24px);
+  background: rgba(250, 250, 250, .94);
+  border-bottom: 1px solid rgba(220, 224, 222, .8);
+  backdrop-filter: blur(12px);
 
-  &__wrapp {
-    width: 100%;
-    max-width: $content-width;
-    display: flex;
-    justify-content: space-between;
+  &__wrapper {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
-    gap: 24px;
+    gap: clamp(12px, 2vw, 24px);
+    width: min(100%, 1440px);
+    min-width: 0;
   }
 
   &__logoLink {
     display: flex;
+    flex: 0 0 auto;
     align-items: center;
-    flex-shrink: 0;
-    text-decoration: none;
+    border-radius: 8px;
+
+    &:focus-visible {
+      outline: 3px solid rgba($green-button, .2);
+      outline-offset: 3px;
+    }
   }
 
   &__logo {
     display: block;
     width: auto;
-    height: 40px;
+    height: clamp(32px, 4vw, 40px);
   }
 
   &__nav {
-    flex: 1;
     display: flex;
+    min-width: 0;
     justify-content: center;
   }
 
   &__navList {
     display: flex;
     align-items: center;
-    gap: 8px;
+    min-width: 0;
+    gap: 6px;
   }
+
+  &__navItem { flex: 0 0 auto; }
 
   &__navLink {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 7px;
-
-    padding: 9px 14px;
-    border-radius: 8px;
-
+    padding: 9px clamp(9px, 1.2vw, 14px);
     color: #111827;
-    background-color: transparent;
-    white-space: nowrap;
-
-    font-size: 15px;
+    background: transparent;
+    border-radius: 9px;
+    font-size: clamp(13px, 1.4vw, 15px);
     font-weight: 500;
     line-height: 1.2;
-
-    transition:
-      color 0.2s ease,
-      background-color 0.2s ease,
-      transform 0.15s ease;
+    white-space: nowrap;
+    transition: color .2s ease, background-color .2s ease, transform .15s ease;
 
     &:hover {
       color: $green-button;
-      background-color: rgba($green-button, 0.08);
+      background: rgba($green-button, .08);
     }
 
-    &:active {
-      transform: translateY(1px);
-    }
+    &:active { transform: translateY(1px); }
 
     &:focus-visible {
-      outline: 2px solid rgba($green-button, 0.45);
+      outline: 3px solid rgba($green-button, .18);
       outline-offset: 2px;
     }
 
     &_active {
       color: $green-button;
-      background-color: rgba($green-button, 0.12);
+      background: rgba($green-button, .12);
       font-weight: 600;
     }
   }
@@ -85,8 +90,7 @@
   &__navIcon {
     width: 20px;
     height: 20px;
-    flex-shrink: 0;
-
+    flex: 0 0 auto;
     color: currentColor;
     stroke: currentColor;
   }
@@ -94,7 +98,54 @@
   &__actions {
     display: flex;
     align-items: center;
-    gap: 12px;
-    flex-shrink: 0;
+    min-width: 0;
+    gap: clamp(6px, 1vw, 12px);
   }
+
+  &__addButton { flex: 0 0 auto; }
+  &__addLabelCompact { display: none; }
+}
+
+@media (max-width: 1120px) {
+  .header {
+    &__wrapper { grid-template-columns: auto minmax(0, 1fr); }
+
+    &__nav {
+      grid-column: 1 / -1;
+      grid-row: 2;
+      justify-content: flex-start;
+      overflow-x: auto;
+      scrollbar-width: thin;
+    }
+
+    &__actions { justify-self: end; }
+  }
+}
+
+@media (max-width: 620px) {
+  .header {
+    padding-block: 10px;
+
+    &__wrapper { gap: 10px; }
+    &__logo { height: 32px; }
+    &__addButton { padding-inline: 12px; font-size: 13px; }
+    &__addLabel { display: none; }
+    &__addLabelCompact { display: inline; }
+    &__navList { width: max-content; }
+    &__navLink { padding: 8px 10px; }
+  }
+}
+
+@media (max-width: 420px) {
+  .header {
+    padding-inline: 6px;
+
+    &__logo { width: 82px; }
+    &__navLabel { font-size: 12px; }
+    &__addButton { min-height: 38px; padding-inline: 8px; }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header__navLink { transition: none; }
 }

@@ -158,15 +158,15 @@ const ExchangeChatComponent = ({
   return (
     <section className={styles.chat}>
       <header className={styles.chat__header}>
-        <div>
-          <h2>Чат цепочки</h2>
-          <p>
+        <div className={styles.chat__heading}>
+          <h2 className={styles.chat__title}>Чат цепочки</h2>
+          <p className={styles.chat__description}>
             {readOnly
               ? "История обсуждения сохранена."
               : "Обсудите детали обмена с участниками."}
           </p>
         </div>
-        <span>
+        <span className={styles.chat__mode}>
           {readOnly ? "Только чтение" : "Обновляется автоматически"}
         </span>
       </header>
@@ -216,12 +216,16 @@ const ExchangeChatComponent = ({
                     >
                       {message.author.nickname}
                     </Link>
-                    <span>{systemAction}</span>
+                    <span className={styles.chat__systemText}>
+                      {systemAction}
+                    </span>
                   </>
                 ) : (
-                  <span>{systemText}</span>
+                  <span className={styles.chat__systemText}>{systemText}</span>
                 )}
-                <time>{formatTime(message.created_at)}</time>
+                <time className={styles.chat__systemTime}>
+                  {formatTime(message.created_at)}
+                </time>
               </div>
             );
           }
@@ -242,6 +246,7 @@ const ExchangeChatComponent = ({
                   <span className={styles.chat__avatar}>
                     {message.author.photo_url ? (
                       <img
+                        className={styles.chat__avatarImage}
                         alt={message.author.nickname}
                         src={message.author.photo_url}
                       />
@@ -261,11 +266,17 @@ const ExchangeChatComponent = ({
                     className={styles.chat__authorLink}
                     to={authorProfilePath}
                   >
-                    <strong>{message.author.nickname}</strong>
+                    <strong className={styles.chat__authorName}>
+                      {message.author.nickname}
+                    </strong>
                   </Link>
                 )}
-                <p>{message.body ?? ""}</p>
-                <time>{formatTime(message.created_at)}</time>
+                <p className={styles.chat__messageText}>
+                  {message.body ?? ""}
+                </p>
+                <time className={styles.chat__messageTime}>
+                  {formatTime(message.created_at)}
+                </time>
                 {!own && (
                   <ReportMessageButton
                     className={styles.chat__reportAction}
@@ -277,7 +288,7 @@ const ExchangeChatComponent = ({
           );
         })}
 
-        <div ref={endRef} />
+        <div className={styles.chat__end} ref={endRef} />
       </div>
 
       {readOnly ? (
@@ -293,6 +304,7 @@ const ExchangeChatComponent = ({
           }}
         >
           <textarea
+            className={styles.chat__textarea}
             maxLength={2000}
             onChange={(event) => setBody(event.target.value)}
             onKeyDown={handleKeyDown}
@@ -301,8 +313,9 @@ const ExchangeChatComponent = ({
             value={body}
           />
           <div className={styles.chat__formFooter}>
-            <span>{body.length} / 2000</span>
+            <span className={styles.chat__counter}>{body.length} / 2000</span>
             <button
+              className={styles.chat__submit}
               disabled={!body.trim() || sendMutation.isPending}
               type="submit"
             >

@@ -67,7 +67,11 @@ export const CancelExchangeButton = ({
           setPopupOpen(true);
         }}
       >
-        <Ban aria-hidden="true" size={17} />
+        <Ban
+          aria-hidden="true"
+          className={styles.cancel__icon}
+          size={17}
+        />
         Отменить обмен
       </Button>
 

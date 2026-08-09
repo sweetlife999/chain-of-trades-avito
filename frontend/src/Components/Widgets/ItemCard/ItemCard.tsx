@@ -21,7 +21,7 @@ const ItemCardComponent = ({ item }: TProps) => (
       {item.photo_urls[0] ? (
         <img className={styles.card__image} src={item.photo_urls[0]} alt={item.title} />
       ) : (
-        <span>Нет фото</span>
+        <span className={styles.card__imagePlaceholder}>Нет фото</span>
       )}
       <span className={`${styles.card__status} ${styles[`card__status_${item.status}`]}`}>
         {labels[item.status]}
@@ -29,9 +29,9 @@ const ItemCardComponent = ({ item }: TProps) => (
     </div>
 
     <div className={styles.card__content}>
-      <h2>{item.title}</h2>
-      <span>{item.category}</span>
-      <p>{item.description}</p>
+      <h2 className={styles.card__title}>{item.title}</h2>
+      <span className={styles.card__category}>{item.category}</span>
+      <p className={styles.card__description}>{item.description}</p>
     </div>
   </Link>
 );

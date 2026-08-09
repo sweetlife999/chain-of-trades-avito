@@ -115,10 +115,9 @@
 
     margin-top: 4px;
 
-    > button {
-      width: 100%;
-    }
   }
+
+  &__button { width: 100%; }
 }
 
 @media (max-width: 480px) {

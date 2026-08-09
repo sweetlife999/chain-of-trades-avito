@@ -108,6 +108,7 @@ const LoginComponent = () => {
 
         <div className={styles.login__buttons}>
           <Button
+            className={styles.login__button}
             color="transparent"
             type="button"
             onClick={closeForm}
@@ -115,8 +116,14 @@ const LoginComponent = () => {
             Отменить
           </Button>
 
-          <Button color="light" type="submit" centered>
-            Войти
+          <Button
+            centered
+            className={styles.login__button}
+            color="light"
+            disabled={loginMutation.isPending}
+            type="submit"
+          >
+            {loginMutation.isPending ? "Входим..." : "Войти"}
           </Button>
         </div>
         <div className={styles.login__register}>

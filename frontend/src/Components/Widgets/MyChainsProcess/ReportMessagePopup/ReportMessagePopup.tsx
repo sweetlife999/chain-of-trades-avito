@@ -73,21 +73,38 @@ export const ReportMessagePopup = ({
       >
         {reportMutation.isSuccess ? (
           <div className={styles.report__success}>
-            <CircleCheck aria-hidden="true" size={42} />
-            <h2 id="report-message-title">Жалоба отправлена</h2>
-            <p>
+            <CircleCheck
+              className={styles.report__successIcon}
+              aria-hidden="true"
+              size={42}
+            />
+            <h2
+              className={styles.report__successTitle}
+              id="report-message-title"
+            >
+              Жалоба отправлена
+            </h2>
+            <p className={styles.report__successDescription}>
               Она добавлена в очередь модерации. На подбор обменов жалоба не
               влияет.
             </p>
-            <Button centered color="light" type="button" onClick={onClose}>
+            <Button
+              centered
+              className={styles.report__successAction}
+              color="light"
+              type="button"
+              onClick={onClose}
+            >
               Понятно
             </Button>
           </div>
         ) : (
           <form className={styles.report__form} onSubmit={handleSubmit}>
-            <header>
-              <h2 id="report-message-title">Пожаловаться на сообщение</h2>
-              <p>
+            <header className={styles.report__header}>
+              <h2 className={styles.report__title} id="report-message-title">
+                Пожаловаться на сообщение
+              </h2>
+              <p className={styles.report__description}>
                 Укажите причину и при необходимости добавьте пояснение для
                 модератора.
               </p>

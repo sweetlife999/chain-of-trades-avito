@@ -1,7 +1,7 @@
 .exchanges {
   display: grid;
   gap: 20px;
-  padding: 26px 32px;
+  padding: clamp(20px, 4vw, 32px);
   background: #fff;
   border: 1px solid #d7dadd;
   border-radius: $border-radius;
@@ -11,27 +11,40 @@
     align-items: flex-start;
     justify-content: space-between;
     gap: 24px;
+  }
 
-    h2 {
-      margin: 4px 0 6px;
-      color: #202124;
-      font-size: 25px;
-    }
+  &__heading {
+    min-width: 0;
+  }
 
-    p {
-      margin: 0;
-      color: #727780;
-      font-size: 13px;
-      line-height: 1.45;
-    }
+  &__title {
+    margin: 4px 0 6px;
+    overflow-wrap: anywhere;
+    color: #202124;
+    font-size: clamp(21px, 3vw, 25px);
+  }
+
+  &__description {
+    margin: 0;
+    color: #727780;
+    font-size: 13px;
+    line-height: 1.45;
   }
 
   &__eyebrow {
     color: #08783f;
     font-size: 11px;
     font-weight: 700;
-    letter-spacing: .08em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
+  }
+
+  &__refresh {
+    flex-shrink: 0;
+  }
+
+  &__refreshIcon {
+    flex: 0 0 auto;
   }
 
   &__state {
@@ -45,35 +58,35 @@
     background: #f8f9fa;
     border-radius: 14px;
     text-align: center;
+  }
 
-    h3,
-    p {
-      margin: 0;
-    }
+  &__stateTitle,
+  &__stateDescription {
+    margin: 0;
+  }
 
-    h3 {
-      color: #292d32;
-      font-size: 18px;
-    }
+  &__stateTitle {
+    color: #292d32;
+    font-size: 18px;
+  }
 
-    p {
-      max-width: 460px;
-      font-size: 13px;
-      line-height: 1.5;
-    }
+  &__stateDescription {
+    max-width: 460px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
 
-    button {
-      margin-top: 8px;
-    }
+  &__stateAction {
+    margin-top: 8px;
   }
 
   &__list {
     display: grid;
     gap: 12px;
-    transition: opacity .2s ease;
+    transition: opacity 0.2s ease;
 
     &[aria-busy="true"] {
-      opacity: .65;
+      opacity: 0.65;
     }
   }
 
@@ -85,17 +98,19 @@
     background: #fff;
     border: 1px solid #e1e4e8;
     border-radius: 14px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.18s ease;
 
     &:hover {
+      transform: translateY(-1px);
       border-color: #b9d8c9;
-      box-shadow: 0 8px 24px rgba(17, 24, 39, .05);
+      box-shadow: 0 8px 24px rgba(17, 24, 39, 0.05);
     }
   }
 
   &__information {
-    min-width: 0;
     display: grid;
     gap: 12px;
+    min-width: 0;
   }
 
   &__titleRow {
@@ -103,24 +118,34 @@
     align-items: flex-start;
     justify-content: space-between;
     gap: 16px;
+  }
 
-    h3 {
-      min-width: 0;
-      margin: 0;
-      overflow: hidden;
-      color: #202124;
-      font-size: 17px;
-      font-weight: 600;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+  &__cardTitle {
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    color: #202124;
+    font-size: 17px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__status {
+    flex: 0 0 auto;
+    padding: 5px 9px;
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: 14px;
+
+    &_proposed {
+      color: #6b5310;
+      background: #fff5cf;
     }
 
-    > span {
-      flex: 0 0 auto;
-      padding: 5px 9px;
-      font-size: 10px;
-      font-weight: 600;
-      border-radius: 14px;
+    &_confirmed {
+      color: #155b89;
+      background: #e3f2ff;
     }
   }
 
@@ -128,6 +153,9 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px 18px;
+  }
+
+  &__metaItem {
     color: #7b818a;
     font-size: 12px;
   }
@@ -136,28 +164,29 @@
     display: flex;
     flex-wrap: wrap;
     gap: 7px;
+  }
 
-    > span {
-      display: grid;
-      gap: 2px;
-      padding: 7px 10px;
-      background: #f4f6f7;
-      border-radius: 9px;
-    }
+  &__participant {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+    padding: 7px 10px;
+    background: #f4f6f7;
+    border-radius: 9px;
+  }
 
-    strong {
-      color: #3a3e44;
-      font-size: 11px;
-    }
+  &__participantName {
+    color: #3a3e44;
+    font-size: 11px;
+  }
 
-    small {
-      max-width: 150px;
-      overflow: hidden;
-      color: #81868e;
-      font-size: 10px;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
+  &__participantItem {
+    max-width: 150px;
+    overflow: hidden;
+    color: #81868e;
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   &__actions {
@@ -177,42 +206,52 @@
   color: #777d85;
   font-size: 12px;
 
-  > div {
+  &__controls {
     display: flex;
     align-items: center;
     gap: 10px;
   }
-}
 
-.status_proposed {
-  color: #6b5310;
-  background: #fff5cf;
-}
-
-.status_confirmed {
-  color: #155b89;
-  background: #e3f2ff;
+  &__current {
+    min-width: 52px;
+    text-align: center;
+  }
 }
 
 @media (max-width: 760px) {
   .exchanges {
-    padding: 22px;
-
     &__header,
     &__titleRow,
-    &__card,
-    .pagination {
+    &__card {
       display: flex;
       align-items: stretch;
       flex-direction: column;
     }
 
+    &__refresh,
     &__actions {
       width: 100%;
+    }
+
+    &__cardTitle {
+      white-space: normal;
     }
   }
 
   .pagination {
     align-items: flex-start;
+    flex-direction: column;
+
+    &__controls {
+      width: 100%;
+      justify-content: space-between;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .exchanges__list,
+  .exchanges__card {
+    transition: none;
   }
 }

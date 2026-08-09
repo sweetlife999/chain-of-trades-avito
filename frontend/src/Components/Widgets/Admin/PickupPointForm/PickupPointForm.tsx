@@ -170,13 +170,15 @@ export const PickupPointForm = ({
       >
         <header className={styles.modal__header}>
           <span className={styles.modal__icon} aria-hidden="true">
-            <MapPin />
+            <MapPin className={styles.modal__iconImage} />
           </span>
-          <div>
-            <h2 id="pickup-point-form-title">
+          <div className={styles.modal__heading}>
+            <h2 className={styles.modal__title} id="pickup-point-form-title">
               {mode === "create" ? "Создать ПВЗ" : "Редактировать ПВЗ"}
             </h2>
-            <p>Укажите название и полный адрес пункта выдачи</p>
+            <p className={styles.modal__description}>
+              Укажите название и полный адрес пункта выдачи
+            </p>
           </div>
           <button
             className={styles.modal__close}
@@ -185,7 +187,7 @@ export const PickupPointForm = ({
             disabled={saveMutation.isPending}
             onClick={onClose}
           >
-            <X aria-hidden="true" />
+            <X aria-hidden="true" className={styles.modal__closeIcon} />
           </button>
         </header>
 
@@ -197,9 +199,14 @@ export const PickupPointForm = ({
 
         {isError && (
           <div className={styles.modal__state} role="alert">
-            <h3>Не удалось загрузить ПВЗ</h3>
-            <p>Пункт выдачи мог быть удалён или сервер временно недоступен.</p>
+            <h3 className={styles.modal__stateTitle}>
+              Не удалось загрузить ПВЗ
+            </h3>
+            <p className={styles.modal__stateDescription}>
+              Пункт выдачи мог быть удалён или сервер временно недоступен.
+            </p>
             <Button
+              className={styles.modal__stateAction}
               color="light"
               size="s"
               onClick={() => {
@@ -242,6 +249,7 @@ export const PickupPointForm = ({
 
             <div className={styles.modal__actions}>
               <Button
+                className={styles.modal__action}
                 color="transparent"
                 type="button"
                 disabled={saveMutation.isPending}
@@ -249,7 +257,11 @@ export const PickupPointForm = ({
               >
                 Отмена
               </Button>
-              <Button type="submit" disabled={saveMutation.isPending}>
+              <Button
+                className={styles.modal__action}
+                type="submit"
+                disabled={saveMutation.isPending}
+              >
                 {saveMutation.isPending
                   ? "Сохраняем..."
                   : mode === "create"

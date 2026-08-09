@@ -38,15 +38,15 @@ const HeaderComponent = () => {
 
   return (
     <header className={styles.header}>
-      <div className={styles.header__wrapp}>
+      <div className={styles.header__wrapper}>
         <NavLink to="/" className={styles.header__logoLink} aria-label="На главную">
-          <img className={styles.header__logo} src={AvitoLogo}/>
+          <img className={styles.header__logo} src={AvitoLogo} alt="Авито Обмен" />
         </NavLink>
 
         <nav className={styles.header__nav} aria-label="Основная навигация">
           <ul className={styles.header__navList}>
             {visibleNavigationItems.map(({ to, label, Icon }) => (
-              <li key={to}>
+              <li className={styles.header__navItem} key={to}>
                 <NavLink
                   to={to}
                   end={to === "/"}
@@ -55,7 +55,7 @@ const HeaderComponent = () => {
                   }
                 >
                   <Icon className={styles.header__navIcon} strokeWidth={1.8} aria-hidden="true" />
-                  <span>{label}</span>
+                  <span className={styles.header__navLabel}>{label}</span>
                 </NavLink>
               </li>
             ))}
@@ -64,6 +64,7 @@ const HeaderComponent = () => {
 
         <div className={styles.header__actions}>
           <Button
+            className={styles.header__addButton}
             size="m"
             color="green"
             onClick={() =>
@@ -74,7 +75,8 @@ const HeaderComponent = () => {
                   })
             }
           >
-            Добавить вещь
+            <span className={styles.header__addLabel}>Добавить вещь</span>
+            <span className={styles.header__addLabelCompact}>Добавить</span>
           </Button>
           <Notifications />
           <FetchProfile />

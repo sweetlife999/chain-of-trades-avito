@@ -125,7 +125,12 @@ const NotificationsComponent = () => {
         type="button"
         onClick={() => setIsOpen((open) => !open)}
       >
-        <Bell aria-hidden="true" size={23} strokeWidth={1.9} />
+        <Bell
+          aria-hidden="true"
+          className={styles.notifications__triggerIcon}
+          size={23}
+          strokeWidth={1.9}
+        />
         {unreadCount > 0 && (
           <span className={styles.notifications__badge}>{badge}</span>
         )}
@@ -134,9 +139,11 @@ const NotificationsComponent = () => {
       {isOpen && (
         <div className={styles.notifications__panel}>
           <div className={styles.notifications__header}>
-            <div>
-              <h2>Уведомления</h2>
-              <p>Новые сообщения в ваших цепочках</p>
+            <div className={styles.notifications__heading}>
+              <h2 className={styles.notifications__title}>Уведомления</h2>
+              <p className={styles.notifications__description}>
+                Новые сообщения в ваших цепочках
+              </p>
             </div>
             {unreadCount > 0 && (
               <span className={styles.notifications__total}>{badge}</span>
@@ -157,9 +164,18 @@ const NotificationsComponent = () => {
             !exchangesQuery.isError &&
             unreadExchanges.length === 0 && (
               <div className={styles.notifications__empty}>
-                <Bell aria-hidden="true" size={28} strokeWidth={1.6} />
-                <strong>Новых уведомлений нет</strong>
-                <span>Здесь появятся непрочитанные сообщения из цепочек.</span>
+                <Bell
+                  aria-hidden="true"
+                  className={styles.notifications__emptyIcon}
+                  size={28}
+                  strokeWidth={1.6}
+                />
+                <strong className={styles.notifications__emptyTitle}>
+                  Новых уведомлений нет
+                </strong>
+                <span className={styles.notifications__emptyDescription}>
+                  Здесь появятся непрочитанные сообщения из цепочек.
+                </span>
               </div>
             )}
 
@@ -175,8 +191,12 @@ const NotificationsComponent = () => {
                     onClick={() => setIsOpen(false)}
                   >
                     <span className={styles.notifications__itemContent}>
-                      <strong>{getExchangeTitle(exchange, user.id)}</strong>
-                      <span>{getUnreadLabel(exchange.unread_count)}</span>
+                      <strong className={styles.notifications__itemTitle}>
+                        {getExchangeTitle(exchange, user.id)}
+                      </strong>
+                      <span className={styles.notifications__itemMeta}>
+                        {getUnreadLabel(exchange.unread_count)}
+                      </span>
                     </span>
                     <span className={styles.notifications__itemCount}>
                       {exchange.unread_count > 99

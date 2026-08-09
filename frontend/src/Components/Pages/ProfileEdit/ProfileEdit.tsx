@@ -87,8 +87,10 @@ const ProfileEditComponent = () => {
   return (
     <section className={styles.edit}>
       <header className={styles.edit__header}>
-        <h1>Редактирование профиля</h1>
-        <p>Измените данные, которые будут видны другим пользователям.</p>
+        <h1 className={styles.edit__title}>Редактирование профиля</h1>
+        <p className={styles.edit__description}>
+          Измените данные, которые будут видны другим пользователям.
+        </p>
       </header>
 
       <form
@@ -124,6 +126,7 @@ const ProfileEditComponent = () => {
 
         <div className={styles.edit__actions}>
           <Button
+            className={styles.edit__action}
             color="transparent"
             disabled={updateMutation.isPending}
             type="button"
@@ -131,7 +134,11 @@ const ProfileEditComponent = () => {
           >
             Отменить
           </Button>
-          <Button disabled={updateMutation.isPending} type="submit">
+          <Button
+            className={styles.edit__action}
+            disabled={updateMutation.isPending}
+            type="submit"
+          >
             {updateMutation.isPending ? "Сохраняем..." : "Сохранить"}
           </Button>
         </div>

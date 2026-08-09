@@ -116,9 +116,13 @@ const ItemEditForm = ({ item }: TFormProps) => {
   return (
     <main className={styles.editItem}>
       <header className={styles.editItem__header}>
-        <Link to={`/items/${item.id}`}>← Вернуться к объявлению</Link>
-        <h1>Редактирование объявления</h1>
-        <p>Измените данные вещи и сохраните изменения.</p>
+        <Link className={styles.editItem__back} to={`/items/${item.id}`}>
+          ← Вернуться к объявлению
+        </Link>
+        <h1 className={styles.editItem__title}>Редактирование объявления</h1>
+        <p className={styles.editItem__description}>
+          Измените данные вещи и сохраните изменения.
+        </p>
       </header>
 
       <form
@@ -137,9 +141,13 @@ const ItemEditForm = ({ item }: TFormProps) => {
                 />
               ) : (
                 <div className={styles.editItem__photoPlaceholder}>
-                  <span>+</span>
-                  <strong>Добавить фотографии</strong>
-                  <small>Вставьте ссылки, до 10 фотографий</small>
+                  <span className={styles.editItem__photoPlus}>+</span>
+                  <strong className={styles.editItem__photoTitle}>
+                    Добавить фотографии
+                  </strong>
+                  <small className={styles.editItem__photoHint}>
+                    Вставьте ссылки, до 10 фотографий
+                  </small>
                 </div>
               )}
             </div>
@@ -192,7 +200,7 @@ const ItemEditForm = ({ item }: TFormProps) => {
 
             <label className={styles.editItem__field}>
               <span className={styles.editItem__label}>
-                Категория <b>*</b>
+                Категория <b className={styles.editItem__required}>*</b>
               </span>
 
               <select
@@ -233,7 +241,8 @@ const ItemEditForm = ({ item }: TFormProps) => {
 
             <fieldset className={styles.editItem__wants}>
               <legend className={styles.editItem__label}>
-                Что хотите получить взамен <b>*</b>
+                Что хотите получить взамен{" "}
+                <b className={styles.editItem__required}>*</b>
               </legend>
 
               {categoriesQuery.isError ? (
@@ -245,11 +254,14 @@ const ItemEditForm = ({ item }: TFormProps) => {
                   {categories.map((category) => (
                     <label className={styles.editItem__category} key={category.slug}>
                       <input
+                        className={styles.editItem__categoryInput}
                         type="checkbox"
                         value={category.slug}
                         {...register("wants")}
                       />
-                      <span>{category.name}</span>
+                      <span className={styles.editItem__categoryLabel}>
+                        {category.name}
+                      </span>
                     </label>
                   ))}
                 </div>
@@ -272,6 +284,7 @@ const ItemEditForm = ({ item }: TFormProps) => {
 
         <div className={styles.editItem__actions}>
           <Button
+            className={styles.editItem__action}
             color="light"
             type="button"
             disabled={updateMutation.isPending}
@@ -281,6 +294,7 @@ const ItemEditForm = ({ item }: TFormProps) => {
           </Button>
 
           <Button
+            className={styles.editItem__action}
             color="green"
             type="submit"
             disabled={
@@ -308,19 +322,32 @@ const ItemEditComponent = () => {
   });
 
   if (itemQuery.isPending) {
-    return <p>Загрузка...</p>;
+    return <p className={styles.editItem__state}>Загружаем объявление...</p>;
   }
 
   if (itemQuery.isError || !itemQuery.data) {
-    return <p>Не удалось загрузить объявление</p>;
+    return (
+      <p className={styles.editItem__state_error}>
+        Не удалось загрузить объявление
+      </p>
+    );
   }
 
   if (itemQuery.data.owner_id !== user?.id) {
     return (
       <div className={styles.editItem__accessError}>
-        <h1>Редактирование недоступно</h1>
-        <p>Изменять можно только свои объявления.</p>
-        <Link to={`/items/${itemQuery.data.id}`}>Вернуться к объявлению</Link>
+        <h1 className={styles.editItem__accessTitle}>
+          Редактирование недоступно
+        </h1>
+        <p className={styles.editItem__accessDescription}>
+          Изменять можно только свои объявления.
+        </p>
+        <Link
+          className={styles.editItem__accessLink}
+          to={`/items/${itemQuery.data.id}`}
+        >
+          Вернуться к объявлению
+        </Link>
       </div>
     );
   }

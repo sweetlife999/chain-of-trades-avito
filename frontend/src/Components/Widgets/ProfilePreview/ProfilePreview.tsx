@@ -75,6 +75,7 @@ const ProfilePreviewComponent = ({ user }: TProfilePreviewProps) => {
       <div className={styles.profile__menu}>
         <div className={styles.profile__menuContent}>
           <Button
+            className={styles.profile__logout}
             color="transparent"
             type="button"
             onClick={handleLogout}

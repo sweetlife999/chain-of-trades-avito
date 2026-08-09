@@ -1,22 +1,31 @@
+@mixin focus-ring {
+  outline: 3px solid rgba($green-button, 0.2);
+  outline-offset: 2px;
+}
+
 .admin {
   &__sectionHeader {
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
     gap: 24px;
+  }
 
-    h2 {
-      color: #202124;
-      font-size: 25px;
-      line-height: 1.25;
-    }
+  &__sectionHeading {
+    min-width: 0;
+  }
 
-    p {
-      margin-top: 5px;
-      color: #858b94;
-      font-size: 13px;
-      line-height: 1.4;
-    }
+  &__sectionTitle {
+    color: #202124;
+    font-size: clamp(22px, 3vw, 25px);
+    line-height: 1.25;
+  }
+
+  &__sectionDescription {
+    margin-top: 5px;
+    color: #858b94;
+    font-size: 13px;
+    line-height: 1.4;
   }
 
   &__refresh {
@@ -31,21 +40,31 @@
     border-radius: 9px;
     font-size: 12px;
     font-weight: 600;
+    transition: color 0.2s ease, border-color 0.2s ease, transform 0.16s ease;
 
     &:hover:not(:disabled) {
       color: $green-button;
       border-color: $green-button;
+      transform: translateY(-1px);
+    }
+
+    &:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    &:focus-visible {
+      @include focus-ring;
     }
 
     &:disabled {
       cursor: wait;
       opacity: 0.65;
     }
+  }
 
-    svg {
-      width: 16px;
-      height: 16px;
-    }
+  &__refreshIcon {
+    width: 16px;
+    height: 16px;
   }
 
   &__state {
@@ -60,25 +79,25 @@
     border: 1px solid #e7e9ec;
     border-radius: 16px;
     text-align: center;
+  }
 
-    h3 {
-      color: #282b30;
-      font-size: 18px;
-    }
+  &__stateTitle {
+    color: #282b30;
+    font-size: 18px;
+  }
 
-    p {
-      max-width: 420px;
-      margin: 8px 0 18px;
-      font-size: 13px;
-      line-height: 1.5;
-    }
+  &__stateDescription {
+    max-width: 420px;
+    margin: 8px 0 18px;
+    font-size: 13px;
+    line-height: 1.5;
   }
 }
 
 .dashboard {
   display: grid;
   gap: 18px;
-  padding: 24px;
+  padding: clamp(17px, 3vw, 24px);
   background: #fff;
   border: 1px solid #e7e9ec;
   border-radius: 20px;
@@ -99,46 +118,53 @@
     background: #fafbfc;
     border: 1px solid #eceef1;
     border-radius: 14px;
+    transition: transform 0.18s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 
-    > div {
-      display: grid;
-      gap: 5px;
-      min-width: 0;
+    &:hover {
+      transform: translateY(-2px);
+      border-color: #cfe4d9;
+      box-shadow: 0 8px 20px rgba(17, 24, 39, 0.06);
     }
+  }
 
-    > div span {
-      overflow: hidden;
-      color: #777d86;
-      font-size: 11px;
-      font-weight: 500;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
+  &__mainContent {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+  }
 
-    strong {
-      color: #1f2328;
-      font-size: 25px;
-      line-height: 1;
-    }
+  &__mainLabel {
+    overflow: hidden;
+    color: #777d86;
+    font-size: 11px;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__mainValue {
+    color: #1f2328;
+    font-size: clamp(21px, 3vw, 25px);
+    line-height: 1;
   }
 
   &__mainIcon {
     display: grid;
-    place-items: center;
     width: 42px;
     height: 42px;
     flex: 0 0 42px;
+    place-items: center;
     border-radius: 12px;
-
-    svg {
-      width: 20px;
-      height: 20px;
-    }
 
     &_blue { color: #2563eb; background: #eff6ff; }
     &_green { color: #08783f; background: #ecfdf3; }
     &_orange { color: #c76b05; background: #fff7ed; }
     &_violet { color: #7c3aed; background: #f5f3ff; }
+  }
+
+  &__mainIconImage {
+    width: 20px;
+    height: 20px;
   }
 
   &__detailsGrid {
@@ -148,55 +174,53 @@
   }
 
   &__detailsCard {
+    min-width: 0;
     padding: 17px;
     background: #fafbfc;
     border: 1px solid #eceef1;
     border-radius: 14px;
+  }
 
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid #e8eaed;
-    }
+  &__detailsHeader,
+  &__statusRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
 
-    h3 {
-      color: #30343a;
-      font-size: 14px;
-      line-height: 1.35;
-    }
+  &__detailsHeader {
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e8eaed;
+  }
 
-    header strong {
-      color: #171717;
-      font-size: 20px;
-    }
+  &__detailsTitle {
+    color: #30343a;
+    font-size: 14px;
+    line-height: 1.35;
+  }
 
-    dl {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px 18px;
-      padding-top: 13px;
-    }
+  &__detailsTotal {
+    color: #171717;
+    font-size: 20px;
+  }
 
-    dl > div {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
+  &__statusList {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 18px;
+    padding-top: 13px;
+  }
 
-    dt {
-      color: #747a83;
-      font-size: 11px;
-    }
+  &__statusTerm {
+    color: #747a83;
+    font-size: 11px;
+  }
 
-    dd {
-      color: #30343a;
-      font-size: 12px;
-      font-weight: 700;
-    }
+  &__statusValue {
+    color: #30343a;
+    font-size: 12px;
+    font-weight: 700;
   }
 }
 
@@ -208,23 +232,36 @@
 
 @media (max-width: 780px) {
   .dashboard__detailsGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
 @media (max-width: 560px) {
-  .admin__sectionHeader {
-    align-items: stretch;
-    flex-direction: column;
+  .admin {
+    &__sectionHeader {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    &__refresh {
+      justify-content: center;
+      width: 100%;
+    }
   }
 
   .dashboard {
-    padding: 17px;
     border-radius: 16px;
 
     &__mainGrid,
-    &__detailsCard dl {
-      grid-template-columns: 1fr;
+    &__statusList {
+      grid-template-columns: minmax(0, 1fr);
     }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin__refresh,
+  .dashboard__mainCard {
+    transition: none;
   }
 }
