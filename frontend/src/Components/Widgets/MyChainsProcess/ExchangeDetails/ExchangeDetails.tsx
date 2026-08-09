@@ -21,6 +21,7 @@ import { useAuthSelector } from "../../../../Hooks/useAuthDispatch";
 import { ExchangeChat } from "../ExchangeChat/ExchangeChat";
 import { ExchangeProgress } from "../ExchangeProgress/ExchangeProgress";
 import { ConfirmationPopup } from "../../../UI/ConfirmationPopup/ConfirmationPopup";
+import { CancelExchangeButton } from "../../Admin/CancelExchangeButton/CancelExchangeButton";
 
 const statusLabels: Record<TExchangeStatus, string> = {
   proposed: "Ждём подтверждения",
@@ -142,6 +143,7 @@ const ExchangeDetailsComponent = () => {
   const { user } = useAuthSelector();
   const queryClient = useQueryClient();
   const [declinePopupOpen, setDeclinePopupOpen] = useState(false);
+  const [cancelledByAdmin, setCancelledByAdmin] = useState(false);
 
   const {
     data: exchange,
@@ -151,6 +153,7 @@ const ExchangeDetailsComponent = () => {
     queryKey: ["exchanges", id],
     queryFn: () => getExchange(id),
     enabled: Boolean(id),
+    retry: false,
   });
 
   const refreshExchange = () =>
@@ -213,13 +216,18 @@ const ExchangeDetailsComponent = () => {
   const title = referenceParticipant
     ? `${referenceParticipant.gives_item.title} → ${referenceParticipant.receives_item.title}`
     : "Цепочка обмена";
+  const isAdmin = Boolean(user?.is_admin);
+  const adminCanCancel =
+    isAdmin && ["proposed", "confirmed"].includes(exchange.status);
+  const returnTo = isParticipant ? "/exchanges" : "/";
+  const returnLabel = isParticipant ? "Мои цепочки" : "Обмены";
 
   return (
     <section className={styles.details}>
       <header className={styles.details__header}>
         <div>
-          <Link to={isParticipant ? "/exchanges" : "/"}>
-            ← {isParticipant ? "Мои цепочки" : "Обмены"}
+          <Link to={returnTo}>
+            ← {returnLabel}
           </Link>
           <h1>{title}</h1>
           <p>
@@ -227,9 +235,19 @@ const ExchangeDetailsComponent = () => {
             {formatDate(exchange.created_at)}
           </p>
         </div>
-        <span className={styles[`status_${exchange.status}`]}>
-          {statusLabels[exchange.status]}
-        </span>
+        <div className={styles.details__headerActions}>
+          <span className={styles[`status_${exchange.status}`]}>
+            {statusLabels[exchange.status]}
+          </span>
+          {adminCanCancel && (
+            <CancelExchangeButton
+              exchangeId={exchange.id}
+              onCancelled={() => {
+                setCancelledByAdmin(true);
+              }}
+            />
+          )}
+        </div>
       </header>
 
       <div className={styles.details__progress}>
@@ -423,8 +441,16 @@ const ExchangeDetailsComponent = () => {
           >
             !
           </span>
-          <h2>Один из участников отказался</h2>
-          <p>Ваша вещь не передана и остаётся доступной.</p>
+          <h2>
+            {cancelledByAdmin
+              ? "Обмен отменён администратором"
+              : "Один из участников отказался"}
+          </h2>
+          <p>
+            {cancelledByAdmin
+              ? "Объявления освобождены, для них снова может начаться поиск обмена."
+              : "Ваша вещь не передана и остаётся доступной."}
+          </p>
           <div className={styles.details__resultButtons}>
             <Link to="/">Искать новую цепочку</Link>
             <Link to="/myItems">Вернуть вещь в каталог</Link>

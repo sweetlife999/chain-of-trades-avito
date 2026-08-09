@@ -7,7 +7,7 @@ export const AdminRoute = () => {
   const { isAdmin, isAuth } = useAuthSelector();
 
   if (!isAuth) {
-    return <Navigate to="/login" replace />;
+    return <Navigate state={{ from: "/admin" }} to="/login" replace />;
   }
 
   if (!isAdmin) {

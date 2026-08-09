@@ -2,12 +2,16 @@ import axios from "axios";
 
 import api from "../client";
 import {
+  AdminUserExchangesParamsSchema,
+  AdminUserExchangesSchema,
   CreatePickupPointSchema,
   DashboardSchema,
   PickupPointSchema,
   PickupPointsSchema,
   UpdatePickupPointSchema,
   type TCreatePickupPoint,
+  type TAdminUserExchanges,
+  type TAdminUserExchangesParams,
   type TDashboard,
   type TPickupPoint,
   type TUpdatePickupPoint,
@@ -65,4 +69,20 @@ export const updateAdminPickupPoint = async (
 
 export const deleteAdminPickupPoint = async (id: string): Promise<void> => {
   await api.delete(`/admin/pickup-points/${id}`);
+};
+
+export const getAdminUserExchanges = async (
+  userId: string,
+  request: TAdminUserExchangesParams = {},
+): Promise<TAdminUserExchanges> => {
+  const params = AdminUserExchangesParamsSchema.parse(request);
+  const { data } = await api.get(`/admin/users/${userId}/exchanges`, {
+    params,
+  });
+
+  return AdminUserExchangesSchema.parse(data);
+};
+
+export const cancelAdminExchange = async (id: string): Promise<void> => {
+  await api.post(`/admin/exchanges/${id}/cancel`);
 };

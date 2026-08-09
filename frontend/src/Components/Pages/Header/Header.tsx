@@ -31,7 +31,7 @@ const adminNavigationItem: NavigationItem = {
 
 const HeaderComponent = () => {
   const navigate = useNavigate();
-  const { isAdmin } = useAuthSelector();
+  const { isAdmin, isAuth } = useAuthSelector();
   const visibleNavigationItems = isAdmin
     ? [...navigationItems, adminNavigationItem]
     : navigationItems;
@@ -63,7 +63,17 @@ const HeaderComponent = () => {
         </nav>
 
         <div className={styles.header__actions}>
-          <Button size="m" color="green" onClick={() => navigate("/exchanges/create")}>
+          <Button
+            size="m"
+            color="green"
+            onClick={() =>
+              isAuth
+                ? navigate("/exchanges/create")
+                : navigate("/login", {
+                    state: { from: "/exchanges/create" },
+                  })
+            }
+          >
             Добавить вещь
           </Button>
           <Notifications />

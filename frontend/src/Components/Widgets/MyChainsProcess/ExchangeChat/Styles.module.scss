@@ -43,7 +43,8 @@
     gap: 9px;
     max-width: 76%;
 
-    > div {
+    .chat__bubble {
+      position: relative;
       display: grid;
       gap: 5px;
       padding: 11px 13px;
@@ -51,6 +52,16 @@
       border: 1px solid #e8e8e8;
       border-radius: 12px 12px 12px 4px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, .03);
+
+      &_reportable {
+        padding-right: 46px;
+      }
+
+      &:hover .chat__reportAction,
+      &:focus-within .chat__reportAction {
+        opacity: 1;
+        pointer-events: auto;
+      }
     }
 
     strong { font-size: 11px; }
@@ -60,13 +71,19 @@
     &_own {
       align-self: flex-end;
 
-      > div {
+      .chat__bubble {
         color: #174d32;
         background: #e7f7ef;
         border-color: #d0ebdc;
         border-radius: 12px 12px 4px;
       }
     }
+  }
+
+  &__reportAction {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .18s ease;
   }
 
   &__avatarLink {
@@ -200,5 +217,12 @@
     }
 
     &__message { max-width: 92%; }
+  }
+}
+
+@media (hover: none) {
+  .chat__reportAction {
+    opacity: 1;
+    pointer-events: auto;
   }
 }

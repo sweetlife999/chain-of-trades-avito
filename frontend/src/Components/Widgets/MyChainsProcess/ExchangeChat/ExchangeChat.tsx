@@ -19,6 +19,7 @@ import {
   sendExchangeMessage,
 } from "../../../../Api/exchanges/exchanges";
 import type { TExchangeMessage } from "../../../../Api/exchanges/exchanges.types";
+import { ReportMessageButton } from "../ReportMessageButton/ReportMessageButton";
 
 type TProps = {
   exchangeId: string;
@@ -250,7 +251,11 @@ const ExchangeChatComponent = ({
                   </span>
                 </Link>
               )}
-              <div>
+              <div
+                className={`${styles.chat__bubble} ${
+                  !own ? styles.chat__bubble_reportable : ""
+                }`}
+              >
                 {!own && message.author && (
                   <Link
                     className={styles.chat__authorLink}
@@ -261,6 +266,12 @@ const ExchangeChatComponent = ({
                 )}
                 <p>{message.body ?? ""}</p>
                 <time>{formatTime(message.created_at)}</time>
+                {!own && (
+                  <ReportMessageButton
+                    className={styles.chat__reportAction}
+                    messageId={message.id}
+                  />
+                )}
               </div>
             </article>
           );

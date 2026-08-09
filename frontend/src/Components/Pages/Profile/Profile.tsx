@@ -15,6 +15,7 @@ import { Button } from "../../UI/Button/Button";
 import { ConfirmationPopup } from "../../UI/ConfirmationPopup/ConfirmationPopup";
 import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
 import { getAvatarGradient } from "../../Utils/getAvatarGradient";
+import { AdminUserExchanges } from "../../Widgets/Admin/AdminUserExchanges/AdminUserExchanges";
 
 type TBlockAction = {
   type: "block" | "unblock";
@@ -207,6 +208,13 @@ const ProfileComponent = () => {
           </div>
         </div>
       </section>
+
+      {!isOwnProfile && currentUser?.is_admin && (
+        <AdminUserExchanges
+          userId={user.id}
+          userNickname={user.nickname}
+        />
+      )}
 
       {isOwnProfile && currentUser && (
         <section className={styles.profile__blocked}>
