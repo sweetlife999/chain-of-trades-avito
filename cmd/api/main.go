@@ -86,7 +86,9 @@ func main() {
 	pickupPoints := pickuppointservice.New(pickuppointrepository.New(queries))
 	adminDashboard := admindashboardservice.New(admindashboardrepository.New(queries))
 	adminExchanges := adminexchangeservice.New(usersRepository, exchangesRepository)
-	reports := reportservice.New(reportrepository.New(queries))
+	reportsRepository := reportrepository.New(queries)
+	reports := reportservice.New(reportsRepository)
+	adminReports := reportservice.NewAdmin(reportsRepository, exchangesRepository)
 
 	tokens := authtoken.NewManager(cfg.JWTSecret, authTokenTTL)
 	authenticator := authmiddleware.New(tokens)
@@ -110,6 +112,7 @@ func main() {
 		adminexchangehandler.New(adminExchanges).RegisterRoutes(adminRouter)
 		pickuppointhandler.New(pickupPoints).RegisterRoutes(adminRouter)
 		exchangesHandler.RegisterAdminRoutes(adminRouter)
+		reporthandler.NewAdmin(adminReports).RegisterRoutes(adminRouter)
 	})
 
 	router.Get("/health", health)

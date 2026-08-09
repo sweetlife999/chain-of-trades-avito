@@ -1,5 +1,75 @@
 basePath: /
 definitions:
+  dto.AdminExchangeResponse:
+    properties:
+      id:
+        type: string
+      status:
+        type: string
+    type: object
+  dto.AdminMessageResponse:
+    properties:
+      body:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+    type: object
+  dto.AdminReportListResponse:
+    properties:
+      pagination:
+        $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_report_dto.PaginationResponse'
+      reports:
+        items:
+          $ref: '#/definitions/dto.AdminReportResponse'
+        type: array
+    type: object
+  dto.AdminReportMessagesResponse:
+    properties:
+      exchange_id:
+        type: string
+      messages:
+        items:
+          $ref: '#/definitions/dto.MessageResponse'
+        type: array
+      report_id:
+        type: string
+    type: object
+  dto.AdminReportResponse:
+    properties:
+      assignee:
+        allOf:
+        - $ref: '#/definitions/dto.AdminUserResponse'
+        x-nullable: true
+      comment:
+        type: string
+      created_at:
+        type: string
+      exchange:
+        $ref: '#/definitions/dto.AdminExchangeResponse'
+      id:
+        type: string
+      message:
+        $ref: '#/definitions/dto.AdminMessageResponse'
+      offender:
+        $ref: '#/definitions/dto.AdminUserResponse'
+      reason:
+        type: string
+      reporter:
+        $ref: '#/definitions/dto.AdminUserResponse'
+      status:
+        type: string
+    type: object
+  dto.AdminUserResponse:
+    properties:
+      id:
+        type: string
+      nickname:
+        type: string
+      photo_url:
+        type: string
+    type: object
   dto.AuthenticatedUserResponse:
     properties:
       created_at:
@@ -183,7 +253,7 @@ definitions:
           $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ExchangeResponse'
         type: array
       pagination:
-        $ref: '#/definitions/dto.PaginationResponse'
+        $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.PaginationResponse'
     type: object
   dto.LoginRequest:
     properties:
@@ -223,15 +293,6 @@ definitions:
         - exchange_completed
         - exchange_superseded
         type: string
-    type: object
-  dto.PaginationResponse:
-    properties:
-      limit:
-        type: integer
-      offset:
-        type: integer
-      total:
-        type: integer
     type: object
   dto.ParticipantItemResponse:
     properties:
@@ -397,6 +458,15 @@ definitions:
       updated_at:
         type: string
     type: object
+  github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.PaginationResponse:
+    properties:
+      limit:
+        type: integer
+      offset:
+        type: integer
+      total:
+        type: integer
+    type: object
   github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.CategoryResponse:
     properties:
       name:
@@ -436,6 +506,15 @@ definitions:
       slug:
         example: bikes
         type: string
+    type: object
+  github_com_sweetlife999_chain-of-trades-avito_internal_report_dto.PaginationResponse:
+    properties:
+      limit:
+        type: integer
+      offset:
+        type: integer
+      total:
+        type: integer
     type: object
   github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse:
     properties:
@@ -727,6 +806,154 @@ paths:
       summary: Изменить ПВЗ
       tags:
       - admin pickup-points
+  /admin/reports:
+    get:
+      description: |-
+        Возвращает жалобы для модерации вместе с жалобщиком, нарушителем, сообщением и обменом.
+        Поддерживает пагинацию и фильтры по статусу, причине и назначенному администратору.
+      parameters:
+      - description: Статус жалобы
+        enum:
+        - open
+        - resolved
+        - rejected
+        in: query
+        name: status
+        type: string
+      - description: Причина жалобы
+        enum:
+        - spam
+        - abuse
+        - other
+        in: query
+        name: reason
+        type: string
+      - description: UUID назначенного администратора
+        in: query
+        name: assignee_id
+        type: string
+      - default: 20
+        description: Размер страницы (1-100)
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Смещение
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AdminReportListResponse'
+        "400":
+          description: Некорректный фильтр или пагинация
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "403":
+          description: Пользователь не администратор
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+      security:
+      - CookieAuth: []
+      summary: Очередь жалоб
+      tags:
+      - admin-reports
+  /admin/reports/{id}:
+    get:
+      description: Возвращает жалобу, автора жалобы, автора сообщения, само сообщение
+        и обмен.
+      parameters:
+      - description: UUID жалобы
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AdminReportResponse'
+        "400":
+          description: Некорректный UUID
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "403":
+          description: Пользователь не администратор
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "404":
+          description: Жалоба не найдена
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+      security:
+      - CookieAuth: []
+      summary: Карточка жалобы
+      tags:
+      - admin-reports
+  /admin/reports/{id}/messages:
+    get:
+      description: Возвращает полный тред обмена, к которому относится жалоба. Доступ
+        только на чтение.
+      parameters:
+      - description: UUID жалобы
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AdminReportMessagesResponse'
+        "400":
+          description: Некорректный UUID
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "403":
+          description: Пользователь не администратор
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "404":
+          description: Жалоба не найдена
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.ReportError'
+      security:
+      - CookieAuth: []
+      summary: Переписка по жалобе
+      tags:
+      - admin-reports
   /admin/users/{user_id}/exchanges:
     get:
       description: Доступно только администратору. Возвращает proposed и confirmed

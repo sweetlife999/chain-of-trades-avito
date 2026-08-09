@@ -17,6 +17,8 @@ import (
 
 	authcontext "github.com/sweetlife999/chain-of-trades-avito/internal/auth/authcontext"
 	db "github.com/sweetlife999/chain-of-trades-avito/internal/db"
+	exchangerepository "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/repository"
+	reportdto "github.com/sweetlife999/chain-of-trades-avito/internal/report/dto"
 	reportrepository "github.com/sweetlife999/chain-of-trades-avito/internal/report/repository"
 	reportservice "github.com/sweetlife999/chain-of-trades-avito/internal/report/service"
 )
@@ -132,8 +134,9 @@ func TestReportsIntegration(t *testing.T) {
 		t.Fatalf("create event: %v", err)
 	}
 
+	reportsRepository := reportrepository.New(db.New(pool))
 	router := chi.NewRouter()
-	service := reportservice.New(reportrepository.New(db.New(pool)))
+	service := reportservice.New(reportsRepository)
 	New(service).RegisterRoutes(router, func(next http.Handler) http.Handler { return next })
 
 	post := func(reporter uuid.UUID, target uuid.UUID, reason string) *httptest.ResponseRecorder {
@@ -193,5 +196,62 @@ func TestReportsIntegration(t *testing.T) {
 	if w := post(users[2], messageID, "abuse"); w.Code != http.StatusCreated {
 		t.Fatalf("жалоба второго участника: status = %d, want %d (body %s)",
 			w.Code, http.StatusCreated, w.Body.String())
+	}
+
+	// Админские чтения используют ту же живую базу: фильтр очереди, карточку и полный
+	// тред. Middleware роли покрыт unit-тестом, здесь проверяем SQL-связи и JSON.
+	adminRouter := chi.NewRouter()
+	adminService := reportservice.NewAdmin(reportsRepository, exchangerepository.New(pool))
+	NewAdmin(adminService).RegisterRoutes(adminRouter)
+
+	queue := httptest.NewRecorder()
+	adminRouter.ServeHTTP(
+		queue,
+		httptest.NewRequest(http.MethodGet, "/reports?status=open&reason=spam&limit=10", nil),
+	)
+	if queue.Code != http.StatusOK {
+		t.Fatalf("admin queue: status = %d, want 200 (body %s)", queue.Code, queue.Body.String())
+	}
+	var page reportdto.AdminReportListResponse
+	if err := json.NewDecoder(queue.Body).Decode(&page); err != nil {
+		t.Fatalf("decode admin queue: %v", err)
+	}
+	if page.Pagination.Total != 1 || len(page.Reports) != 1 || page.Reports[0].ID != created.ID {
+		t.Fatalf("admin queue = %+v", page)
+	}
+
+	detail := httptest.NewRecorder()
+	adminRouter.ServeHTTP(
+		detail,
+		httptest.NewRequest(http.MethodGet, "/reports/"+created.ID, nil),
+	)
+	if detail.Code != http.StatusOK {
+		t.Fatalf("admin detail: status = %d, want 200 (body %s)", detail.Code, detail.Body.String())
+	}
+	var reportDetail reportdto.AdminReportResponse
+	if err := json.NewDecoder(detail.Body).Decode(&reportDetail); err != nil {
+		t.Fatalf("decode admin detail: %v", err)
+	}
+	if reportDetail.Reporter.ID != users[0].String() ||
+		reportDetail.Offender.ID != users[1].String() ||
+		reportDetail.Exchange.ID != chainID.String() ||
+		reportDetail.Message.ID != messageID.String() {
+		t.Fatalf("admin detail = %+v", reportDetail)
+	}
+
+	thread := httptest.NewRecorder()
+	adminRouter.ServeHTTP(
+		thread,
+		httptest.NewRequest(http.MethodGet, "/reports/"+created.ID+"/messages", nil),
+	)
+	if thread.Code != http.StatusOK {
+		t.Fatalf("admin thread: status = %d, want 200 (body %s)", thread.Code, thread.Body.String())
+	}
+	var messages reportdto.AdminReportMessagesResponse
+	if err := json.NewDecoder(thread.Body).Decode(&messages); err != nil {
+		t.Fatalf("decode admin thread: %v", err)
+	}
+	if messages.ExchangeID != chainID.String() || len(messages.Messages) != 2 {
+		t.Fatalf("admin thread = %+v", messages)
 	}
 }
