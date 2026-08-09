@@ -168,7 +168,7 @@ export const PickupPointForm = ({
         aria-modal="true"
         aria-labelledby="pickup-point-form-title"
       >
-        <header className={styles.modal__header}>
+        <div className={styles.modal__header}>
           <span className={styles.modal__icon} aria-hidden="true">
             <MapPin className={styles.modal__iconImage} />
           </span>
@@ -189,7 +189,7 @@ export const PickupPointForm = ({
           >
             <X aria-hidden="true" className={styles.modal__closeIcon} />
           </button>
-        </header>
+        </div>
 
         {isLoading && (
           <div className={styles.modal__state}>

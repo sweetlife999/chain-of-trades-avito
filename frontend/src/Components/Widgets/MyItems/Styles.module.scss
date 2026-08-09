@@ -16,13 +16,9 @@
     gap: 6px;
   }
 
-  &__title { font-size: clamp(28px, 4vw, 36px); }
+  &__title { @include page-title; }
 
-  &__description {
-    color: #686e75;
-    font-size: 14px;
-    line-height: 1.5;
-  }
+  &__description { @include page-description; }
 
   &__create {
     flex: 0 0 auto;

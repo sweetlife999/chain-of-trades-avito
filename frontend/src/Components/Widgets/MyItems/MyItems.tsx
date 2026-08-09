@@ -32,7 +32,7 @@ const MyItemsComponent = () => {
 
   return (
     <section className={styles.items}>
-      <header className={styles.items__header}>
+      <div className={styles.items__header}>
         <div className={styles.items__heading}>
           <h1 className={styles.items__title}>Мои вещи</h1>
           {isAuth && (
@@ -46,7 +46,7 @@ const MyItemsComponent = () => {
             Добавить вещь
           </Link>
         )}
-      </header>
+      </div>
 
       {!isAuth ? (
         <AuthRequiredState

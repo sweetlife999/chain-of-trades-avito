@@ -86,12 +86,12 @@ const ProfileEditComponent = () => {
 
   return (
     <section className={styles.edit}>
-      <header className={styles.edit__header}>
+      <div className={styles.edit__header}>
         <h1 className={styles.edit__title}>Редактирование профиля</h1>
         <p className={styles.edit__description}>
           Измените данные, которые будут видны другим пользователям.
         </p>
-      </header>
+      </div>
 
       <form
         className={styles.edit__form}

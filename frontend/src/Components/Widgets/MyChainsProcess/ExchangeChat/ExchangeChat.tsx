@@ -165,7 +165,7 @@ const ExchangeChatComponent = ({
 
   return (
     <section className={styles.chat}>
-      <header className={styles.chat__header}>
+      <div className={styles.chat__header}>
         <div className={styles.chat__heading}>
           <h2 className={styles.chat__title}>Чат цепочки</h2>
           <p className={styles.chat__description}>
@@ -177,7 +177,7 @@ const ExchangeChatComponent = ({
         <span className={styles.chat__mode}>
           {readOnly ? "Только чтение" : "Обновляется автоматически"}
         </span>
-      </header>
+      </div>
 
       <div className={styles.chat__messages}>
         {messagesQuery.isPending && (

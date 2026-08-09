@@ -66,7 +66,7 @@ const MyChainsComponent = () => {
 
   return (
     <section className={styles.chains}>
-      <header className={styles.chains__header}>
+      <div className={styles.chains__header}>
         <div className={styles.chains__heading}>
           <h1 className={styles.chains__title}>Мои цепочки</h1>
           <p className={styles.chains__description}>
@@ -85,7 +85,7 @@ const MyChainsComponent = () => {
         >
           Создать цепочку
         </Button>
-      </header>
+      </div>
 
       <div className={styles.chains__filters}>
             {tabs.map(({ value, label }) => (

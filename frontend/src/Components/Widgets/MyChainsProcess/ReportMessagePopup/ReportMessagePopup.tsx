@@ -100,7 +100,7 @@ export const ReportMessagePopup = ({
           </div>
         ) : (
           <form className={styles.report__form} onSubmit={handleSubmit}>
-            <header className={styles.report__header}>
+            <div className={styles.report__header}>
               <h2 className={styles.report__title} id="report-message-title">
                 Пожаловаться на сообщение
               </h2>
@@ -108,7 +108,7 @@ export const ReportMessagePopup = ({
                 Укажите причину и при необходимости добавьте пояснение для
                 модератора.
               </p>
-            </header>
+            </div>
 
             <Input
               required

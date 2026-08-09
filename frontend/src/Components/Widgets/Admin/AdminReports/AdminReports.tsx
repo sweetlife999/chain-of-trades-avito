@@ -87,7 +87,7 @@ export const AdminReports = () => {
 
   return (
     <section className={styles.reports} aria-labelledby="admin-reports-title">
-      <header className={styles.reports__header}>
+      <div className={styles.reports__header}>
         <div className={styles.reports__heading}>
           <span className={styles.reports__icon} aria-hidden="true">
             <MessageSquareWarning className={styles.reports__iconImage} />
@@ -102,7 +102,7 @@ export const AdminReports = () => {
           </div>
         </div>
         <span className={styles.reports__total}>Всего: {total}</span>
-      </header>
+      </div>
 
       <div className={styles.reports__filters}>
         <span className={styles.reports__filtersLabel}>

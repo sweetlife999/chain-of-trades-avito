@@ -78,7 +78,7 @@ export const AdminUserExchanges = ({
       aria-labelledby="admin-user-exchanges-title"
       className={styles.exchanges}
     >
-      <header className={styles.exchanges__header}>
+      <div className={styles.exchanges__header}>
         <div className={styles.exchanges__heading}>
           <span className={styles.exchanges__eyebrow}>Доступ администратора</span>
           <h2 className={styles.exchanges__title} id="admin-user-exchanges-title">
@@ -106,7 +106,7 @@ export const AdminUserExchanges = ({
           />
           Обновить
         </Button>
-      </header>
+      </div>
 
       {exchangesQuery.isPending && (
         <div className={styles.exchanges__state}>

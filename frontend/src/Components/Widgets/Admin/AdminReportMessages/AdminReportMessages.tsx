@@ -60,7 +60,7 @@ export const AdminReportMessages = ({
 
   return (
     <section className={styles.reportMessages}>
-      <header className={styles.reportMessages__header}>
+      <div className={styles.reportMessages__header}>
         <MessageSquareText
           aria-hidden="true"
           className={styles.reportMessages__headerIcon}
@@ -71,7 +71,7 @@ export const AdminReportMessages = ({
             Режим просмотра: отправка сообщений отключена.
           </p>
         </div>
-      </header>
+      </div>
 
       {messagesQuery.isPending && (
         <div className={styles.reportMessages__state}>

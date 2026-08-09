@@ -37,6 +37,8 @@ export const CancelExchangeButton = ({
           queryKey: ["admin", "users", "exchanges"],
         }),
         queryClient.invalidateQueries({ queryKey: ["admin", "dashboard"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin", "exchanges"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin", "audit-log"] }),
         queryClient.invalidateQueries({ queryKey: ["exchanges"] }),
         queryClient.invalidateQueries({ queryKey: ["items"] }),
       ]);

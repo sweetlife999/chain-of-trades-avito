@@ -101,14 +101,14 @@ const CreateChainComponent = () => {
   const categories = categoriesQuery.data ?? [];
 
   return (
-    <main className={styles.createChain}>
-      <header className={styles.createChain__header}>
+    <div className={styles.createChain}>
+      <div className={styles.createChain__header}>
         <h1 className={styles.createChain__title}>Создать цепочку</h1>
 
         <p className={styles.createChain__subtitle}>
           Опишите товар и то, что хотите получить взамен
         </p>
-      </header>
+      </div>
 
       <section className={styles.createChain__section}>
         <h2 className={styles.createChain__sectionTitle}>
@@ -306,7 +306,7 @@ const CreateChainComponent = () => {
           </div>
         </form>
       </section>
-    </main>
+    </div>
   );
 };
 

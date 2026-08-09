@@ -2,26 +2,36 @@ import axios from "axios";
 
 import api from "../client";
 import {
-  AdminUserExchangesParamsSchema,
-  AdminUserExchangesSchema,
+  AdminAuditLogParamsSchema,
+  AdminAuditLogSchema,
+  AdminExchangesParamsSchema,
+  AdminExchangesSchema,
   AdminReportDecisionSchema,
   AdminReportMessagesSchema,
   AdminReportSchema,
   AdminReportsParamsSchema,
   AdminReportsSchema,
+  AdminUserBlockResponseSchema,
+  AdminUserExchangesParamsSchema,
+  AdminUserExchangesSchema,
   CreatePickupPointSchema,
   DashboardSchema,
   PickupPointSchema,
   PickupPointsSchema,
   UpdatePickupPointSchema,
-  type TCreatePickupPoint,
-  type TAdminUserExchanges,
-  type TAdminUserExchangesParams,
+  type TAdminAuditLog,
+  type TAdminAuditLogParams,
+  type TAdminExchanges,
+  type TAdminExchangesParams,
   type TAdminReport,
   type TAdminReportDecision,
   type TAdminReportMessages,
   type TAdminReports,
   type TAdminReportsParams,
+  type TAdminUserBlockResponse,
+  type TAdminUserExchanges,
+  type TAdminUserExchangesParams,
+  type TCreatePickupPoint,
   type TDashboard,
   type TPickupPoint,
   type TUpdatePickupPoint,
@@ -42,6 +52,15 @@ export const getAdminDashboard = async (): Promise<TDashboard> => {
   const { data } = await api.get("/admin/dashboard");
 
   return DashboardSchema.parse(data);
+};
+
+export const getAdminExchanges = async (
+  request: TAdminExchangesParams,
+): Promise<TAdminExchanges> => {
+  const params = AdminExchangesParamsSchema.parse(request);
+  const { data } = await api.get("/admin/exchanges", { params });
+
+  return AdminExchangesSchema.parse(data);
 };
 
 export const getAdminPickupPoints = async (): Promise<TPickupPoint[]> => {
@@ -101,6 +120,31 @@ export const markAdminExchangeDelivered = async (id: string): Promise<void> => {
   await api.post(`/admin/exchanges/${id}/mark-delivered`);
 };
 
+export const getAdminAuditLog = async (
+  request: TAdminAuditLogParams = {},
+): Promise<TAdminAuditLog> => {
+  const params = AdminAuditLogParamsSchema.parse(request);
+  const { data } = await api.get("/admin/audit-log", { params });
+
+  return AdminAuditLogSchema.parse(data);
+};
+
+export const blockAdminUser = async (
+  id: string,
+): Promise<TAdminUserBlockResponse> => {
+  const { data } = await api.post(`/admin/users/${id}/block`);
+
+  return AdminUserBlockResponseSchema.parse(data);
+};
+
+export const unblockAdminUser = async (
+  id: string,
+): Promise<TAdminUserBlockResponse> => {
+  const { data } = await api.post(`/admin/users/${id}/unblock`);
+
+  return AdminUserBlockResponseSchema.parse(data);
+};
+
 export const getAdminReports = async (
   request: TAdminReportsParams = {},
 ): Promise<TAdminReports> => {
@@ -128,23 +172,16 @@ const decideAdminReport = async (
   request: TAdminReportDecision,
 ): Promise<TAdminReport> => {
   const payload = AdminReportDecisionSchema.parse(request);
-  const { data } = await api.post(
-    `/admin/reports/${id}/${decision}`,
-    payload,
-  );
+  const { data } = await api.post(`/admin/reports/${id}/${decision}`, payload);
 
   return AdminReportSchema.parse(data);
 };
 
-export const rejectAdminReport = (
-  id: string,
-  request: TAdminReportDecision,
-) => decideAdminReport(id, "reject", request);
+export const rejectAdminReport = (id: string, request: TAdminReportDecision) =>
+  decideAdminReport(id, "reject", request);
 
-export const resolveAdminReport = (
-  id: string,
-  request: TAdminReportDecision,
-) => decideAdminReport(id, "resolve", request);
+export const resolveAdminReport = (id: string, request: TAdminReportDecision) =>
+  decideAdminReport(id, "resolve", request);
 
 export const getAdminReportMessages = async (
   id: string,

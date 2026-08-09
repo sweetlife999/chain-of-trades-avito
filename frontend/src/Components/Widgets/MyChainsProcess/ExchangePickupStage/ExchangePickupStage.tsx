@@ -33,7 +33,7 @@ export const ExchangePickupStage = ({
 
   return (
     <section className={styles.pickupStage}>
-      <header className={styles.pickupStage__header}>
+      <div className={styles.pickupStage__header}>
         <span className={styles.pickupStage__icon} aria-hidden="true">
           <PackageCheck className={styles.pickupStage__iconImage} />
         </span>
@@ -52,7 +52,7 @@ export const ExchangePickupStage = ({
               : "Когда все вещи окажутся в пунктах выдачи, начнётся их доставка получателям."}
           </p>
         </div>
-      </header>
+      </div>
 
       <PickupPointSelector
         currentPickupPoint={current.gives_item.pickup_point}

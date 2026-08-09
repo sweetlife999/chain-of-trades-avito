@@ -145,8 +145,8 @@ const ItemEditForm = ({ item }: TFormProps) => {
   const categories = categoriesQuery.data ?? [];
 
   return (
-    <main className={styles.editItem}>
-      <header className={styles.editItem__header}>
+    <div className={styles.editItem}>
+      <div className={styles.editItem__header}>
         <Link className={styles.editItem__back} to={`/items/${item.id}`}>
           ← Вернуться к объявлению
         </Link>
@@ -154,7 +154,7 @@ const ItemEditForm = ({ item }: TFormProps) => {
         <p className={styles.editItem__description}>
           Измените данные вещи и сохраните изменения.
         </p>
-      </header>
+      </div>
 
       <form
         className={styles.editItem__form}
@@ -334,7 +334,7 @@ const ItemEditForm = ({ item }: TFormProps) => {
           </Button>
         </div>
       </form>
-    </main>
+    </div>
   );
 };
 

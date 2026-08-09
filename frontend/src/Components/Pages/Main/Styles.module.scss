@@ -15,16 +15,9 @@
     gap: 4px;
   }
 
-  &__title {
-    font-size: clamp(34px, 5vw, 52px);
-    line-height: 1.25;
-  }
+  &__title { @include page-title; }
 
-  &__subtitle {
-    color: #61666d;
-    font-size: clamp(16px, 2.4vw, 26px);
-    line-height: 1.45;
-  }
+  &__subtitle { @include page-description; }
 
   &__action { flex: 0 0 auto; }
 }

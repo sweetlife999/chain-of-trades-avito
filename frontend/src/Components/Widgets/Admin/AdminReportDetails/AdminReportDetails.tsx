@@ -145,7 +145,7 @@ export const AdminReportDetails = ({
         className={styles.reportDetails}
         role="dialog"
       >
-        <header className={styles.reportDetails__header}>
+        <div className={styles.reportDetails__header}>
           <span className={styles.reportDetails__icon} aria-hidden="true">
             <AlertTriangle className={styles.reportDetails__iconImage} />
           </span>
@@ -166,7 +166,7 @@ export const AdminReportDetails = ({
           >
             <X aria-hidden="true" className={styles.reportDetails__closeIcon} />
           </button>
-        </header>
+        </div>
 
         {reportQuery.isPending && (
           <div className={styles.reportDetails__state}>
