@@ -12,8 +12,12 @@ MVP сервиса многостороннего обмена: пользова
 
 ```bash
 cp .env.example .env
-make up      # собирает образы и поднимает БД, миграции, API и фронт
+make up      # то же самое, что docker compose up -d
 ```
+
+Поднимает БД, миграции, API и фронт. Образы пересобираются на каждый запуск
+(`pull_policy: build` в compose), поэтому голый `docker compose up` тоже отдаёт
+текущий код, а не тот, что лежал в local-теге с прошлого раза.
 
 Приложение целиком — <http://localhost>. Swagger — <http://localhost/swagger/>,
 см. `docs/swagger.md`.
