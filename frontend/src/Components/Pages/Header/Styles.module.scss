@@ -1,3 +1,6 @@
+// Держим в переменной: панель бургера растягивается на всю шапку через отрицательный отступ.
+$inline-padding: clamp(8px, 2vw, 24px);
+
 .header {
   position: sticky;
   top: 0;
@@ -6,7 +9,7 @@
   justify-content: center;
   width: 100%;
   margin-bottom: clamp(18px, 3vw, 30px);
-  padding: 14px clamp(8px, 2vw, 24px);
+  padding: 14px $inline-padding;
   background: rgba(250, 250, 250, .94);
   border-bottom: 1px solid rgba(220, 224, 222, .8);
   backdrop-filter: blur(12px);
@@ -52,6 +55,7 @@
   }
 
   &__navItem { flex: 0 0 auto; }
+  &__navItem_menuOnly { display: none; }
 
   &__navLink {
     display: flex;
@@ -95,6 +99,8 @@
     stroke: currentColor;
   }
 
+  &__menuButton { width: 100%; }
+
   &__actions {
     display: flex;
     align-items: center;
@@ -103,22 +109,88 @@
   }
 
   &__addButton { flex: 0 0 auto; }
-  &__addLabelCompact { display: none; }
+
+  // Круг под колокольчик уведомлений — соседние кнопки в шапке должны совпадать.
+  &__burger {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    flex: 0 0 auto;
+    padding: 0;
+    color: #374151;
+    border: 1px solid #e5e7eb;
+    border-radius: 50%;
+    background: #fff;
+    transition: color .2s ease, border-color .2s ease, background-color .2s ease;
+
+    &:hover {
+      color: $green-button;
+      border-color: rgba($green-button, .45);
+      background: rgba($green-button, .06);
+    }
+
+    &:focus-visible {
+      outline: 3px solid rgba($green-button, .2);
+      outline-offset: 2px;
+    }
+  }
 }
 
 @media (max-width: 1120px) {
   .header {
     &__wrapper { grid-template-columns: auto minmax(0, 1fr); }
 
+    &__actions { justify-self: end; }
+
+    &__addButton { display: none; }
+
+    &__burger { display: inline-flex; }
+
+    // Панель — продолжение шапки, а не всплывающая карточка: тот же фон, блюр и граница.
+    // Отрицательные отступы гасят падинг шапки, чтобы фон дошёл до её краёв.
     &__nav {
-      grid-column: 1 / -1;
-      grid-row: 2;
-      justify-content: flex-start;
-      overflow-x: auto;
-      scrollbar-width: thin;
+      position: absolute;
+      top: 100%;
+      right: calc(-1 * #{$inline-padding});
+      left: calc(-1 * #{$inline-padding});
+      z-index: 30;
+      display: block;
+      padding: 8px $inline-padding 14px;
+      background: rgba(250, 250, 250, .94);
+      border-bottom: 1px solid rgba(220, 224, 222, .8);
+      backdrop-filter: blur(12px);
+      visibility: hidden;
+      opacity: 0;
+      transform: translateY(-6px);
+      pointer-events: none;
+      transition: opacity .16s ease, transform .16s ease, visibility .16s ease;
+
+      &_open {
+        visibility: visible;
+        opacity: 1;
+        transform: translateY(0);
+        pointer-events: auto;
+      }
     }
 
-    &__actions { justify-self: end; }
+    &__navList {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 4px;
+      width: min(100%, 1440px);
+      margin-inline: auto;
+    }
+
+    &__navItem_menuOnly { display: block; }
+
+    &__navLink {
+      justify-content: flex-start;
+      min-height: 48px;
+      padding: 12px 14px;
+      font-size: 15px;
+    }
   }
 }
 
@@ -128,24 +200,14 @@
 
     &__wrapper { gap: 10px; }
     &__logo { height: 32px; }
-    &__addButton { padding-inline: 12px; font-size: 13px; }
-    &__addLabel { display: none; }
-    &__addLabelCompact { display: inline; }
-    &__navList { width: max-content; }
-    &__navLink { padding: 8px 10px; }
   }
 }
 
 @media (max-width: 420px) {
-  .header {
-    padding-inline: 6px;
-
-    &__logo { width: 82px; }
-    &__navLabel { font-size: 12px; }
-    &__addButton { min-height: 38px; padding-inline: 8px; }
-  }
+  .header__logo { width: 82px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .header__nav,
   .header__navLink { transition: none; }
 }
