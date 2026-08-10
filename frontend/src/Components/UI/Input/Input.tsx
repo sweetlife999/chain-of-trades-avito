@@ -12,7 +12,7 @@ type TInput = {
   className?: string;
   placeholder?: string;
   error?: string;
-  type?: "password" | "email" | "text";
+  type?: "password" | "email" | "text" | "url";
   required?: boolean;
   disabled?: boolean;
   textarea?: boolean;
