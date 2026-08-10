@@ -1,0 +1,64 @@
+.support {
+  width: min(1180px, calc(100% - 32px));
+  margin: 32px auto 64px;
+  color: #17212b;
+
+  button, input, textarea { font: inherit; }
+  button { cursor: pointer; }
+
+  &__header { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
+  &__title { margin: 0 0 6px; font-size: clamp(30px, 4vw, 42px); }
+  &__subtitle { margin: 0; color: #66717d; }
+  &__newButton, &__primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 12px; padding: 12px 18px; color: #fff; background: #00a86b; font-weight: 700; }
+  &__newButton:disabled { cursor: not-allowed; opacity: .45; }
+  &__workspace { display: grid; grid-template-columns: 320px minmax(0, 1fr); min-height: 650px; overflow: hidden; border: 1px solid #e0e5e9; border-radius: 20px; background: #fff; box-shadow: 0 12px 40px rgb(25 39 52 / 7%); }
+  &__sidebar { padding: 18px; border-right: 1px solid #e5e9ec; background: #f8faf9; }
+  &__sidebar h2 { margin: 2px 4px 16px; font-size: 18px; }
+  &__thread { width: 100%; margin-bottom: 8px; padding: 14px; border: 1px solid transparent; border-radius: 13px; background: transparent; text-align: left; color: #64707a; }
+  &__thread:hover, &__thread_active { border-color: #bee8d5; background: #fff; }
+  &__threadTop { display: flex; justify-content: space-between; gap: 8px; color: #1d2730; }
+  &__threadTop strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  &__threadTop b { min-width: 22px; height: 22px; padding: 2px 6px; border-radius: 11px; color: #fff; background: #00a86b; text-align: center; font-size: 12px; }
+  &__thread > span:not(:first-child), &__thread small { display: block; margin-top: 6px; font-size: 12px; }
+  &__chat { min-width: 0; display: flex; flex-direction: column; }
+  &__chatHeader { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 84px; padding: 16px 22px; border-bottom: 1px solid #e5e9ec; }
+  &__chatHeader h2 { margin: 0 0 5px; font-size: 20px; }
+  &__chatHeader span { color: #68737c; font-size: 13px; }
+  &__chatHeader button { display: inline-flex; gap: 7px; align-items: center; border: 0; background: transparent; color: #587064; }
+  &__messages { flex: 1; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; padding: 24px; background: #f4f7f5; }
+  &__message { align-self: flex-start; max-width: min(76%, 620px); padding: 11px 14px; border-radius: 4px 16px 16px; background: #fff; box-shadow: 0 4px 15px rgb(28 43 35 / 6%); }
+  &__message_own { align-self: flex-end; border-radius: 16px 4px 16px 16px; background: #dff5e9; }
+  &__message strong, &__message time { font-size: 12px; color: #5e7268; }
+  &__message p { margin: 5px 0; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+  &__message time { display: block; text-align: right; }
+  &__composer { display: flex; gap: 10px; padding: 16px; border-top: 1px solid #e5e9ec; }
+  &__composer textarea { flex: 1; resize: none; border: 1px solid #d7dde1; border-radius: 13px; padding: 12px 14px; outline: 0; }
+  &__composer textarea:focus { border-color: #00a86b; }
+  &__composer button { align-self: stretch; width: 50px; border: 0; border-radius: 13px; color: #fff; background: #00a86b; }
+  &__composer button:disabled { opacity: .4; cursor: not-allowed; }
+  &__empty, &__emptySmall { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #748078; text-align: center; }
+  &__empty { flex: 1; padding: 40px; }
+  &__empty h2, &__empty p { margin: 0; }
+  &__emptySmall { padding: 42px 10px; font-size: 13px; }
+  &__state, &__error, &__closed { padding: 12px 18px; color: #68747d; }
+  &__error { color: #b42318; }
+  &__closed { margin: 0; background: #f7f7f7; text-align: center; }
+  &__create { position: relative; margin-bottom: 20px; padding: 22px; border: 1px solid #dbe4df; border-radius: 17px; background: #fff; }
+  &__create h2 { margin: 0 0 16px; }
+  &__create label { display: grid; gap: 7px; margin: 12px 0; font-weight: 600; }
+  &__create input, &__create textarea { border: 1px solid #d6dde0; border-radius: 11px; padding: 11px 13px; resize: vertical; }
+  &__closeForm { position: absolute; top: 14px; right: 14px; border: 0; background: transparent; }
+}
+
+@media (max-width: 760px) {
+  .support {
+    width: min(100% - 20px, 1180px);
+    margin-top: 18px;
+    &__header { align-items: flex-start; flex-direction: column; }
+    &__workspace { grid-template-columns: 1fr; }
+    &__sidebar { border-right: 0; border-bottom: 1px solid #e5e9ec; max-height: 250px; overflow: auto; }
+    &__chat { min-height: 560px; }
+    &__message { max-width: 88%; }
+    &__newButton { width: 100%; }
+  }
+}

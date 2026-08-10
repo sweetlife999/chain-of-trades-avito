@@ -9,6 +9,7 @@ import {
   Bell,
   CheckCheck,
   CheckCircle2,
+  Headset,
   MessageCircle,
   PackageCheck,
   Sparkles,
@@ -32,6 +33,7 @@ import { Button } from "../../UI/Button/Button";
 import {
   formatNotificationTime,
   getNotificationDescription,
+  getNotificationPath,
   getNotificationTitle,
 } from "../../Widgets/Notifications/notificationPresentation";
 
@@ -45,6 +47,8 @@ const iconByKind = (kind: TNotificationKind) => {
       return Sparkles;
     case "text":
       return MessageCircle;
+    case "support_message":
+      return Headset;
     case "exchange_delivering":
       return Truck;
     case "exchange_delivered":
@@ -62,7 +66,7 @@ const iconByKind = (kind: TNotificationKind) => {
 const NotificationsPageComponent = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { isAuth } = useAuthSelector();
+  const { isAdmin, isAuth } = useAuthSelector();
   const [filter, setFilter] = useState<TFilter>("all");
   const unreadOnly = filter === "unread";
 
@@ -105,7 +109,7 @@ const NotificationsPageComponent = () => {
     if (!notification.is_read) {
       markReadMutation.mutate(notification.id);
     }
-    navigate(`/exchanges/${notification.exchange_id}`);
+    navigate(getNotificationPath(notification, isAdmin));
   };
 
   if (!isAuth) {

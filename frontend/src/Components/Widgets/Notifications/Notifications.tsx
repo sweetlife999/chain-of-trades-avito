@@ -13,13 +13,14 @@ import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
 import {
   formatNotificationTime,
   getNotificationDescription,
+  getNotificationPath,
   getNotificationTitle,
 } from "./notificationPresentation";
 
 const previewLimit = 6;
 
 const NotificationsComponent = () => {
-  const { isAuth } = useAuthSelector();
+  const { isAdmin, isAuth } = useAuthSelector();
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -180,7 +181,7 @@ const NotificationsComponent = () => {
                   <Link
                     className={styles.notifications__item}
                     key={notification.id}
-                    to={`/exchanges/${notification.exchange_id}`}
+                    to={getNotificationPath(notification, isAdmin)}
                     onClick={() => {
                       markReadMutation.mutate(notification.id);
                       setIsOpen(false);

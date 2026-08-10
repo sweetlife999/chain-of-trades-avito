@@ -14,13 +14,16 @@ type Actor struct {
 
 type Notification struct {
 	ID                uuid.UUID
+	TargetType        string
 	ExchangeID        uuid.UUID
+	SupportThreadID   uuid.UUID
 	MessageID         *uuid.UUID
 	Kind              string
 	Actor             *Actor
 	ExchangeStatus    string
 	GivesItemTitle    string
 	ReceivesItemTitle string
+	SupportSubject    string
 	ReadAt            *time.Time
 	CreatedAt         time.Time
 }

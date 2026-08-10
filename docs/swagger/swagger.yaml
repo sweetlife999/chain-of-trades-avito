@@ -31,6 +31,19 @@ definitions:
       id:
         type: string
     type: object
+  dto.AdminPageResponse:
+    properties:
+      limit:
+        type: integer
+      offset:
+        type: integer
+      threads:
+        items:
+          $ref: '#/definitions/dto.ThreadResponse'
+        type: array
+      total:
+        type: integer
+    type: object
   dto.AdminReportListResponse:
     properties:
       pagination:
@@ -46,7 +59,7 @@ definitions:
         type: string
       messages:
         items:
-          $ref: '#/definitions/dto.MessageResponse'
+          $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.MessageResponse'
         type: array
       report_id:
         type: string
@@ -153,16 +166,6 @@ definitions:
           type: string
         type: array
     type: object
-  dto.CreateMessageRequest:
-    properties:
-      body:
-        example: Могу привезти в субботу к метро, удобно?
-        maxLength: 2000
-        minLength: 1
-        type: string
-    required:
-    - body
-    type: object
   dto.CreatePickupPointRequest:
     properties:
       address:
@@ -182,6 +185,15 @@ definitions:
         type: string
       reason:
         example: abuse
+        type: string
+    type: object
+  dto.CreateThreadRequest:
+    properties:
+      body:
+        example: Подскажите, что делать дальше?
+        type: string
+      subject:
+        example: Не получается завершить обмен
         type: string
     type: object
   dto.CreateUserRequest:
@@ -331,36 +343,6 @@ definitions:
         example: 3f7c1b62-6f0f-4a2b-8f0e-2f2b9a1c7d10
         type: string
     type: object
-  dto.MessageResponse:
-    properties:
-      author:
-        allOf:
-        - $ref: '#/definitions/dto.ParticipantUserResponse'
-        description: Пуст у событий, которые принадлежат всему обмену, а не участнику.
-        x-nullable: true
-      body:
-        description: Заполнен только у kind = text.
-        type: string
-        x-nullable: true
-      created_at:
-        type: string
-      id:
-        type: string
-      kind:
-        enum:
-        - text
-        - participant_accepted
-        - participant_declined
-        - participant_completed
-        - participant_delivered_item
-        - exchange_confirmed
-        - exchange_delivering
-        - exchange_delivered
-        - exchange_completed
-        - exchange_superseded
-        - exchange_item_withdrawn
-        type: string
-    type: object
   dto.NotificationResponse:
     properties:
       actor:
@@ -384,6 +366,12 @@ definitions:
       read_at:
         type: string
       receives_item_title:
+        type: string
+      support_subject:
+        type: string
+      support_thread_id:
+        type: string
+      target_type:
         type: string
     type: object
   dto.ParticipantItemResponse:
@@ -440,6 +428,17 @@ definitions:
       photo_url:
         type: string
     type: object
+  dto.PersonResponse:
+    properties:
+      id:
+        type: string
+      is_admin:
+        type: boolean
+      nickname:
+        type: string
+      photo_url:
+        type: string
+    type: object
   dto.PickupPointError:
     properties:
       error:
@@ -483,6 +482,40 @@ definitions:
       pickup_point_id:
         example: 6f1c1c53-1f0e-4a0a-9d0f-2f0b6c7a1e11
         type: string
+    type: object
+  dto.ThreadMessagesResponse:
+    properties:
+      messages:
+        items:
+          $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.MessageResponse'
+        type: array
+      thread:
+        $ref: '#/definitions/dto.ThreadResponse'
+    type: object
+  dto.ThreadResponse:
+    properties:
+      assigned_admin:
+        $ref: '#/definitions/dto.PersonResponse'
+      closed_at:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      last_message:
+        type: string
+      last_message_at:
+        type: string
+      status:
+        type: string
+      subject:
+        type: string
+      unread_count:
+        type: integer
+      updated_at:
+        type: string
+      user:
+        $ref: '#/definitions/dto.PersonResponse'
     type: object
   dto.UpdateItemRequest:
     properties:
@@ -620,6 +653,16 @@ definitions:
       slug:
         type: string
     type: object
+  github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.CreateMessageRequest:
+    properties:
+      body:
+        example: Могу привезти в субботу к метро, удобно?
+        maxLength: 2000
+        minLength: 1
+        type: string
+    required:
+    - body
+    type: object
   github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ErrorResponse:
     properties:
       error:
@@ -653,6 +696,36 @@ definitions:
       unread_count:
         type: integer
       updated_at:
+        type: string
+    type: object
+  github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.MessageResponse:
+    properties:
+      author:
+        allOf:
+        - $ref: '#/definitions/dto.ParticipantUserResponse'
+        description: Пуст у событий, которые принадлежат всему обмену, а не участнику.
+        x-nullable: true
+      body:
+        description: Заполнен только у kind = text.
+        type: string
+        x-nullable: true
+      created_at:
+        type: string
+      id:
+        type: string
+      kind:
+        enum:
+        - text
+        - participant_accepted
+        - participant_declined
+        - participant_completed
+        - participant_delivered_item
+        - exchange_confirmed
+        - exchange_delivering
+        - exchange_delivered
+        - exchange_completed
+        - exchange_superseded
+        - exchange_item_withdrawn
         type: string
     type: object
   github_com_sweetlife999_chain-of-trades-avito_internal_item_dto.CategoryResponse:
@@ -690,6 +763,30 @@ definitions:
         type: integer
       total:
         type: integer
+    type: object
+  github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.CreateMessageRequest:
+    properties:
+      body:
+        example: Спасибо, жду ответа
+        type: string
+    type: object
+  github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.MessageResponse:
+    properties:
+      author:
+        $ref: '#/definitions/dto.PersonResponse'
+      body:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      thread_id:
+        type: string
     type: object
   github_com_sweetlife999_chain-of-trades-avito_internal_user_dto.ErrorResponse:
     properties:
@@ -1442,6 +1539,237 @@ paths:
       summary: Подтвердить жалобу
       tags:
       - admin-reports
+  /admin/support/threads:
+    get:
+      description: Сначала открытые, затем обращения в работе и закрытые. Поддерживает
+        фильтр и пагинацию.
+      parameters:
+      - description: Статус
+        enum:
+        - open
+        - in_progress
+        - closed
+        in: query
+        name: status
+        type: string
+      - default: 20
+        description: Размер страницы (1-100)
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Смещение
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AdminPageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Очередь обращений в поддержку
+      tags:
+      - admin-support
+  /admin/support/threads/{id}/assign:
+    post:
+      description: Назначает открытое обращение текущему администратору.
+      parameters:
+      - description: UUID обращения
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ThreadResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Взять обращение в работу
+      tags:
+      - admin-support
+  /admin/support/threads/{id}/close:
+    post:
+      parameters:
+      - description: UUID обращения
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ThreadResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Закрыть обращение администратором
+      tags:
+      - admin-support
+  /admin/support/threads/{id}/messages:
+    get:
+      parameters:
+      - description: UUID обращения
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ThreadMessagesResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Переписка обращения для администратора
+      tags:
+      - admin-support
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: UUID обращения
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Текст сообщения
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.CreateMessageRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "409":
+          description: Обращение назначено другому админу или закрыто
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Ответить пользователю от имени поддержки
+      tags:
+      - admin-support
   /admin/users/{id}/block:
     post:
       description: Блокировка сразу запрещает новый вход и использование ранее выданного
@@ -1886,7 +2214,7 @@ paths:
           description: Тред; если сообщений нет, возвращается []
           schema:
             items:
-              $ref: '#/definitions/dto.MessageResponse'
+              $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.MessageResponse'
             type: array
         "400":
           description: ID не является UUID
@@ -1929,14 +2257,14 @@ paths:
         name: message
         required: true
         schema:
-          $ref: '#/definitions/dto.CreateMessageRequest'
+          $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.CreateMessageRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Сообщение добавлено
           schema:
-            $ref: '#/definitions/dto.MessageResponse'
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.MessageResponse'
         "400":
           description: ID не является UUID или текст пустой либо длиннее 2000 символов
           schema:
@@ -2647,6 +2975,193 @@ paths:
       summary: Пожаловаться на сообщение
       tags:
       - reports
+  /support/threads:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.ThreadResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Мои обращения в поддержку
+      tags:
+      - support
+    post:
+      consumes:
+      - application/json
+      description: Создаёт отдельный от обменов диалог. Одновременно разрешено одно
+        активное обращение.
+      parameters:
+      - description: Тема и первое сообщение
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateThreadRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.ThreadResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "409":
+          description: Уже есть активное обращение
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Создать обращение в поддержку
+      tags:
+      - support
+  /support/threads/{id}/close:
+    post:
+      parameters:
+      - description: UUID обращения
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ThreadResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Закрыть обращение
+      tags:
+      - support
+  /support/threads/{id}/messages:
+    get:
+      parameters:
+      - description: UUID обращения
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ThreadMessagesResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Переписка с поддержкой
+      tags:
+      - support
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: UUID обращения
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Текст сообщения
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.CreateMessageRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "409":
+          description: Обращение закрыто
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_support_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Написать в поддержку
+      tags:
+      - support
   /users:
     post:
       consumes:

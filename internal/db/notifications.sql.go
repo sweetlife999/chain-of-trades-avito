@@ -29,30 +29,36 @@ const listNotifications = `-- name: ListNotifications :many
 SELECT
     notification.id,
     notification.chain_id,
-    notification.message_id,
+    notification.support_thread_id,
+    COALESCE(notification.message_id, notification.support_message_id) AS message_id,
     notification.kind,
-    message.author_id,
+    COALESCE(message.author_id, support_message.author_id) AS author_id,
     author.nickname AS author_nickname,
     author.photo_url AS author_photo_url,
-    exchange.status AS exchange_status,
+    COALESCE(exchange.status::text, '') AS exchange_status,
     gives_item.title AS gives_item_title,
     receives_item.title AS receives_item_title,
+    support_thread.subject AS support_subject,
     notification.read_at,
     notification.created_at
 FROM notifications AS notification
-JOIN chains AS exchange
+LEFT JOIN chains AS exchange
     ON exchange.id = notification.chain_id
-JOIN chain_participants AS current_participant
+LEFT JOIN chain_participants AS current_participant
     ON current_participant.chain_id = notification.chain_id
    AND current_participant.user_id = notification.user_id
-JOIN items AS gives_item
+LEFT JOIN items AS gives_item
     ON gives_item.id = current_participant.gives_item_id
-JOIN items AS receives_item
+LEFT JOIN items AS receives_item
     ON receives_item.id = current_participant.receives_item_id
 LEFT JOIN chain_messages AS message
     ON message.id = notification.message_id
+LEFT JOIN support_threads AS support_thread
+    ON support_thread.id = notification.support_thread_id
+LEFT JOIN support_messages AS support_message
+    ON support_message.id = notification.support_message_id
 LEFT JOIN users AS author
-    ON author.id = message.author_id
+    ON author.id = COALESCE(message.author_id, support_message.author_id)
 WHERE notification.user_id = $1
   AND (NOT $2::boolean OR notification.read_at IS NULL)
 ORDER BY notification.created_at DESC, notification.id DESC
@@ -70,14 +76,16 @@ type ListNotificationsParams struct {
 type ListNotificationsRow struct {
 	ID                pgtype.UUID
 	ChainID           pgtype.UUID
+	SupportThreadID   pgtype.UUID
 	MessageID         pgtype.UUID
 	Kind              string
 	AuthorID          pgtype.UUID
 	AuthorNickname    pgtype.Text
 	AuthorPhotoUrl    pgtype.Text
-	ExchangeStatus    ChainStatus
-	GivesItemTitle    string
-	ReceivesItemTitle string
+	ExchangeStatus    interface{}
+	GivesItemTitle    pgtype.Text
+	ReceivesItemTitle pgtype.Text
+	SupportSubject    pgtype.Text
 	ReadAt            pgtype.Timestamptz
 	CreatedAt         pgtype.Timestamptz
 }
@@ -99,6 +107,7 @@ func (q *Queries) ListNotifications(ctx context.Context, arg ListNotificationsPa
 		if err := rows.Scan(
 			&i.ID,
 			&i.ChainID,
+			&i.SupportThreadID,
 			&i.MessageID,
 			&i.Kind,
 			&i.AuthorID,
@@ -107,6 +116,7 @@ func (q *Queries) ListNotifications(ctx context.Context, arg ListNotificationsPa
 			&i.ExchangeStatus,
 			&i.GivesItemTitle,
 			&i.ReceivesItemTitle,
+			&i.SupportSubject,
 			&i.ReadAt,
 			&i.CreatedAt,
 		); err != nil {

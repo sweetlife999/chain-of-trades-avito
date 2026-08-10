@@ -7,6 +7,7 @@ import {
   Link2 as ChainsIcon,
   Menu as MenuIcon,
   ShieldCheck,
+  Headset,
   UserRound as ProfileIcon,
   X as CloseMenuIcon,
   type LucideIcon,
@@ -32,6 +33,7 @@ const navigationItems: NavigationItem[] = [
   { to: "/feed", label: "Обмены", Icon: UpdateIcon },
   { to: "/myItems", label: "Мои вещи", Icon: MyThings },
   { to: "/exchanges", label: "Мои цепочки", Icon: ChainsIcon },
+  { to: "/support", label: "Поддержка", Icon: Headset },
 ];
 
 const adminNavigationItem: NavigationItem = {

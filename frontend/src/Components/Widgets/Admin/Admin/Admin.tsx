@@ -1,10 +1,12 @@
-import { memo, useState } from "react";
+import { memo } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { DashboardStats } from "../DashboardStats/DashboardStats";
 import { PickupPoints } from "../PickupPoints/PickupPoints";
 import { AdminReports } from "../AdminReports/AdminReports";
 import { AdminExchangeDelivery } from "../AdminExchangeDelivery/AdminExchangeDelivery";
 import { AdminAuditLog } from "../AdminAuditLog/AdminAuditLog";
+import { AdminSupport } from "../AdminSupport/AdminSupport";
 import styles from "./Styles.module.scss";
 
 type TAdminSection =
@@ -12,19 +14,32 @@ type TAdminSection =
   | "delivery"
   | "pickup-points"
   | "reports"
-  | "audit";
+  | "audit"
+  | "support";
 
 const sections: Array<{ id: TAdminSection; label: string }> = [
   { id: "statistics", label: "Статистика" },
   { id: "delivery", label: "Завершение доставки" },
   { id: "pickup-points", label: "Пункты выдачи" },
   { id: "reports", label: "Жалобы пользователей" },
+  { id: "support", label: "Поддержка" },
   { id: "audit", label: "История действий админов" },
 ];
 
 const AdminComponent = () => {
-  const [activeSection, setActiveSection] =
-    useState<TAdminSection>("statistics");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedSection = searchParams.get("section") as TAdminSection | null;
+  const activeSection = sections.some(({ id }) => id === requestedSection)
+    ? requestedSection as TAdminSection
+    : "statistics";
+  const selectSection = (section: TAdminSection) => {
+    const next = new URLSearchParams(searchParams);
+    next.set("section", section);
+    if (section !== "support") {
+      next.delete("thread");
+    }
+    setSearchParams(next);
+  };
 
   return (
     <section className={styles.admin}>
@@ -46,7 +61,7 @@ const AdminComponent = () => {
             }`}
             key={section.id}
             type="button"
-            onClick={() => setActiveSection(section.id)}
+            onClick={() => selectSection(section.id)}
           >
             {section.label}
           </button>
@@ -58,6 +73,7 @@ const AdminComponent = () => {
         {activeSection === "delivery" && <AdminExchangeDelivery />}
         {activeSection === "pickup-points" && <PickupPoints />}
         {activeSection === "reports" && <AdminReports />}
+        {activeSection === "support" && <AdminSupport />}
         {activeSection === "audit" && <AdminAuditLog />}
       </div>
     </section>
