@@ -84,13 +84,21 @@ func (r *Repository) MarkAllRead(ctx context.Context, userID uuid.UUID) (int64, 
 func fromRow(row db.ListNotificationsRow) notificationmodel.Notification {
 	notification := notificationmodel.Notification{
 		ID:                uuid.UUID(row.ID.Bytes),
-		ExchangeID:        uuid.UUID(row.ChainID.Bytes),
 		Kind:              row.Kind,
-		ExchangeStatus:    string(row.ExchangeStatus),
-		GivesItemTitle:    row.GivesItemTitle,
-		ReceivesItemTitle: row.ReceivesItemTitle,
+		ExchangeStatus:    interfaceString(row.ExchangeStatus),
+		GivesItemTitle:    row.GivesItemTitle.String,
+		ReceivesItemTitle: row.ReceivesItemTitle.String,
+		SupportSubject:    row.SupportSubject.String,
 		ReadAt:            optionalTime(row.ReadAt),
 		CreatedAt:         row.CreatedAt.Time,
+	}
+	if row.ChainID.Valid {
+		notification.TargetType = "exchange"
+		notification.ExchangeID = uuid.UUID(row.ChainID.Bytes)
+	}
+	if row.SupportThreadID.Valid {
+		notification.TargetType = "support"
+		notification.SupportThreadID = uuid.UUID(row.SupportThreadID.Bytes)
 	}
 
 	if row.MessageID.Valid {
@@ -106,6 +114,17 @@ func fromRow(row db.ListNotificationsRow) notificationmodel.Notification {
 	}
 
 	return notification
+}
+
+func interfaceString(value any) string {
+	switch typed := value.(type) {
+	case string:
+		return typed
+	case []byte:
+		return string(typed)
+	default:
+		return ""
+	}
 }
 
 func pgUUID(id uuid.UUID) pgtype.UUID {

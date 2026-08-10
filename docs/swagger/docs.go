@@ -4430,6 +4430,15 @@ const docTemplate = `{
                 },
                 "receives_item_title": {
                     "type": "string"
+                },
+                "support_subject": {
+                    "type": "string"
+                },
+                "support_thread_id": {
+                    "type": "string"
+                },
+                "target_type": {
+                    "type": "string"
                 }
             }
         },

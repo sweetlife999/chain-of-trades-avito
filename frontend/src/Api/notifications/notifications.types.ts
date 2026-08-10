@@ -13,6 +13,7 @@ export const NotificationKindSchema = z.enum([
   "exchange_completed",
   "exchange_superseded",
   "exchange_item_withdrawn",
+  "support_message",
 ]);
 
 export const NotificationActorSchema = z.object({
@@ -24,12 +25,15 @@ export const NotificationActorSchema = z.object({
 export const NotificationSchema = z.object({
   id: z.string(),
   kind: NotificationKindSchema,
-  exchange_id: z.string(),
+  target_type: z.enum(["exchange", "support"]),
+  exchange_id: z.string().nullable(),
+  support_thread_id: z.string().nullable(),
   message_id: z.string().nullable(),
   actor: NotificationActorSchema.nullable(),
   exchange_status: z.string(),
   gives_item_title: z.string(),
   receives_item_title: z.string(),
+  support_subject: z.string(),
   is_read: z.boolean(),
   read_at: z.string().nullable(),
   created_at: z.string(),

@@ -3,6 +3,8 @@ package dto
 import (
 	"time"
 
+	"github.com/google/uuid"
+
 	notificationmodel "github.com/sweetlife999/chain-of-trades-avito/internal/notification/model"
 )
 
@@ -15,12 +17,15 @@ type ActorResponse struct {
 type NotificationResponse struct {
 	ID                string         `json:"id"`
 	Kind              string         `json:"kind"`
-	ExchangeID        string         `json:"exchange_id"`
+	TargetType        string         `json:"target_type"`
+	ExchangeID        *string        `json:"exchange_id"`
+	SupportThreadID   *string        `json:"support_thread_id"`
 	MessageID         *string        `json:"message_id"`
 	Actor             *ActorResponse `json:"actor"`
 	ExchangeStatus    string         `json:"exchange_status"`
 	GivesItemTitle    string         `json:"gives_item_title"`
 	ReceivesItemTitle string         `json:"receives_item_title"`
+	SupportSubject    string         `json:"support_subject"`
 	IsRead            bool           `json:"is_read"`
 	ReadAt            *time.Time     `json:"read_at"`
 	CreatedAt         time.Time      `json:"created_at"`
@@ -58,13 +63,22 @@ func FromModel(notification notificationmodel.Notification) NotificationResponse
 	response := NotificationResponse{
 		ID:                notification.ID.String(),
 		Kind:              notification.Kind,
-		ExchangeID:        notification.ExchangeID.String(),
+		TargetType:        notification.TargetType,
 		ExchangeStatus:    notification.ExchangeStatus,
 		GivesItemTitle:    notification.GivesItemTitle,
 		ReceivesItemTitle: notification.ReceivesItemTitle,
+		SupportSubject:    notification.SupportSubject,
 		IsRead:            notification.ReadAt != nil,
 		ReadAt:            notification.ReadAt,
 		CreatedAt:         notification.CreatedAt,
+	}
+	if notification.ExchangeID != uuid.Nil {
+		exchangeID := notification.ExchangeID.String()
+		response.ExchangeID = &exchangeID
+	}
+	if notification.SupportThreadID != uuid.Nil {
+		threadID := notification.SupportThreadID.String()
+		response.SupportThreadID = &threadID
 	}
 	if notification.MessageID != nil {
 		messageID := notification.MessageID.String()

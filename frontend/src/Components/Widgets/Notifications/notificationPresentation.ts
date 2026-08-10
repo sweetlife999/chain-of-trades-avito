@@ -16,9 +16,13 @@ const kindTitles: Record<TNotificationKind, string> = {
   exchange_completed: "Обмен завершён",
   exchange_superseded: "Предложение обмена закрыто",
   exchange_item_withdrawn: "Объявление снято с поиска",
+  support_message: "Новое сообщение в поддержке",
 };
 
 export const getNotificationTitle = (notification: TNotification) => {
+  if (notification.kind === "support_message" && notification.actor) {
+    return `Поддержка: ${notification.actor.nickname}`;
+  }
   if (notification.kind === "text" && notification.actor) {
     return `Сообщение от ${notification.actor.nickname}`;
   }
@@ -32,12 +36,31 @@ export const getNotificationTitle = (notification: TNotification) => {
 };
 
 export const getNotificationDescription = (notification: TNotification) => {
+  if (notification.kind === "support_message") {
+    return notification.support_subject || "Откройте чат поддержки, чтобы прочитать сообщение.";
+  }
+
   const exchange = `${notification.gives_item_title} → ${notification.receives_item_title}`;
 
   if (notification.kind === "text") {
     return `${exchange}. Откройте цепочку, чтобы прочитать сообщение.`;
   }
   return exchange;
+};
+
+export const getNotificationPath = (
+  notification: TNotification,
+  isAdmin: boolean,
+) => {
+  if (notification.target_type === "support" && notification.support_thread_id) {
+    return isAdmin
+      ? `/admin?section=support&thread=${notification.support_thread_id}`
+      : `/support?thread=${notification.support_thread_id}`;
+  }
+
+  return notification.exchange_id
+    ? `/exchanges/${notification.exchange_id}`
+    : "/notifications";
 };
 
 export const formatNotificationTime = (value: string) => {
