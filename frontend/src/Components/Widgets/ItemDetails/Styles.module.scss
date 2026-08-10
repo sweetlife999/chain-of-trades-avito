@@ -52,28 +52,6 @@
     overflow-wrap: anywhere;
   }
 
-  &__pickup {
-    display: grid;
-    gap: 5px;
-    width: min(100%, 520px);
-    padding: 14px;
-    color: #17462d;
-    background: #edf8f1;
-    border: 1px solid #cce8d7;
-    border-radius: 11px;
-  }
-
-  &__pickupLabel,
-  &__pickupAddress {
-    color: #52655a;
-    font-size: 12px;
-  }
-
-  &__pickupName,
-  &__pickupAddress {
-    overflow-wrap: anywhere;
-  }
-
   &__wantsTitle { font-size: clamp(18px, 2.4vw, 22px); }
 
   &__wants {

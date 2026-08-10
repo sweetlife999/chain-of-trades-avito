@@ -4,16 +4,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import styles from "./Styles.module.scss";
-import {
-  deleteItem,
-  getItem,
-  getItemErrorMessage,
-  removeItemFromPickupPoint,
-} from "../../../Api/items/items";
+import { deleteItem, getItem } from "../../../Api/items/items";
 import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
 import { Button } from "../../UI/Button/Button";
 import { ConfirmationPopup } from "../../UI/ConfirmationPopup/ConfirmationPopup";
 import { PhotoGallery } from "../../UI/PhotoGallery/PhotoGallery";
+import { ItemPickupSection } from "../ItemPickupSection/ItemPickupSection";
 import { ItemStatusBadge } from "../ItemStatusBadge/ItemStatusBadge";
 
 const getDeleteErrorMessage = (error: unknown) => {
@@ -31,7 +27,6 @@ const ItemDetailsComponent = () => {
   const { user } = useAuthSelector();
   const [deletePopupOpen, setDeletePopupOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string>();
-  const [pickupPopupOpen, setPickupPopupOpen] = useState(false);
 
   const { data: item, isPending, isError } = useQuery({
     queryKey: ["items", id],
@@ -53,17 +48,6 @@ const ItemDetailsComponent = () => {
     },
     onError: (error) => {
       setDeleteError(getDeleteErrorMessage(error));
-    },
-  });
-
-  const pickupMutation = useMutation({
-    mutationFn: () => removeItemFromPickupPoint(id),
-    onSuccess: async () => {
-      setPickupPopupOpen(false);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["items"] }),
-        queryClient.invalidateQueries({ queryKey: ["exchanges"] }),
-      ]);
     },
   });
 
@@ -109,20 +93,6 @@ const ItemDetailsComponent = () => {
             <small className={styles.item__category}>{item.category}</small>
             <p className={styles.item__description}>{item.description}</p>
 
-            {item.pickup_point && (
-              <div className={styles.item__pickup}>
-                <span className={styles.item__pickupLabel}>
-                  Вещь находится в пункте выдачи
-                </span>
-                <strong className={styles.item__pickupName}>
-                  {item.pickup_point.name}
-                </strong>
-                <span className={styles.item__pickupAddress}>
-                  {item.pickup_point.address}
-                </span>
-              </div>
-            )}
-
             <h2 className={styles.item__wantsTitle}>Хочу получить</h2>
             <div className={styles.item__wants}>
               {item.wants.map((want) => (
@@ -134,18 +104,6 @@ const ItemDetailsComponent = () => {
 
             {isOwner && (
               <div className={styles.item__actions}>
-                {item.pickup_point && (
-                  <Button
-                    color="light"
-                    type="button"
-                    onClick={() => {
-                      pickupMutation.reset();
-                      setPickupPopupOpen(true);
-                    }}
-                  >
-                    Забрать из ПВЗ
-                  </Button>
-                )}
                 <Button
                   color="light"
                   type="button"
@@ -163,6 +121,8 @@ const ItemDetailsComponent = () => {
         </div>
       </article>
 
+      <ItemPickupSection isOwner={isOwner} item={item} />
+
       {deletePopupOpen && (
         <ConfirmationPopup
           title="Удалить объявление?"
@@ -173,31 +133,6 @@ const ItemDetailsComponent = () => {
           error={deleteError}
           onClose={closeDeletePopup}
           onConfirm={() => deleteMutation.mutate()}
-        />
-      )}
-
-      {pickupPopupOpen && item.pickup_point && (
-        <ConfirmationPopup
-          title="Забрать вещь из ПВЗ?"
-          description={`«${item.title}» вернётся домой. Если вещь участвует в незавершённом обмене, сервер не позволит её забрать.`}
-          confirmLabel="Забрать вещь"
-          pendingLabel="Возвращаем..."
-          isPending={pickupMutation.isPending}
-          error={
-            pickupMutation.isError
-              ? getItemErrorMessage(
-                  pickupMutation.error,
-                  "Не удалось забрать вещь из ПВЗ.",
-                )
-              : undefined
-          }
-          onClose={() => {
-            if (!pickupMutation.isPending) {
-              pickupMutation.reset();
-              setPickupPopupOpen(false);
-            }
-          }}
-          onConfirm={() => pickupMutation.mutate()}
         />
       )}
     </>

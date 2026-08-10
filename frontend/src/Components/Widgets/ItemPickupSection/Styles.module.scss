@@ -1,0 +1,23 @@
+.pickup {
+  display: grid;
+  justify-items: start;
+  gap: 5px;
+  width: min(100%, 520px);
+  margin-top: 24px;
+  padding: 14px;
+  color: #17462d;
+  background: #edf8f1;
+  border: 1px solid #cce8d7;
+  border-radius: 11px;
+
+  &__label,
+  &__address {
+    color: #52655a;
+    font-size: 12px;
+  }
+
+  &__name,
+  &__address { overflow-wrap: anywhere; }
+
+  &__action { margin-top: 9px; }
+}
