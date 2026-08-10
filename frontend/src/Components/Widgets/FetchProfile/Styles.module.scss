@@ -1,0 +1,32 @@
+.authLink {
+  display: block;
+  flex: 0 0 auto;
+  border-radius: 10px;
+
+  &:focus-visible {
+    outline: 3px solid rgba($green-button, 0.2);
+    outline-offset: 2px;
+  }
+
+  &__labelCompact {
+    display: none;
+  }
+}
+
+@media (max-width: 620px) {
+  .authLink {
+    &__button {
+      min-height: 38px;
+      padding-inline: 10px;
+      font-size: 13px;
+    }
+
+    &__label {
+      display: none;
+    }
+
+    &__labelCompact {
+      display: inline;
+    }
+  }
+}

@@ -1,0 +1,258 @@
+.editItem {
+  display: flex;
+  width: min(100%, 1200px);
+  flex-direction: column;
+  gap: 28px;
+  margin: 0 auto;
+  padding: 28px 24px 48px;
+
+  &__header {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+  }
+
+  &__back,
+  &__accessLink {
+    align-self: flex-start;
+    color: $green-button;
+    border-radius: 6px;
+
+    &:hover { color: $light-green-button; }
+    &:focus-visible { outline: 3px solid rgba($green-button, .18); }
+  }
+
+  &__title,
+  &__accessTitle { @include page-title; }
+
+  &__description,
+  &__accessDescription { @include page-description; }
+
+  &__form {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    padding: 30px 36px 34px;
+    border: 1px solid #d5d5d5;
+    border-radius: $border-radius;
+    background: #fff;
+  }
+
+  &__content {
+    display: grid;
+    grid-template-columns: minmax(240px, .75fr) minmax(360px, 1.35fr);
+    gap: clamp(28px, 5vw, 54px);
+  }
+
+  &__photosColumn,
+  &__fieldsColumn {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+
+  &__photoPlaceholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 24px;
+    text-align: center;
+
+  }
+
+  &__photoPlus {
+    display: grid;
+    width: 54px;
+    aspect-ratio: 1;
+    place-items: center;
+    color: #0095f6;
+    background: #e9f5ff;
+    border-radius: 50%;
+    font-size: 28px;
+  }
+
+  &__photoTitle { line-height: 1.35; }
+  &__photoHint { color: #6f6f6f; line-height: 1.4; }
+
+  &__photoFields {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  &__photoField {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+  }
+
+  &__removePhoto {
+    width: 42px;
+    height: 48px;
+    flex-shrink: 0;
+    border: 1px solid #e4bcbc;
+    border-radius: $border-radius;
+    background: #fff7f7;
+    color: #a03131;
+    font-size: 24px;
+    transition: color .2s ease, background-color .2s ease, transform .15s ease;
+
+    &:hover { color: #7f1d1d; background: #fee2e2; }
+    &:active { transform: scale(.96); }
+    &:focus-visible { outline: 3px solid rgba(#a03131, .18); }
+  }
+
+  &__field,
+  &__wants {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  &__label {
+    color: #292929;
+    font-size: 14px;
+    font-weight: 600;
+
+  }
+
+  &__required { color: red; }
+
+  &__select {
+    width: 100%;
+    height: 48px;
+    padding: 0 16px;
+    border: 1px solid $green-input;
+    border-radius: $border-radius;
+    outline: none;
+    background: $background-input;
+    font: inherit;
+
+    &:focus {
+      border-color: $green-button;
+      background: #fff;
+      box-shadow: 0 0 0 4px rgba($green-button, 0.12);
+    }
+
+    &:hover { border-color: $green-button; }
+
+    &_error {
+      border-color: red;
+    }
+  }
+
+  &__fieldError {
+    color: red;
+    font-size: 13px;
+  }
+
+  &__categories {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 4px;
+  }
+
+  &__category {
+    position: relative;
+    cursor: pointer;
+  }
+
+  &__categoryInput {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+
+    &:checked + .editItem__categoryLabel {
+      color: #087642;
+      background: rgba($green-button, .1);
+      border-color: $green-button;
+    }
+
+    &:focus-visible + .editItem__categoryLabel {
+      outline: 3px solid rgba($green-button, .18);
+    }
+  }
+
+  &__categoryLabel {
+    display: flex;
+    align-items: center;
+    min-height: 42px;
+    padding: 9px 12px;
+    background: #fafafa;
+    border: 1px solid #d7dadd;
+    border-radius: $border-radius;
+    font-size: 13px;
+    transition: color .2s ease, background-color .2s ease, border-color .2s ease;
+
+    &:hover { border-color: #a9cdb9; }
+  }
+
+  &__serverError {
+    padding: 12px 14px;
+    border: 1px solid #efc0c0;
+    border-radius: $border-radius;
+    background: #fff4f4;
+    color: #9b2f2f;
+    font-size: 14px;
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+  }
+
+  &__action { min-width: min(170px, 100%); }
+
+  &__accessError {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    max-width: 560px;
+
+  }
+
+  &__state {
+    padding: 32px;
+    color: #666;
+    text-align: center;
+
+    &_error { @extend .editItem__state; color: #991b1b; }
+  }
+}
+
+@media (max-width: 900px) {
+  .editItem__content {
+    grid-template-columns: 1fr;
+    gap: 34px;
+  }
+}
+
+@media (max-width: 600px) {
+  .editItem {
+    padding: 20px 14px 36px;
+
+    &__form {
+      padding: 20px 16px 22px;
+    }
+
+    &__categories {
+      grid-template-columns: 1fr;
+    }
+
+    &__actions {
+      flex-direction: column-reverse;
+    }
+
+    &__action { width: 100%; }
+  }
+}

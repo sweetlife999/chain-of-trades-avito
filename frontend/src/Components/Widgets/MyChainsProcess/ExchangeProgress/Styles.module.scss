@@ -1,0 +1,81 @@
+.progress {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  width: 100%;
+
+  &__step {
+    position: relative;
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+    color: #9ca3af;
+    font-size: 12px;
+
+    &::after {
+      position: absolute;
+      top: 9px;
+      left: 50%;
+      z-index: 0;
+      width: 100%;
+      height: 3px;
+      content: "";
+      background: #e5e7eb;
+    }
+
+    &:last-child::after {
+      display: none;
+    }
+
+    &_completed {
+      color: #166534;
+
+      &::after,
+      .progress__point {
+        color: #fff;
+        background: $green-button;
+      }
+    }
+
+    &_active {
+      color: #1d4ed8;
+
+      .progress__point {
+        background: #1688f0;
+      }
+    }
+  }
+
+  &__point {
+    z-index: 1;
+    display: grid;
+    width: 20px;
+    height: 20px;
+    place-items: center;
+    color: #fff;
+    font-size: 12px;
+    background: #e5e7eb;
+    border-radius: 50%;
+  }
+
+  &__label {
+    text-align: center;
+  }
+
+  &_compact {
+    .progress__step {
+      gap: 5px;
+      font-size: 9px;
+    }
+
+    .progress__point {
+      width: 14px;
+      height: 14px;
+      font-size: 9px;
+    }
+
+    .progress__step::after {
+      top: 6px;
+      height: 2px;
+    }
+  }
+}

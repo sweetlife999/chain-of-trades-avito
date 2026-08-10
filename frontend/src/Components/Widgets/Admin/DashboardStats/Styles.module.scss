@@ -1,0 +1,261 @@
+@mixin focus-ring {
+  outline: 3px solid rgba($green-button, 0.2);
+  outline-offset: 2px;
+}
+
+.admin {
+  &__sectionHeader {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+  }
+
+  &__sectionHeading {
+    min-width: 0;
+  }
+
+  &__sectionTitle { @include section-title; }
+
+  &__sectionDescription {
+    @include section-description;
+    margin-top: 5px;
+  }
+
+  &__refresh {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 9px 13px;
+    color: #525862;
+    background: #fff;
+    border: 1px solid #dfe2e6;
+    border-radius: 9px;
+    font-size: 12px;
+    font-weight: 600;
+    transition: color 0.2s ease, border-color 0.2s ease, transform 0.16s ease;
+
+    &:hover:not(:disabled) {
+      color: $green-button;
+      border-color: $green-button;
+      transform: translateY(-1px);
+    }
+
+    &:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    &:focus-visible {
+      @include focus-ring;
+    }
+
+    &:disabled {
+      cursor: wait;
+      opacity: 0.65;
+    }
+  }
+
+  &__refreshIcon {
+    width: 16px;
+    height: 16px;
+  }
+
+  &__state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 220px;
+    padding: 30px;
+    color: #737982;
+    background: #fff;
+    border: 1px solid #e7e9ec;
+    border-radius: 16px;
+    text-align: center;
+  }
+
+  &__stateTitle {
+    color: #282b30;
+    font-size: 18px;
+  }
+
+  &__stateDescription {
+    max-width: 420px;
+    margin: 8px 0 18px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+}
+
+.dashboard {
+  display: grid;
+  gap: 18px;
+  padding: clamp(17px, 3vw, 24px);
+  background: #fff;
+  border: 1px solid #e7e9ec;
+  border-radius: 20px;
+  box-shadow: 0 12px 34px rgba(17, 24, 39, 0.05);
+
+  &__mainGrid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 13px;
+  }
+
+  &__mainCard {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    min-width: 0;
+    padding: 16px;
+    background: #fafbfc;
+    border: 1px solid #eceef1;
+    border-radius: 14px;
+    transition: transform 0.18s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+
+    &:hover {
+      transform: translateY(-2px);
+      border-color: #cfe4d9;
+      box-shadow: 0 8px 20px rgba(17, 24, 39, 0.06);
+    }
+  }
+
+  &__mainContent {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+  }
+
+  &__mainLabel {
+    overflow: hidden;
+    color: #777d86;
+    font-size: 11px;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__mainValue {
+    color: #1f2328;
+    font-size: clamp(21px, 3vw, 25px);
+    line-height: 1;
+  }
+
+  &__mainIcon {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    place-items: center;
+    border-radius: 12px;
+
+    &_blue { color: #2563eb; background: #eff6ff; }
+    &_green { color: #08783f; background: #ecfdf3; }
+    &_orange { color: #c76b05; background: #fff7ed; }
+    &_violet { color: #7c3aed; background: #f5f3ff; }
+  }
+
+  &__mainIconImage {
+    width: 20px;
+    height: 20px;
+  }
+
+  &__detailsGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 13px;
+  }
+
+  &__detailsCard {
+    min-width: 0;
+    padding: 17px;
+    background: #fafbfc;
+    border: 1px solid #eceef1;
+    border-radius: 14px;
+  }
+
+  &__detailsHeader,
+  &__statusRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  &__detailsHeader {
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e8eaed;
+  }
+
+  &__detailsTitle {
+    color: #30343a;
+    font-size: 14px;
+    line-height: 1.35;
+  }
+
+  &__detailsTotal {
+    color: #171717;
+    font-size: 20px;
+  }
+
+  &__statusList {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 18px;
+    padding-top: 13px;
+  }
+
+  &__statusTerm {
+    color: #747a83;
+    font-size: 11px;
+  }
+
+  &__statusValue {
+    color: #30343a;
+    font-size: 12px;
+    font-weight: 700;
+  }
+}
+
+@media (max-width: 1100px) {
+  .dashboard__mainGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 780px) {
+  .dashboard__detailsGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .admin {
+    &__sectionHeader {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    &__refresh {
+      justify-content: center;
+      width: 100%;
+    }
+  }
+
+  .dashboard {
+    border-radius: 16px;
+
+    &__mainGrid,
+    &__statusList {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin__refresh,
+  .dashboard__mainCard {
+    transition: none;
+  }
+}

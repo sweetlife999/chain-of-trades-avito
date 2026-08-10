@@ -1,0 +1,61 @@
+.edit {
+  width: min(100%, 720px);
+  margin: 0 auto;
+  padding: 24px;
+
+  &__header {
+    margin-bottom: 24px;
+  }
+
+  &__title {
+    @include page-title;
+    margin-bottom: 8px;
+  }
+
+  &__description { @include page-description; }
+
+  &__form {
+    display: grid;
+    gap: 20px;
+    padding: 28px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: $border-radius;
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  &__action { min-width: min(180px, 100%); }
+
+  &__error,
+  &__message {
+    margin: 0;
+    color: #991b1b;
+    font-size: 13px;
+  }
+
+  &__message {
+    padding: 32px;
+    text-align: center;
+  }
+}
+
+@media (max-width: 560px) {
+  .edit {
+    padding: 16px;
+
+    &__form {
+      padding: 20px;
+    }
+
+    &__actions {
+      flex-direction: column-reverse;
+    }
+
+    &__action { width: 100%; }
+  }
+}

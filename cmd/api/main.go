@@ -1,0 +1,224 @@
+package main
+
+import (
+	"context"
+	"log"
+	"net/http"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	httpSwagger "github.com/swaggo/http-swagger/v2"
+
+	// Регистрирует сгенерированную спеку, которую отдаёт /swagger. Обновляется через make swagger.
+	_ "github.com/sweetlife999/chain-of-trades-avito/docs/swagger"
+	adminaudithandler "github.com/sweetlife999/chain-of-trades-avito/internal/adminaudit/handler"
+	adminauditrepository "github.com/sweetlife999/chain-of-trades-avito/internal/adminaudit/repository"
+	adminauditservice "github.com/sweetlife999/chain-of-trades-avito/internal/adminaudit/service"
+	admindashboardhandler "github.com/sweetlife999/chain-of-trades-avito/internal/admindashboard/handler"
+	admindashboardrepository "github.com/sweetlife999/chain-of-trades-avito/internal/admindashboard/repository"
+	admindashboardservice "github.com/sweetlife999/chain-of-trades-avito/internal/admindashboard/service"
+	adminexchangehandler "github.com/sweetlife999/chain-of-trades-avito/internal/adminexchange/handler"
+	adminexchangeservice "github.com/sweetlife999/chain-of-trades-avito/internal/adminexchange/service"
+	authhandler "github.com/sweetlife999/chain-of-trades-avito/internal/auth/handler"
+	authmiddleware "github.com/sweetlife999/chain-of-trades-avito/internal/auth/middleware"
+	authservice "github.com/sweetlife999/chain-of-trades-avito/internal/auth/service"
+	authtoken "github.com/sweetlife999/chain-of-trades-avito/internal/auth/token"
+	"github.com/sweetlife999/chain-of-trades-avito/internal/config"
+	"github.com/sweetlife999/chain-of-trades-avito/internal/database"
+	db "github.com/sweetlife999/chain-of-trades-avito/internal/db"
+	exchangehandler "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/handler"
+	exchangerepository "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/repository"
+	exchangesearch "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/search"
+	exchangeservice "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/service"
+	itemhandler "github.com/sweetlife999/chain-of-trades-avito/internal/item/handler"
+	itemrepository "github.com/sweetlife999/chain-of-trades-avito/internal/item/repository"
+	itemservice "github.com/sweetlife999/chain-of-trades-avito/internal/item/service"
+	notificationhandler "github.com/sweetlife999/chain-of-trades-avito/internal/notification/handler"
+	notificationrepository "github.com/sweetlife999/chain-of-trades-avito/internal/notification/repository"
+	notificationservice "github.com/sweetlife999/chain-of-trades-avito/internal/notification/service"
+	pickuppointhandler "github.com/sweetlife999/chain-of-trades-avito/internal/pickuppoint/handler"
+	pickuppointrepository "github.com/sweetlife999/chain-of-trades-avito/internal/pickuppoint/repository"
+	pickuppointservice "github.com/sweetlife999/chain-of-trades-avito/internal/pickuppoint/service"
+	reporthandler "github.com/sweetlife999/chain-of-trades-avito/internal/report/handler"
+	reportrepository "github.com/sweetlife999/chain-of-trades-avito/internal/report/repository"
+	reportservice "github.com/sweetlife999/chain-of-trades-avito/internal/report/service"
+	supporthandler "github.com/sweetlife999/chain-of-trades-avito/internal/support/handler"
+	supportrepository "github.com/sweetlife999/chain-of-trades-avito/internal/support/repository"
+	supportservice "github.com/sweetlife999/chain-of-trades-avito/internal/support/service"
+	userhandler "github.com/sweetlife999/chain-of-trades-avito/internal/user/handler"
+	userrepository "github.com/sweetlife999/chain-of-trades-avito/internal/user/repository"
+	userservice "github.com/sweetlife999/chain-of-trades-avito/internal/user/service"
+)
+
+const (
+	authTokenTTL          = 12 * time.Hour
+	searchQueueCapacity   = 256
+	serverShutdownTimeout = 10 * time.Second
+	workerShutdownTimeout = 35 * time.Second
+)
+
+// @title       Цепочка обмена — API
+// @version     0.1.0
+// @description HTTP API сервиса многостороннего обмена вещами: профили пользователей, вход по JWT
+// @description и объявления о вещах, которые владелец готов обменять.
+// @description
+// @description Защищённые маршруты читают HttpOnly cookie `access_token` — они помечены замком.
+// @description Кнопки «Authorize» здесь нет и не нужно: выполните `POST /auth/login` прямо из этой
+// @description страницы — браузер сохранит cookie и будет отправлять её со всеми следующими
+// @description запросами сам. JavaScript до неё не дотянется, поэтому вписать её руками нельзя.
+// @BasePath    /
+//
+// @securityDefinitions.apikey CookieAuth
+// @in                         cookie
+// @name                       access_token
+// @description                HttpOnly cookie, которую ставит POST /auth/login.
+func main() {
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	pool, err := database.Open(context.Background(), cfg.DatabaseURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer pool.Close()
+
+	router := chi.NewRouter()
+
+	router.Use(middleware.RequestID)
+	router.Use(middleware.Logger)
+	router.Use(middleware.Recoverer)
+
+	queries := db.New(pool)
+	usersRepository := userrepository.New(queries)
+	users := userservice.New(usersRepository)
+	exchangesRepository := exchangerepository.New(pool)
+	searchQueue, err := exchangesearch.NewQueue(searchQueueCapacity)
+	if err != nil {
+		log.Fatal(err)
+	}
+	exchanges := exchangeservice.New(exchangesRepository, searchQueue)
+	searchWorker := exchangesearch.NewWorker(searchQueue, exchanges)
+	workerCtx, stopWorker := context.WithCancel(context.Background())
+	workerDone := make(chan struct{})
+	go func() {
+		searchWorker.Run(workerCtx)
+		close(workerDone)
+	}()
+	exchangesHandler := exchangehandler.New(exchanges)
+	items := itemservice.New(itemrepository.New(pool), exchanges)
+	pickupPoints := pickuppointservice.New(pickuppointrepository.New(queries))
+	adminDashboard := admindashboardservice.New(admindashboardrepository.New(queries))
+	adminExchanges := adminexchangeservice.New(usersRepository, exchangesRepository)
+	reportsRepository := reportrepository.New(queries)
+	reports := reportservice.New(reportsRepository)
+	adminReports := reportservice.NewAdmin(reportsRepository, exchangesRepository)
+	adminAudit := adminauditservice.New(adminauditrepository.New(queries))
+	notifications := notificationservice.New(notificationrepository.New(queries))
+	supportRepository := supportrepository.New(queries)
+	support := supportservice.New(supportRepository)
+	adminSupport := supportservice.NewAdmin(supportRepository)
+
+	tokens := authtoken.NewManager(cfg.JWTSecret, authTokenTTL)
+	authenticator := authmiddleware.New(tokens, users)
+	adminAuthorizer := authmiddleware.NewAdminAuthorizer(users)
+	auth := authservice.New(usersRepository, tokens)
+
+	userhandler.New(users).RegisterRoutes(router, authenticator.RequireAuthentication)
+	itemhandler.New(items).RegisterRoutes(router, authenticator.RequireAuthentication)
+	authhandler.New(auth, cfg.CookieSecure, authTokenTTL).
+		RegisterRoutes(router, authenticator.RequireAuthentication)
+	exchangesHandler.RegisterRoutes(router, authenticator.RequireAuthentication)
+	pickupPointsHandler := pickuppointhandler.New(pickupPoints)
+	// Справочник пунктов нужен обычному пользователю, чтобы выбрать, куда нести вещь.
+	// Заводить и править их по-прежнему может только администратор — ниже, в /admin.
+	pickupPointsHandler.RegisterPublicRoutes(router, authenticator.RequireAuthentication)
+	// Жалуется обычный участник обмена, поэтому маршрут живёт вне группы /admin.
+	reporthandler.New(reports).RegisterRoutes(router, authenticator.RequireAuthentication)
+	notificationhandler.New(notifications).RegisterRoutes(router, authenticator.RequireAuthentication)
+	supporthandler.New(support).RegisterRoutes(router, authenticator.RequireAuthentication)
+
+	// Все следующие административные модули регистрируются только внутри этой группы.
+	// JWT сначала определяет пользователя, затем роль проверяется по актуальным данным БД.
+	router.Route("/admin", func(adminRouter chi.Router) {
+		adminRouter.Use(authenticator.RequireAuthentication)
+		adminRouter.Use(adminAuthorizer.RequireAdmin)
+		admindashboardhandler.New(adminDashboard).RegisterRoutes(adminRouter)
+		adminexchangehandler.New(adminExchanges).RegisterRoutes(adminRouter)
+		pickupPointsHandler.RegisterRoutes(adminRouter)
+		exchangesHandler.RegisterAdminRoutes(adminRouter)
+		reporthandler.NewAdmin(adminReports).RegisterRoutes(adminRouter)
+		adminaudithandler.New(adminAudit).RegisterRoutes(adminRouter)
+		supporthandler.NewAdmin(adminSupport).RegisterRoutes(adminRouter)
+	})
+
+	router.Get("/health", health)
+
+	// chi не матчит "/swagger" шаблоном "/swagger/*", поэтому путь без слеша уводим на index.
+	router.Get("/swagger", http.RedirectHandler("/swagger/index.html", http.StatusMovedPermanently).ServeHTTP)
+	router.Get("/swagger/*", httpSwagger.WrapHandler)
+
+	server := &http.Server{
+		Addr:              cfg.HTTPAddress,
+		Handler:           router,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+
+	log.Printf("HTTP server started on %s", cfg.HTTPAddress)
+
+	serverErrors := make(chan error, 1)
+	go func() {
+		err := server.ListenAndServe()
+		if err == http.ErrServerClosed {
+			err = nil
+		}
+		serverErrors <- err
+	}()
+
+	signalCtx, stopSignals := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	var serverErr error
+	select {
+	case <-signalCtx.Done():
+		log.Print("shutdown signal received")
+	case serverErr = <-serverErrors:
+	}
+	stopSignals()
+
+	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), serverShutdownTimeout)
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Printf("graceful HTTP shutdown failed: %v", err)
+		_ = server.Close()
+	}
+	cancelShutdown()
+
+	// Новые HTTP-задачи уже не появятся. Закрытие канала даёт worker дочитать буфер.
+	searchQueue.Close()
+	select {
+	case <-workerDone:
+	case <-time.After(workerShutdownTimeout):
+		log.Print("search worker drain timed out, forcing shutdown")
+		stopWorker()
+		<-workerDone
+	}
+	stopWorker()
+
+	if serverErr != nil {
+		log.Printf("HTTP server stopped with error: %v", serverErr)
+	}
+}
+
+// @Summary     Проверка живости сервиса
+// @Description Отвечает 200, если процесс поднят. Состояние БД не проверяет.
+// @Tags        system
+// @Produce     json
+// @Success     200 {object} map[string]string "сервис работает"
+// @Router      /health [get]
+func health(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(`{"status":"ok"}`))
+}

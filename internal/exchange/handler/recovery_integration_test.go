@@ -1,0 +1,548 @@
+//go:build integration
+
+package handler
+
+import (
+	"context"
+	"errors"
+	"os"
+	"sync"
+	"testing"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	exchangemodel "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/model"
+	exchangerepository "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/repository"
+	exchangeservice "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/service"
+)
+
+func TestExchangeCompositionUniquenessIntegration(t *testing.T) {
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("DATABASE_URL is not set")
+	}
+
+	ctx := context.Background()
+	pool, err := pgxpool.New(ctx, databaseURL)
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	users, items := seedExchangeGraph(
+		t,
+		ctx,
+		pool,
+		"composition-race",
+		[]string{"books", "hobby", "sports"},
+		[]string{"hobby", "sports", "books"},
+	)
+
+	forward := exchangemodel.Exchange{Participants: []exchangemodel.Participant{
+		{UserID: users[0], GivesItemID: items[0], ReceivesItemID: items[1], Position: 0},
+		{UserID: users[1], GivesItemID: items[1], ReceivesItemID: items[2], Position: 1},
+		{UserID: users[2], GivesItemID: items[2], ReceivesItemID: items[0], Position: 2},
+	}}
+	reversed := exchangemodel.Exchange{Participants: []exchangemodel.Participant{
+		{UserID: users[0], GivesItemID: items[0], ReceivesItemID: items[2], Position: 0},
+		{UserID: users[2], GivesItemID: items[2], ReceivesItemID: items[1], Position: 1},
+		{UserID: users[1], GivesItemID: items[1], ReceivesItemID: items[0], Position: 2},
+	}}
+
+	repository := exchangerepository.New(pool)
+	errorsCh := make(chan error, 2)
+	var waitGroup sync.WaitGroup
+	for _, exchange := range []exchangemodel.Exchange{forward, reversed} {
+		waitGroup.Add(1)
+		go func(exchange exchangemodel.Exchange) {
+			defer waitGroup.Done()
+			_, saveErr := repository.SaveExchange(ctx, exchange)
+			errorsCh <- saveErr
+		}(exchange)
+	}
+	waitGroup.Wait()
+	close(errorsCh)
+
+	saved := 0
+	duplicates := 0
+	for saveErr := range errorsCh {
+		switch {
+		case saveErr == nil:
+			saved++
+		case errors.Is(saveErr, exchangerepository.ErrDuplicateExchange):
+			duplicates++
+		default:
+			t.Fatalf("save concurrent composition: %v", saveErr)
+		}
+	}
+	if saved != 1 || duplicates != 1 {
+		t.Fatalf("concurrent saves: saved=%d duplicates=%d, want 1 and 1", saved, duplicates)
+	}
+	if found := proposedExchangesWithItems(t, ctx, pool, items...); len(found) != 1 {
+		t.Fatalf("active exchanges with same composition = %d, want 1", len(found))
+	}
+}
+
+func TestMultipleExchangeSearchIntegration(t *testing.T) {
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("DATABASE_URL is not set")
+	}
+
+	ctx := context.Background()
+	pool, err := pgxpool.New(ctx, databaseURL)
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	users, items := seedExchangeGraph(
+		t,
+		ctx,
+		pool,
+		"multiple-search",
+		[]string{"books", "hobby", "hobby"},
+		[]string{"hobby", "books", "books"},
+	)
+
+	repository := exchangerepository.New(pool)
+	service := exchangeservice.New(repository)
+	result, err := service.FindAndSaveAll(ctx, exchangemodel.Node{ItemID: items[0], OwnerID: users[0]})
+	if err != nil {
+		t.Fatalf("find and save all exchanges: %v", err)
+	}
+	if !result.Found || len(result.ExchangeIDs) != 2 {
+		t.Fatalf("search result = %+v, want two exchanges", result)
+	}
+
+	first := proposedExchangesWithItems(t, ctx, pool, items[0], items[1])
+	second := proposedExchangesWithItems(t, ctx, pool, items[0], items[2])
+	if len(first) != 1 || len(second) != 1 {
+		t.Fatalf("saved alternatives: first=%d second=%d, want one each", len(first), len(second))
+	}
+
+	for _, userID := range []uuid.UUID{users[0], users[1]} {
+		if err := service.ConfirmParticipation(ctx, first[0], userID); err != nil {
+			t.Fatalf("confirm selected exchange for user %s: %v", userID, err)
+		}
+	}
+	assertChainStatus(t, ctx, pool, first[0], "confirmed")
+	assertChainCancellation(t, ctx, pool, second[0], "superseded")
+
+	for index, wantStatus := range []string{"reserved", "reserved", "available"} {
+		var status string
+		if err := pool.QueryRow(ctx, "SELECT status FROM items WHERE id = $1", items[index]).Scan(&status); err != nil {
+			t.Fatalf("read item %d status: %v", index, err)
+		}
+		if status != wantStatus {
+			t.Fatalf("item %d status = %q, want %q", index, status, wantStatus)
+		}
+	}
+}
+
+func TestExchangeRankingIntegration(t *testing.T) {
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("DATABASE_URL is not set")
+	}
+
+	ctx := context.Background()
+	pool, err := pgxpool.New(ctx, databaseURL)
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	users, items := seedExchangeGraph(
+		t,
+		ctx,
+		pool,
+		"ranking",
+		[]string{"books", "hobby", "hobby"},
+		[]string{"hobby", "books", "books"},
+	)
+
+	// Оба варианта совместимы, но третий пользователь заметно надёжнее второго.
+	// Вещь ненадёжного пользователя создаётся раньше, поэтому этот тест доказывает,
+	// что порядок сохранения задаёт ranking, а не порядок обхода DFS.
+	if _, err := pool.Exec(ctx, `
+		UPDATE users
+		SET deals_completed = CASE id WHEN $1 THEN 1 WHEN $2 THEN 20 ELSE 0 END,
+			deals_broken = CASE id WHEN $1 THEN 9 ELSE 0 END,
+			rating = CASE id WHEN $1 THEN 1.0 WHEN $2 THEN 5.0 ELSE 3.0 END
+		WHERE id = ANY($3::uuid[])`, users[1], users[2], users); err != nil {
+		t.Fatalf("prepare ranking stats: %v", err)
+	}
+
+	service := exchangeservice.New(exchangerepository.New(pool))
+	result, err := service.FindAndSaveAll(ctx, exchangemodel.Node{ItemID: items[0], OwnerID: users[0]})
+	if err != nil {
+		t.Fatalf("find ranked exchanges: %v", err)
+	}
+	if !result.Found || len(result.ExchangeIDs) != 2 {
+		t.Fatalf("ranked search result = %+v, want two exchanges", result)
+	}
+
+	var containsBest, containsWorse bool
+	if err := pool.QueryRow(ctx, `
+		SELECT
+			EXISTS (
+				SELECT 1 FROM chain_participants
+				WHERE chain_id = $1 AND gives_item_id = $2
+			),
+			EXISTS (
+				SELECT 1 FROM chain_participants
+				WHERE chain_id = $1 AND gives_item_id = $3
+			)`, result.ExchangeIDs[0], items[2], items[1]).Scan(&containsBest, &containsWorse); err != nil {
+		t.Fatalf("inspect first ranked exchange: %v", err)
+	}
+	if !containsBest || containsWorse {
+		t.Fatalf(
+			"first ranked exchange contains best=%t worse=%t, want true and false",
+			containsBest,
+			containsWorse,
+		)
+	}
+}
+
+func TestExchangeRecoveryIntegration(t *testing.T) {
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("DATABASE_URL is not set")
+	}
+
+	ctx := context.Background()
+	pool, err := pgxpool.New(ctx, databaseURL)
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+
+	users, items := seedExchangeGraph(
+		t,
+		ctx,
+		pool,
+		"recovery",
+		[]string{"books", "hobby", "sports", "sports", "sports"},
+		[]string{"hobby", "sports", "books", "books", "books"},
+	)
+
+	repository := exchangerepository.New(pool)
+	service := exchangeservice.New(repository)
+	originalParticipants := []exchangemodel.Participant{
+		{UserID: users[0], GivesItemID: items[0], ReceivesItemID: items[1], Position: 0},
+		{UserID: users[1], GivesItemID: items[1], ReceivesItemID: items[2], Position: 1},
+		{UserID: users[2], GivesItemID: items[2], ReceivesItemID: items[0], Position: 2},
+	}
+	originalID, err := repository.SaveExchange(ctx, exchangemodel.Exchange{Participants: originalParticipants})
+	if err != nil {
+		t.Fatalf("create original exchange: %v", err)
+	}
+
+	// Участник вправе передумать после accept, пока остальные ещё не подтвердили
+	// предложение и сам обмен остаётся proposed.
+	if err := service.ConfirmParticipation(ctx, originalID, users[2]); err != nil {
+		t.Fatalf("accept proposed exchange before changing decision: %v", err)
+	}
+	if err := service.DeclineParticipation(ctx, originalID, users[2]); err != nil {
+		t.Fatalf("decline proposed exchange: %v", err)
+	}
+	assertChainCancellation(t, ctx, pool, originalID, "proposal_declined")
+
+	// Отказ от предложения тоже запускает перепоиск: ребро 2 -> 0 вырезано, поэтому DFS
+	// собирает состав с другой третьей вещью, а не переподставляет отказанный.
+	restored := proposedExchangesWithItems(t, ctx, pool, items[0], items[1], items[3])
+	if len(restored) != 1 {
+		t.Fatalf("proposals after proposed decline = %d, want exactly one with a new third item", len(restored))
+	}
+	if refused := proposedExchangesWithItems(t, ctx, pool, items[0], items[1], items[2]); len(refused) != 0 {
+		t.Fatalf("re-proposed the refused composition %d times, want 0", len(refused))
+	}
+
+	confirmedID := restored[0]
+	for _, userID := range []uuid.UUID{users[0], users[1], users[3]} {
+		if err := service.ConfirmParticipation(ctx, confirmedID, userID); err != nil {
+			t.Fatalf("confirm exchange for user %s: %v", userID, err)
+		}
+	}
+
+	if err := service.DeclineParticipation(ctx, confirmedID, users[3]); err != nil {
+		t.Fatalf("decline confirmed exchange: %v", err)
+	}
+	assertChainCancellation(t, ctx, pool, confirmedID, "confirmed_broken")
+
+	var permanentExclusions int
+	if err := pool.QueryRow(ctx, `
+		SELECT count(*)
+		FROM broken_exchange_compositions
+		WHERE source_chain_id = $1`, confirmedID).Scan(&permanentExclusions); err != nil {
+		t.Fatalf("read permanent broken composition exclusion: %v", err)
+	}
+	if permanentExclusions != 1 {
+		t.Fatalf("permanent broken composition exclusions = %d, want 1", permanentExclusions)
+	}
+
+	// Не только recovery-job, но и любой будущий обычный поиск/прямое сохранение
+	// обязаны помнить точный сорванный состав.
+	brokenAgain := exchangemodel.Exchange{Participants: []exchangemodel.Participant{
+		{UserID: users[0], GivesItemID: items[0], ReceivesItemID: items[1], Position: 0},
+		{UserID: users[1], GivesItemID: items[1], ReceivesItemID: items[3], Position: 1},
+		{UserID: users[3], GivesItemID: items[3], ReceivesItemID: items[0], Position: 2},
+	}}
+	if _, err := repository.SaveExchange(ctx, brokenAgain); !errors.Is(
+		err,
+		exchangerepository.ErrDuplicateExchange,
+	) {
+		t.Fatalf("save permanently excluded composition error = %v, want duplicate", err)
+	}
+	if _, err := service.FindAndSaveAll(
+		ctx,
+		exchangemodel.Node{ItemID: items[0], OwnerID: users[0]},
+	); err != nil {
+		t.Fatalf("ordinary search after confirmed break: %v", err)
+	}
+	if found := proposedExchangesWithItems(t, ctx, pool, items[0], items[1], items[3]); len(found) != 0 {
+		t.Fatalf("ordinary search re-proposed permanently excluded composition %d times", len(found))
+	}
+
+	if found := proposedExchangesWithItems(t, ctx, pool, items[0], items[1], items[4]); len(found) != 1 {
+		t.Fatalf("recovered exchanges with a new exact composition = %d, want 1", len(found))
+	}
+
+	for _, itemID := range []uuid.UUID{items[0], items[1], items[3]} {
+		var status string
+		if err := pool.QueryRow(ctx, "SELECT status FROM items WHERE id = $1", itemID).Scan(&status); err != nil {
+			t.Fatalf("read released item %s: %v", itemID, err)
+		}
+		if status != "available" {
+			t.Fatalf("item %s status = %q, want available", itemID, status)
+		}
+	}
+
+	for index, userID := range users {
+		var dealsBroken int
+		if err := pool.QueryRow(ctx, "SELECT deals_broken FROM users WHERE id = $1", userID).Scan(&dealsBroken); err != nil {
+			t.Fatalf("read user %d deals_broken: %v", index, err)
+		}
+		want := 0
+		if userID == users[3] {
+			want = 1
+		}
+		if dealsBroken != want {
+			t.Fatalf("user %d deals_broken = %d, want %d", index, dealsBroken, want)
+		}
+	}
+}
+
+// TestExchangeSupersededRecoveryIntegration — сценарий issue #55. Две цепи с общим
+// участником: первая подтверждается и вытесняет вторую, потом срывается сама. Вторая
+// цепь никто не отклонял, поэтому она обязана собраться заново.
+func TestExchangeSupersededRecoveryIntegration(t *testing.T) {
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("DATABASE_URL is not set")
+	}
+
+	ctx := context.Background()
+	pool, err := pgxpool.New(ctx, databaseURL)
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+
+	// Граф держит два цикла с общей вещью 2: 0 -> 1 -> 2 -> 0 и 2 -> 3 -> 4 -> 2.
+	users, items := seedExchangeGraph(
+		t,
+		ctx,
+		pool,
+		"superseded",
+		[]string{"books", "hobby", "sports", "books", "tools"},
+		[]string{"hobby", "sports", "books", "tools", "sports"},
+	)
+
+	repository := exchangerepository.New(pool)
+	service := exchangeservice.New(repository)
+
+	winnerID, err := repository.SaveExchange(ctx, exchangemodel.Exchange{Participants: []exchangemodel.Participant{
+		{UserID: users[0], GivesItemID: items[0], ReceivesItemID: items[1], Position: 0},
+		{UserID: users[1], GivesItemID: items[1], ReceivesItemID: items[2], Position: 1},
+		{UserID: users[2], GivesItemID: items[2], ReceivesItemID: items[0], Position: 2},
+	}})
+	if err != nil {
+		t.Fatalf("create exchange that will win: %v", err)
+	}
+
+	supersededID, err := repository.SaveExchange(ctx, exchangemodel.Exchange{Participants: []exchangemodel.Participant{
+		{UserID: users[2], GivesItemID: items[2], ReceivesItemID: items[3], Position: 0},
+		{UserID: users[3], GivesItemID: items[3], ReceivesItemID: items[4], Position: 1},
+		{UserID: users[4], GivesItemID: items[4], ReceivesItemID: items[2], Position: 2},
+	}})
+	if err != nil {
+		t.Fatalf("create exchange that will be superseded: %v", err)
+	}
+
+	for _, userID := range []uuid.UUID{users[0], users[1], users[2]} {
+		if err := service.ConfirmParticipation(ctx, winnerID, userID); err != nil {
+			t.Fatalf("confirm winning exchange for user %s: %v", userID, err)
+		}
+	}
+	assertChainStatus(t, ctx, pool, winnerID, "confirmed")
+	// Вторую цепь закрыло чужое подтверждение, а не отказ её участника.
+	assertChainCancellation(t, ctx, pool, supersededID, "superseded")
+
+	if err := service.DeclineParticipation(ctx, winnerID, users[0]); err != nil {
+		t.Fatalf("break the winning exchange: %v", err)
+	}
+	assertChainCancellation(t, ctx, pool, winnerID, "confirmed_broken")
+
+	if found := proposedExchangesWithItems(t, ctx, pool, items[2], items[3], items[4]); len(found) != 1 {
+		t.Fatalf("restored superseded exchanges = %d, want 1", len(found))
+	}
+	// Сорванный состав перепоиск переподставлять не должен: от него только что ушли.
+	if found := proposedExchangesWithItems(t, ctx, pool, items[0], items[1], items[2]); len(found) != 0 {
+		t.Fatalf("re-proposed the broken exchange %d times, want 0", len(found))
+	}
+}
+
+// seedExchangeGraph заводит по пользователю на каждую категорию из categories и по
+// объявлению на каждого: категория объявления берётся из categories, желаемая — из wants
+// того же индекса. Объявления создаются с разбегом по created_at, чтобы DFS при одинаковых
+// данных обходил их в одном и том же порядке. Данные удаляются после теста.
+func seedExchangeGraph(
+	t *testing.T,
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	prefix string,
+	categories []string,
+	wants []string,
+) ([]uuid.UUID, []uuid.UUID) {
+	t.Helper()
+
+	users := make([]uuid.UUID, len(categories))
+	items := make([]uuid.UUID, len(categories))
+	for index := range categories {
+		users[index] = uuid.New()
+		items[index] = uuid.New()
+	}
+	t.Cleanup(func() {
+		cleanupIntegrationData(context.Background(), pool, users, items)
+		pool.Close()
+	})
+
+	for index, userID := range users {
+		if _, err := pool.Exec(
+			ctx,
+			"INSERT INTO users (id, nickname, password_hash) VALUES ($1, $2, $3)",
+			userID,
+			prefix+"-"+userID.String()[:8],
+			"not-used-in-integration-test",
+		); err != nil {
+			t.Fatalf("create user %d: %v", index, err)
+		}
+	}
+
+	for index, itemID := range items {
+		if _, err := pool.Exec(ctx, `
+			INSERT INTO items (id, owner_id, category_id, title, photo_urls, created_at)
+			VALUES (
+				$1,
+				$2,
+				(SELECT id FROM categories WHERE slug = $3),
+				$4,
+				ARRAY['https://example.com/integration.jpg'],
+				now() + ($5 * interval '1 second')
+			)`,
+			itemID,
+			users[index],
+			categories[index],
+			prefix+" integration item",
+			index,
+		); err != nil {
+			t.Fatalf("create item %d: %v", index, err)
+		}
+
+		if _, err := pool.Exec(ctx, `
+			INSERT INTO item_wants (item_id, category_id)
+			VALUES ($1, (SELECT id FROM categories WHERE slug = $2))`,
+			itemID,
+			wants[index],
+		); err != nil {
+			t.Fatalf("create item wants %d: %v", index, err)
+		}
+	}
+
+	return users, items
+}
+
+// proposedExchangesWithItems возвращает открытые предложения, состав которых совпадает с
+// перечисленными объявлениями ровно, без учёта порядка обхода.
+func proposedExchangesWithItems(
+	t *testing.T,
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	items ...uuid.UUID,
+) []uuid.UUID {
+	t.Helper()
+
+	rows, err := pool.Query(ctx, `
+		SELECT chain.id
+		FROM chains AS chain
+		WHERE chain.status = 'proposed'
+		  AND (
+			SELECT array_agg(participant.gives_item_id ORDER BY participant.gives_item_id)
+			FROM chain_participants AS participant
+			WHERE participant.chain_id = chain.id
+		  ) = (SELECT array_agg(item ORDER BY item) FROM unnest($1::uuid[]) AS item)`,
+		items,
+	)
+	if err != nil {
+		t.Fatalf("query proposed exchanges with items %v: %v", items, err)
+	}
+
+	found, err := pgx.CollectRows(rows, pgx.RowTo[uuid.UUID])
+	if err != nil {
+		t.Fatalf("read proposed exchanges with items %v: %v", items, err)
+	}
+
+	return found
+}
+
+func assertChainStatus(
+	t *testing.T,
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	exchangeID uuid.UUID,
+	want string,
+) {
+	t.Helper()
+
+	var status string
+	if err := pool.QueryRow(ctx, "SELECT status FROM chains WHERE id = $1", exchangeID).Scan(&status); err != nil {
+		t.Fatalf("read exchange %s status: %v", exchangeID, err)
+	}
+	if status != want {
+		t.Fatalf("exchange %s status = %q, want %q", exchangeID, status, want)
+	}
+}
+
+func assertChainCancellation(
+	t *testing.T,
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	exchangeID uuid.UUID,
+	wantReason string,
+) {
+	t.Helper()
+
+	var status, reason string
+	if err := pool.QueryRow(
+		ctx,
+		"SELECT status, cancel_reason FROM chains WHERE id = $1",
+		exchangeID,
+	).Scan(&status, &reason); err != nil {
+		t.Fatalf("read exchange %s cancellation: %v", exchangeID, err)
+	}
+	if status != "cancelled" || reason != wantReason {
+		t.Fatalf(
+			"exchange %s cancellation = (%q, %q), want (cancelled, %q)",
+			exchangeID,
+			status,
+			reason,
+			wantReason,
+		)
+	}
+}

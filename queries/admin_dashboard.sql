@@ -1,0 +1,48 @@
+-- name: GetAdminDashboard :one
+WITH user_stats AS (
+    SELECT count(*)::bigint AS total
+    FROM users
+),
+pickup_point_stats AS (
+    SELECT count(*)::bigint AS total
+    FROM pickup_points
+),
+item_stats AS (
+    SELECT
+        count(*)::bigint AS total,
+        count(*) FILTER (WHERE status = 'available')::bigint AS available,
+        count(*) FILTER (WHERE status = 'reserved')::bigint AS reserved,
+        count(*) FILTER (WHERE status = 'traded')::bigint AS traded,
+        count(*) FILTER (WHERE status = 'withdrawn')::bigint AS withdrawn
+    FROM items
+),
+exchange_stats AS (
+    SELECT
+        count(*)::bigint AS total,
+        count(*) FILTER (WHERE status = 'proposed')::bigint AS proposed,
+        count(*) FILTER (WHERE status = 'confirmed')::bigint AS confirmed,
+        count(*) FILTER (WHERE status = 'delivering')::bigint AS delivering,
+        count(*) FILTER (WHERE status = 'delivered')::bigint AS delivered,
+        count(*) FILTER (WHERE status = 'completed')::bigint AS completed,
+        count(*) FILTER (WHERE status = 'cancelled')::bigint AS cancelled
+    FROM chains
+)
+SELECT
+    user_stats.total AS users_total,
+    pickup_point_stats.total AS pickup_points_total,
+    item_stats.total AS items_total,
+    item_stats.available AS items_available,
+    item_stats.reserved AS items_reserved,
+    item_stats.traded AS items_traded,
+    item_stats.withdrawn AS items_withdrawn,
+    exchange_stats.total AS exchanges_total,
+    exchange_stats.proposed AS exchanges_proposed,
+    exchange_stats.confirmed AS exchanges_confirmed,
+    exchange_stats.delivering AS exchanges_delivering,
+    exchange_stats.delivered AS exchanges_delivered,
+    exchange_stats.completed AS exchanges_completed,
+    exchange_stats.cancelled AS exchanges_cancelled
+FROM user_stats
+CROSS JOIN pickup_point_stats
+CROSS JOIN item_stats
+CROSS JOIN exchange_stats;

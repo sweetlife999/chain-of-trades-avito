@@ -1,0 +1,60 @@
+.register {
+  display: flex;
+  width: min(100%, 420px);
+  flex-direction: column;
+  align-items: stretch;
+  gap: clamp(20px, 4vw, 28px);
+
+  &__header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+  }
+
+  &__title { @include page-title; }
+
+  &__description { @include page-description; }
+
+  &__fields {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  &__error {
+    padding-top: 5px;
+    color: #c1121f;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  &__buttons {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 4px;
+  }
+
+  &__button { width: 100%; }
+
+  &__login {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  &__loginText {
+    color: #777;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .register {
+    &__buttons { grid-template-columns: 1fr; }
+    &__login { flex-wrap: wrap; }
+  }
+}

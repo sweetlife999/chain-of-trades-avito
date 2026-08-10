@@ -1,0 +1,9 @@
+.main {
+  width: min(100%, 1440px);
+  min-height: calc(100vh - 120px);
+  padding: 0 clamp(8px, 2vw, 24px) 60px;
+}
+
+@media (max-width: 600px) {
+  .main { padding-bottom: 40px; }
+}

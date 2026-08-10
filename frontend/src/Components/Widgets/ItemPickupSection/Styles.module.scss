@@ -1,0 +1,109 @@
+.pickup {
+  display: grid;
+  justify-items: start;
+  gap: 14px;
+  width: min(100%, 640px);
+  margin-top: 32px;
+  padding: 20px;
+  background: #fff;
+  border: 1px solid #dfe3e6;
+  border-radius: 12px;
+
+  &__heading {
+    display: grid;
+    gap: 4px;
+  }
+
+  &__title { @include section-title; }
+  &__description { @include section-description; }
+
+  // Маршрут вещи. Точки соединены линией шириной ровно в колонку: она стартует в центре
+  // своей точки и заканчивается в центре следующей, поэтому колонки должны быть равными.
+  &__route {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    width: 100%;
+    list-style: none;
+  }
+
+  &__step {
+    position: relative;
+    display: grid;
+    justify-items: start;
+    align-content: start;
+    gap: 6px;
+    padding-right: 14px;
+    color: #17462d;
+    font-size: 13px;
+
+    &::after {
+      position: absolute;
+      top: 7px;
+      left: 8px;
+      z-index: 0;
+      width: 100%;
+      height: 2px;
+      content: "";
+      background: $green-button;
+    }
+
+    &:last-child::after { display: none; }
+
+    // Линия принадлежит отрезку ПОСЛЕ шага, поэтому у текущего она уже серая: вещь
+    // до следующей точки ещё не доехала. У последнего шага линии нет вовсе.
+    &_current::after { background: #dfe3e6; }
+
+    &_next { color: #6f7a73; }
+  }
+
+  &__point {
+    z-index: 1;
+    width: 16px;
+    height: 16px;
+    background: $green-button;
+    border-radius: 50%;
+  }
+
+  // «Вы здесь»: тот же ореол, которым в проекте помечают фокус.
+  &__step_current &__point {
+    box-shadow: 0 0 0 4px rgba($green-button, .18);
+  }
+
+  &__step_current &__stepName { font-weight: 600; }
+
+  &__step_next &__point {
+    background: #fff;
+    border: 2px solid #dfe3e6;
+  }
+
+  &__stepName { overflow-wrap: anywhere; }
+
+  &__stepAddress {
+    overflow-wrap: anywhere;
+    color: #6f7a73;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  &__hint {
+    margin: 0;
+    color: #6f7a73;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+}
+
+@media (max-width: 560px) {
+  .pickup {
+    padding: 16px;
+
+    &__route {
+      grid-auto-flow: row;
+      grid-auto-columns: auto;
+      gap: 14px;
+    }
+
+    &__step::after { display: none; }
+  }
+}

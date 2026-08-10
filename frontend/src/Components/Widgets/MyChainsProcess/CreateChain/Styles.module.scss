@@ -1,0 +1,352 @@
+.createChain {
+  width: min(100%, 1200px);
+
+  display: flex;
+  flex-direction: column;
+  gap: 42px;
+
+  margin: 0 auto;
+  padding: 28px 24px 48px;
+
+  &__header {
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+  }
+
+  &__title { @include page-title; }
+
+  &__subtitle { @include page-description; }
+
+  &__section {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+
+  &__sectionTitle {
+    color: #171717;
+    font-size: 20px;
+    font-weight: 500;
+  }
+
+  &__form {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+
+    padding: 30px 36px 34px;
+
+    border: 1px solid #9c9c9c;
+    border-radius: $border-radius;
+
+    background-color: #fff;
+  }
+
+  &__content {
+    display: grid;
+    grid-template-columns: minmax(240px, .75fr) minmax(360px, 1.35fr);
+    gap: clamp(28px, 5vw, 54px);
+  }
+
+  &__photosColumn,
+  &__fieldsColumn {
+    min-width: 0;
+
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+
+  &__photoPlaceholder {
+    width: 100%;
+    height: 100%;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+
+    padding: 24px;
+
+    color: #252525;
+    text-align: center;
+
+  }
+
+  &__photoTitle { font-size: 14px; font-weight: 600; }
+  &__photoHint { color: #6f6f6f; font-size: 12px; line-height: 1.4; }
+
+  &__photoPlus {
+    width: 54px;
+    height: 54px;
+
+    display: grid;
+    place-items: center;
+
+    margin-bottom: 6px;
+
+    border-radius: 50%;
+
+    background-color: #e9f5ff;
+    color: #0095f6;
+
+    font-size: 28px;
+    font-weight: 300;
+  }
+
+  &__photoFields {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  &__photoField {
+    position: relative;
+
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+  }
+
+  &__removePhoto {
+    width: 42px;
+    height: 48px;
+
+    flex-shrink: 0;
+
+    border: 1px solid #e4bcbc;
+    border-radius: $border-radius;
+
+    background-color: #fff7f7;
+    color: #a03131;
+
+    font-size: 24px;
+
+    transition:
+      background-color 0.2s ease,
+      border-color 0.2s ease;
+
+    &:hover {
+      border-color: #d58d8d;
+      background-color: #ffeded;
+    }
+
+    &:active { transform: scale(.96); }
+    &:focus-visible { outline: 3px solid rgba(#a03131, .18); }
+  }
+
+  &__addPhoto {
+    align-self: flex-start;
+  }
+
+  &__field {
+    width: 100%;
+
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  &__label {
+    color: #292929;
+    font-size: 14px;
+    font-weight: 600;
+
+  }
+
+  &__required { color: red; font-weight: inherit; }
+
+  &__select {
+    width: 100%;
+    height: 48px;
+
+    padding: 0 16px;
+
+    border: 1px solid $green-input;
+    border-radius: $border-radius;
+    outline: none;
+
+    background-color: $background-input;
+    color: #171717;
+
+    font-family: inherit;
+    font-size: 15px;
+
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.2s ease,
+      background-color 0.2s ease;
+
+    &:hover {
+      border-color: $green-button;
+    }
+
+    &:focus {
+      border-color: $green-button;
+      background-color: #fff;
+      box-shadow: 0 0 0 4px rgba($green-button, 0.12);
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    &_error {
+      border-color: red;
+    }
+  }
+
+  &__fieldError {
+    color: red;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  &__wants {
+    min-width: 0;
+
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  &__categories {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  &__category {
+    position: relative;
+    display: block;
+    min-width: 0;
+    cursor: pointer;
+  }
+
+  &__categoryInput {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    opacity: 0;
+
+    &:checked + .createChain__categoryLabel {
+      color: #087642;
+      background: rgba($green-button, .1);
+      border-color: $green-button;
+    }
+
+    &:checked + .createChain__categoryLabel::before {
+      content: "✓";
+      color: #fff;
+      background: $green-button;
+      border-color: $green-button;
+    }
+
+    &:focus-visible + .createChain__categoryLabel {
+      box-shadow: 0 0 0 4px rgba($green-button, .12);
+    }
+  }
+
+  &__categoryLabel {
+    display: flex;
+    align-items: center;
+    min-height: 42px;
+    padding: 9px 12px 9px 42px;
+    color: #444;
+    background: #fafafa;
+    border: 1px solid #d7dadd;
+    border-radius: $border-radius;
+    font-size: 13px;
+    line-height: 1.3;
+    transition: border-color .2s ease, background-color .2s ease, color .2s ease, box-shadow .2s ease;
+
+    &:hover { border-color: #a9cdb9; }
+
+    &::before {
+      position: absolute;
+      top: 50%;
+      left: 12px;
+      display: grid;
+      width: 20px;
+      height: 20px;
+      place-items: center;
+      content: "";
+      color: transparent;
+      background: #fff;
+      border: 1px solid #b9bec4;
+      border-radius: 5px;
+      transform: translateY(-50%);
+      transition: background-color .2s ease, border-color .2s ease;
+    }
+  }
+
+  &__serverError {
+    padding: 12px 14px;
+
+    border: 1px solid #efc0c0;
+    border-radius: $border-radius;
+
+    background-color: #fff4f4;
+    color: #9b2f2f;
+
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+
+    padding-top: 2px;
+  }
+
+  &__action {
+    width: 210px;
+  }
+}
+
+@media (max-width: 900px) {
+  .createChain {
+    &__content {
+      grid-template-columns: 1fr;
+      gap: 34px;
+    }
+  }
+}
+
+@media (max-width: 600px) {
+  .createChain {
+    gap: 30px;
+
+    padding: 20px 14px 36px;
+
+    &__header {
+      gap: 14px;
+    }
+
+
+    &__form {
+      padding: 20px 16px 22px;
+    }
+
+    &__categories {
+      grid-template-columns: 1fr;
+    }
+
+    &__actions {
+      flex-direction: column-reverse;
+      align-items: stretch;
+    }
+
+    &__action {
+      width: 100%;
+    }
+  }
+}

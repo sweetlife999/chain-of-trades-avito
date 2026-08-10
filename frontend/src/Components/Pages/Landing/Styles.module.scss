@@ -1,0 +1,393 @@
+@import url("https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&display=swap");
+
+// #root ограничен 95vw и центрирован — лендингу нужна вся ширина
+:global(#root):has(.landing) {
+  max-width: 100%;
+}
+
+:global(html):has(.landing) {
+  scroll-behavior: smooth;
+  // ponytail: нативный scroll-snap вместо перехвата wheel из макета,
+  // proximity — чтобы не запирать пользователя между секциями
+  scroll-snap-type: y proximity;
+}
+
+.landing {
+  --color-bg: #f3f2f2;
+  --color-text: #201e1d;
+  --color-divider: rgba(32, 30, 29, 0.4);
+  --color-text-82: rgba(32, 30, 29, 0.82);
+  --color-text-78: rgba(32, 30, 29, 0.78);
+  --color-accent: #009951;
+  --color-accent-600: #00803f;
+  --color-accent-700: #08783f;
+  --space-3: 12px;
+  --space-4: 16px;
+
+  width: 100%;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: "Archivo", system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  text-align: left;
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+/* — навигация — */
+
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) clamp(20px, 5vw, 72px);
+  border-bottom: 2px solid var(--color-divider);
+}
+
+.navBrand {
+  font-weight: 800;
+  font-size: 20px;
+}
+
+.navLinks {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.navLink {
+  color: var(--color-text);
+  text-decoration: none;
+  font-size: 15px;
+
+  &:hover {
+    color: var(--color-accent);
+  }
+}
+
+/* — кнопки — */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 14px;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: var(--color-text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0;
+  cursor: pointer;
+}
+
+.btnPrimary {
+  background: var(--color-accent);
+  color: var(--color-bg);
+
+  &:hover {
+    background: var(--color-accent-600);
+  }
+
+  &:active {
+    background: var(--color-accent-700);
+  }
+}
+
+// Крупная кнопка на акцентном фоне: белая заливка, зелёный текст.
+.btnInverse {
+  padding: 16px 34px;
+  font-size: 18px;
+  background: #fff;
+  color: var(--color-accent);
+
+  &:hover {
+    background: var(--color-bg);
+  }
+}
+
+/* — секции — */
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 clamp(20px, 5vw, 72px);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: calc(100svh - var(--nav-h, 70px));
+  border-bottom: 2px solid var(--color-divider);
+  scroll-snap-align: start;
+  // Только opacity. Scroll snap area считается по трансформированному боксу,
+  // поэтому transform на секции таскает её точку снапа, и браузер гонится за
+  // анимацией: страница уезжает вниз и возвращается.
+  opacity: 0;
+  transition: opacity 1.1s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.visible {
+  opacity: 1;
+}
+
+.kicker {
+  display: block;
+  text-align: center;
+  font-size: 13px;
+  line-height: 14px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-accent-700);
+  margin: 0 0 20px;
+}
+
+/* — герой — */
+
+.hero {
+  padding: 112px 0 84px;
+  // У верха страницы точки снапа быть не должно: первая секция начинается ниже
+  // навбара, и браузер доснапливал к ней сразу после загрузки, пряча навбар.
+  scroll-snap-align: none;
+}
+
+.heroTitle {
+  font-weight: 800;
+  font-size: clamp(42px, 6.2vw, 84px);
+  line-height: 1.06;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.heroLine {
+  display: block;
+}
+
+.heroGive {
+  color: #e0656b;
+}
+
+.heroGet {
+  color: var(--color-accent);
+}
+
+.heroText {
+  font-size: 17px;
+  line-height: 28px;
+  max-width: 58ch;
+  margin: 28px 0 0;
+  color: var(--color-text-82);
+}
+
+@keyframes heroIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.heroReveal {
+  opacity: 0;
+  animation: heroIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.heroTitle .heroReveal:nth-child(1) {
+  animation-delay: 0.4s;
+}
+
+.heroTitle .heroReveal:nth-child(2) {
+  animation-delay: 1.1s;
+}
+
+.heroText.heroReveal {
+  animation-delay: 1.8s;
+}
+
+/* — как это работает — */
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  border-top: 2px solid var(--color-divider);
+}
+
+.step {
+  display: flex;
+  align-items: baseline;
+  gap: 20px;
+  padding: 17px 0;
+  border-bottom: 2px solid var(--color-divider);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+}
+
+.stepNumber {
+  width: 26px;
+  flex-shrink: 0;
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--color-accent-700);
+}
+
+.stepTitle {
+  width: 250px;
+  flex-shrink: 0;
+  margin: 0;
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.stepText {
+  margin: 0;
+  font-size: 15.5px;
+  line-height: 22px;
+  color: var(--color-text-78);
+}
+
+/* — преимущества — */
+
+.benefits {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 24px;
+  text-align: center;
+}
+
+.benefitIcon {
+  margin: 0 auto;
+}
+
+.benefitTitle {
+  margin: 14px 0 8px;
+  font-weight: 800;
+  font-size: 19px;
+}
+
+.benefitText {
+  margin: 0;
+  font-size: 15px;
+  line-height: 24px;
+  color: var(--color-text-78);
+}
+
+/* — faq — */
+
+.faq {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 920px;
+  margin: 0 auto;
+  border-top: 2px solid var(--color-divider);
+}
+
+.faqItem {
+  padding: 17px 0;
+  border-bottom: 2px solid var(--color-divider);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+}
+
+.faqTitle {
+  margin: 0 0 6px;
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: -0.01em;
+}
+
+.faqText {
+  margin: 0;
+  font-size: 15.5px;
+  line-height: 22px;
+  color: var(--color-text-78);
+}
+
+/* — призыв к действию — */
+
+.cta {
+  background: var(--color-accent);
+  color: var(--color-bg);
+  border-top: 2px solid var(--color-bg);
+  border-bottom: 0;
+
+  :focus-visible {
+    outline-color: var(--color-bg);
+  }
+}
+
+.ctaInner {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 84px clamp(20px, 5vw, 72px);
+}
+
+.ctaTitle {
+  margin: 0;
+  font-weight: 800;
+  font-size: clamp(34px, 4.2vw, 56px);
+  line-height: 1.06;
+}
+
+.ctaActions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-top: 42px;
+}
+
+/* — адаптив — */
+
+@media (max-width: 720px) {
+  .step {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .stepTitle {
+    width: auto;
+    white-space: normal;
+  }
+
+  .stepText {
+    flex-basis: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :global(html):has(.landing) {
+    scroll-behavior: auto;
+    scroll-snap-type: none;
+  }
+
+  .section {
+    opacity: 1;
+    transition: none;
+  }
+
+  .heroReveal {
+    opacity: 1;
+    animation: none;
+  }
+}

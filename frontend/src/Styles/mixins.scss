@@ -1,0 +1,35 @@
+@mixin main-block-title {
+  font-size: 52px;
+  line-height: 150%;
+}
+
+@mixin main-block-subtitle {
+  font-size: 26px;
+  line-height: 150%;
+}
+
+@mixin page-title {
+  color: #171717;
+  font-size: clamp(28px, 4vw, 36px);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+@mixin page-description {
+  color: #666;
+  font-size: clamp(14px, 2vw, 16px);
+  line-height: 1.5;
+}
+
+@mixin section-title {
+  color: #202124;
+  font-size: clamp(20px, 3vw, 24px);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+@mixin section-description {
+  color: #727780;
+  font-size: 13px;
+  line-height: 1.5;
+}

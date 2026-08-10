@@ -1,0 +1,389 @@
+.profile {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px;
+
+  &__card {
+    position: relative;
+
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 32px;
+
+    padding: 28px 32px;
+
+    border: 1px solid #b8b8b8;
+    border-radius: $border-radius;
+
+    background-color: #fff;
+  }
+
+  &__main {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+  }
+
+  &__avatar {
+    width: 92px;
+    height: 92px;
+    flex-shrink: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    overflow: hidden;
+
+    border-radius: 50%;
+
+    background: linear-gradient(135deg, #e5d1ff, #a878ff);
+  }
+
+  &__avatarImage {
+    width: 100%;
+    height: 100%;
+
+    object-fit: cover;
+  }
+
+  &__avatarPlaceholder {
+    color: #fff;
+    font-size: 34px;
+    font-weight: 700;
+  }
+
+  &__information {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  &__nickname {
+    @include page-title;
+    margin: 0;
+  }
+
+  &__description {
+    @include page-description;
+    max-width: 560px;
+    margin: 0;
+  }
+
+  &__created {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    color: #777;
+    font-size: 13px;
+  }
+
+
+  &__actions {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    min-width: 190px;
+  }
+
+  &__statistics {
+    grid-column: 1 / -1;
+
+    display: flex;
+    gap: 14px;
+    justify-content: space-between;
+
+    margin-top: 6px;
+  }
+
+  &__statistic {
+    min-width: 80px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+
+    padding: 14px 18px;
+
+    border-radius: $border-radius;
+
+    background-color: $background-input;
+  }
+
+  &__statisticValue {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+
+    color: #171717;
+    font-size: 20px;
+    font-weight: 700;
+  }
+
+  &__statisticLabel {
+    color: #777;
+    font-size: 12px;
+  }
+
+  &__ratingIcon {
+    color: #f4c430;
+  }
+
+  &__completedIcon {
+    color: $green-button;
+  }
+
+  &__brokenIcon {
+    color: #d93025;
+  }
+
+  &__blocked {
+    padding: 26px 32px;
+
+    border: 1px solid #b8b8b8;
+    border-radius: $border-radius;
+
+    background-color: #fff;
+  }
+
+  &__blockedHeader {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    margin-bottom: 24px;
+  }
+
+  &__blockedTitle {
+    margin: 0;
+
+    color: #171717;
+    font-size: 26px;
+    font-weight: 600;
+  }
+
+  &__blockedCount {
+    min-width: 28px;
+    height: 28px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 0 8px;
+
+    border-radius: 14px;
+
+    background-color: $background-input;
+    color: #777;
+
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  &__blockedList {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  &__blockedUser {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+
+    padding: 12px 14px;
+
+    border-radius: $border-radius;
+
+    background-color: $background-input;
+  }
+
+  &__blockedIdentity {
+    min-width: 0;
+
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    color: inherit;
+    text-decoration: none;
+
+    &:hover .profile__blockedName {
+      text-decoration: underline;
+    }
+  }
+
+  &__blockedAvatar {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    overflow: hidden;
+
+    border-radius: 50%;
+
+    color: #fff;
+    font-size: 17px;
+    font-weight: 700;
+
+  }
+
+  &__blockedAvatarImage {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &__blockedInformation {
+    min-width: 0;
+
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+
+  }
+
+  &__blockedName {
+    overflow: hidden;
+    color: #171717;
+    font-size: 15px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__blockedDate {
+    color: #777;
+    font-size: 12px;
+  }
+
+  &__blockedState {
+    margin: 0;
+    padding: 28px 20px;
+
+    border-radius: $border-radius;
+
+    background-color: $background-input;
+    color: #777;
+
+    text-align: center;
+  }
+
+  &__blockedEmpty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+
+    padding: 38px 20px;
+
+    border-radius: $border-radius;
+
+    background-color: $background-input;
+
+    text-align: center;
+  }
+
+  &__blockedEmptyTitle {
+    margin: 0;
+
+    color: #292929;
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  &__blockedEmptyDescription {
+    max-width: 450px;
+
+    margin: 0;
+
+    color: #777;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  &__empty {
+    margin: 40px 0;
+
+    color: #777;
+    text-align: center;
+  }
+}
+
+@media (max-width: 700px) {
+  .profile {
+    padding: 16px;
+
+    &__card {
+      grid-template-columns: 1fr;
+
+      padding: 22px;
+    }
+
+    &__main {
+      align-items: center;
+    }
+
+    &__avatar {
+      width: 72px;
+      height: 72px;
+    }
+
+  
+  &__actions {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    min-width: 190px;
+  }
+
+  &__statistics {
+      flex-direction: column;
+    }
+
+    &__statistic {
+      width: 100%;
+    }
+
+    &__blocked {
+      padding: 22px;
+    }
+
+    &__blockedUser {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    &__blockedAction {
+      width: 100%;
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .profile {
+    &__main {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    &__action,
+    &__actions {
+      width: 100%;
+    }
+
+    &__blockedTitle {
+      font-size: 22px;
+    }
+  }
+}

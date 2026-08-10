@@ -1,0 +1,97 @@
+.card {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  overflow: hidden;
+  color: #111;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: $border-radius;
+  box-shadow: 0 5px 18px rgba(17, 24, 39, 0);
+  cursor: pointer;
+  transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+
+  &:hover,
+  &:focus-visible {
+    border-color: $green-button;
+    box-shadow: 0 12px 30px rgba(17, 24, 39, .09);
+    transform: translateY(-2px);
+  }
+
+  &:focus-visible { outline: 3px solid rgba($green-button, .18); }
+  &:active { transform: translateY(0); }
+
+  &__imageBox {
+    position: relative;
+    display: grid;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    place-items: center;
+    color: #777;
+    background: #f3f3f3;
+  }
+
+  &__image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center;
+  }
+
+  &__imagePlaceholder { font-size: 14px; }
+
+  &__badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+  }
+
+  &__content {
+    display: grid;
+    grid-template-rows: auto auto 1fr;
+    align-content: start;
+    gap: 7px;
+    min-height: 132px;
+    padding: 16px;
+    overflow: hidden;
+  }
+
+  &__title {
+    overflow: hidden;
+    font-size: 18px;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__category {
+    overflow: hidden;
+    color: #777;
+    font-size: 12px;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__description {
+    display: -webkit-box;
+    overflow: hidden;
+    color: #555;
+    font-size: 14px;
+    line-height: 1.35;
+    // -webkit-box-orient: vertical;
+    // -webkit-line-clamp: 2;
+  }
+}
+
+@media (max-width: 480px) {
+  .card__content { padding: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card { transition: none; }
+}
