@@ -32,17 +32,9 @@
     gap: 16px;
   }
 
-  &__status,
   &__want {
     padding: 6px 10px;
     border-radius: 14px;
-  }
-
-  &__status {
-    &_available { color: #166534; background: #e4f7ea; }
-    &_reserved { color: #155b89; background: #e3f2ff; }
-    &_traded { color: #5b21b6; background: #f0e8ff; }
-    &_withdrawn { color: #555; background: #eee; }
   }
 
   &__title {
@@ -57,28 +49,6 @@
     max-width: 70ch;
     color: #373b40;
     line-height: 1.6;
-    overflow-wrap: anywhere;
-  }
-
-  &__pickup {
-    display: grid;
-    gap: 5px;
-    width: min(100%, 520px);
-    padding: 14px;
-    color: #17462d;
-    background: #edf8f1;
-    border: 1px solid #cce8d7;
-    border-radius: 11px;
-  }
-
-  &__pickupLabel,
-  &__pickupAddress {
-    color: #52655a;
-    font-size: 12px;
-  }
-
-  &__pickupName,
-  &__pickupAddress {
     overflow-wrap: anywhere;
   }
 
