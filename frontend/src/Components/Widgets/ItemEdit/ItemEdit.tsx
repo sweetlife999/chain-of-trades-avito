@@ -21,6 +21,7 @@ import { Input } from "../../UI/Input/Input";
 import { PhotoGallery } from "../../UI/PhotoGallery/PhotoGallery";
 import {
   createChainFormSchema,
+  photoUrlSchema,
   type TCreateChainForm,
 } from "../MyChainsProcess/CreateChain/shemaCreateChain";
 
@@ -87,7 +88,7 @@ const ItemEditForm = ({ item }: TFormProps) => {
 
   const previewUrls = (photoValues ?? [])
     .map((photo) => photo.url.trim())
-    .filter(Boolean);
+    .filter((url) => photoUrlSchema.safeParse(url).success);
 
   const updateMutation = useMutation({
     mutationFn: (request: TUpdateItemRequest) => updateItem(item.id, request),
@@ -184,7 +185,7 @@ const ItemEditForm = ({ item }: TFormProps) => {
                 <div className={styles.editItem__photoField} key={field.id}>
                   <Input
                     label={`Ссылка на фото ${index + 1}`}
-                    type="text"
+                    type="url"
                     placeholder="https://example.com/photo.jpg"
                     autoComplete="url"
                     error={errors.photo_urls?.[index]?.url?.message}

@@ -83,7 +83,7 @@ const MyChainsComponent = () => {
                 })
           }
         >
-          Создать цепочку
+          Создать вещь
         </Button>
       </div>
 

@@ -9,6 +9,7 @@ import styles from "./Styles.module.scss";
 import { createItem, getCategories } from "../../../../Api/items/items";
 import {
   createChainFormSchema,
+  photoUrlSchema,
   type TCreateChainForm,
 } from "./shemaCreateChain";
 import type { TCreateItemRequest } from "../../../../Api/items/items.types";
@@ -67,7 +68,7 @@ const CreateChainComponent = () => {
 
   const previewUrls = (photoValues ?? [])
     .map((photo) => photo.url.trim())
-    .filter(Boolean);
+    .filter((url) => photoUrlSchema.safeParse(url).success);
 
   const createItemMutation = useMutation({
     mutationFn: (request: TCreateItemRequest) => createItem(request),
@@ -148,7 +149,7 @@ const CreateChainComponent = () => {
                   >
                     <Input
                       label={`Ссылка на фото ${index + 1}`}
-                      type="text"
+                      type="url"
                       placeholder="https://example.com/photo.jpg"
                       autoComplete="url"
                       error={errors.photo_urls?.[index]?.url?.message}

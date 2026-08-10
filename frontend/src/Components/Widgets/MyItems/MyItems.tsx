@@ -9,6 +9,7 @@ import type { TItemStatus } from "../../../Api/items/items.types";
 import { ItemCard } from "../ItemCard/ItemCard";
 import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
 import { AuthRequiredState } from "../../UI/AuthRequiredState/AuthRequiredState";
+import { Button } from "../../UI/Button/Button";
 
 type TFilter = "all" | TItemStatus;
 
@@ -23,12 +24,17 @@ const filters: { value: TFilter; label: string }[] = [
 const MyItemsComponent = () => {
   const [filter, setFilter] = useState<TFilter>("all");
   const { isAuth } = useAuthSelector();
-  const { data = [], isPending, isError } = useQuery({
+  const {
+    data = [],
+    isPending,
+    isError,
+  } = useQuery({
     queryKey: ["items"],
     queryFn: getItems,
     enabled: isAuth,
   });
-  const items = filter === "all" ? data : data.filter(({ status }) => status === filter);
+  const items =
+    filter === "all" ? data : data.filter(({ status }) => status === filter);
 
   return (
     <section className={styles.items}>
@@ -42,8 +48,10 @@ const MyItemsComponent = () => {
           )}
         </div>
         {isAuth && (
-          <Link className={styles.items__create} to="/exchanges/create">
-            Добавить вещь
+          <Link to="/exchanges/create">
+            <Button size="m" color="green">
+              Добавить вещь
+            </Button>
           </Link>
         )}
       </div>
