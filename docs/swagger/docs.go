@@ -2426,6 +2426,144 @@ const docTemplate = `{
                 }
             }
         },
+        "/items/{id}/search": {
+            "put": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Переводит своё снятое объявление из ` + "`" + `withdrawn` + "`" + ` в ` + "`" + `available` + "`" + ` и запускает\nновый автоматический подбор. Повторный вызов безопасен и возвращает ту же карточку.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "items"
+                ],
+                "summary": "Вернуть объявление в поиск",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID объявления",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Объявление снова участвует в поиске",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "ID не является UUID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "401": {
+                        "description": "Нет или истекла cookie access_token",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "403": {
+                        "description": "Объявление принадлежит другому пользователю",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "404": {
+                        "description": "Объявление не найдено",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "409": {
+                        "description": "Статус объявления не позволяет вернуть его в поиск",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Переводит своё объявление из ` + "`" + `available` + "`" + ` в ` + "`" + `withdrawn` + "`" + `. Все ещё не подтверждённые\nпредложения с этой вещью отменяются, а подтверждённый обмен блокирует операцию.\nПовторный вызов безопасен и возвращает ту же карточку.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "items"
+                ],
+                "summary": "Снять объявление с поиска",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID объявления",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Объявление больше не участвует в поиске",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "ID не является UUID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "401": {
+                        "description": "Нет или истекла cookie access_token",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "403": {
+                        "description": "Объявление принадлежит другому пользователю",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "404": {
+                        "description": "Объявление не найдено",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "409": {
+                        "description": "Объявление занято в подтверждённом обмене или уже обменяно",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemError"
+                        }
+                    }
+                }
+            }
+        },
         "/pickup-points": {
             "get": {
                 "security": [
@@ -3448,7 +3586,8 @@ const docTemplate = `{
                         "exchange_delivering",
                         "exchange_delivered",
                         "exchange_completed",
-                        "exchange_superseded"
+                        "exchange_superseded",
+                        "exchange_item_withdrawn"
                     ]
                 }
             }

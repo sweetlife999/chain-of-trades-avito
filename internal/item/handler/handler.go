@@ -25,6 +25,7 @@ type Service interface {
 	ListByOwner(context.Context, uuid.UUID) ([]itemmodel.Item, error)
 	Update(context.Context, uuid.UUID, uuid.UUID, itemservice.UpdateInput) (itemmodel.Item, error)
 	Delete(context.Context, uuid.UUID, uuid.UUID) error
+	SetSearchVisibility(context.Context, uuid.UUID, uuid.UUID, bool) (itemmodel.Item, error)
 	SetPickupPoint(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) error
 	ClearPickupPoint(context.Context, uuid.UUID, uuid.UUID) error
 	ListCategories(context.Context) ([]itemmodel.Category, error)
@@ -44,6 +45,8 @@ func (h *Handler) RegisterRoutes(router chi.Router, requireAuth func(http.Handle
 	router.Get("/items/{id}", h.getByID)
 	router.With(requireAuth).Patch("/items/{id}", h.update)
 	router.With(requireAuth).Delete("/items/{id}", h.delete)
+	router.With(requireAuth).Put("/items/{id}/search", h.enableSearch)
+	router.With(requireAuth).Delete("/items/{id}/search", h.disableSearch)
 	router.With(requireAuth).Post("/items/{id}/pickup", h.setPickupPoint)
 	router.With(requireAuth).Delete("/items/{id}/pickup", h.clearPickupPoint)
 	router.Get("/categories", h.listCategories)
@@ -226,6 +229,65 @@ func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// @Summary     Вернуть объявление в поиск
+// @Description Переводит своё снятое объявление из `withdrawn` в `available` и запускает
+// @Description новый автоматический подбор. Повторный вызов безопасен и возвращает ту же карточку.
+// @Tags        items
+// @Produce     json
+// @Param       id path string true "UUID объявления"
+// @Success     200 {object} itemdto.ItemResponse "Объявление снова участвует в поиске"
+// @Failure     400 {object} itemdto.ItemError "ID не является UUID"
+// @Failure     401 {object} itemdto.ItemError "Нет или истекла cookie access_token"
+// @Failure     403 {object} itemdto.ItemError "Объявление принадлежит другому пользователю"
+// @Failure     404 {object} itemdto.ItemError "Объявление не найдено"
+// @Failure     409 {object} itemdto.ItemError "Статус объявления не позволяет вернуть его в поиск"
+// @Failure     500 {object} itemdto.ItemError "Внутренняя ошибка"
+// @Security    CookieAuth
+// @Router      /items/{id}/search [put]
+func (h *Handler) enableSearch(w http.ResponseWriter, r *http.Request) {
+	h.setSearchVisibility(w, r, true)
+}
+
+// @Summary     Снять объявление с поиска
+// @Description Переводит своё объявление из `available` в `withdrawn`. Все ещё не подтверждённые
+// @Description предложения с этой вещью отменяются, а подтверждённый обмен блокирует операцию.
+// @Description Повторный вызов безопасен и возвращает ту же карточку.
+// @Tags        items
+// @Produce     json
+// @Param       id path string true "UUID объявления"
+// @Success     200 {object} itemdto.ItemResponse "Объявление больше не участвует в поиске"
+// @Failure     400 {object} itemdto.ItemError "ID не является UUID"
+// @Failure     401 {object} itemdto.ItemError "Нет или истекла cookie access_token"
+// @Failure     403 {object} itemdto.ItemError "Объявление принадлежит другому пользователю"
+// @Failure     404 {object} itemdto.ItemError "Объявление не найдено"
+// @Failure     409 {object} itemdto.ItemError "Объявление занято в подтверждённом обмене или уже обменяно"
+// @Failure     500 {object} itemdto.ItemError "Внутренняя ошибка"
+// @Security    CookieAuth
+// @Router      /items/{id}/search [delete]
+func (h *Handler) disableSearch(w http.ResponseWriter, r *http.Request) {
+	h.setSearchVisibility(w, r, false)
+}
+
+func (h *Handler) setSearchVisibility(w http.ResponseWriter, r *http.Request, enabled bool) {
+	id, ok := parseID(w, r)
+	if !ok {
+		return
+	}
+
+	userID, ok := currentUser(w, r)
+	if !ok {
+		return
+	}
+
+	item, err := h.service.SetSearchVisibility(r.Context(), id, userID, enabled)
+	if err != nil {
+		handleServiceError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, itemdto.FromModel(item))
+}
+
 // @Summary     Отнести вещь в пункт выдачи
 // @Description Отмечает, что вещь лежит в указанном ПВЗ. Отнести можно и вещь, которая ни в
 // @Description каком обмене не участвует — к моменту сборки цепочки она уже будет на месте.
@@ -378,6 +440,8 @@ func handleServiceError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusBadRequest, "unknown pickup point")
 	case errors.Is(err, itemservice.ErrItemInChain):
 		writeError(w, http.StatusConflict, "item participates in an open exchange")
+	case errors.Is(err, itemservice.ErrSearchVisibilityConflict):
+		writeError(w, http.StatusConflict, "item status does not allow changing search visibility")
 	case errors.Is(err, itemservice.ErrConflict):
 		writeError(w, http.StatusConflict, "item is no longer exchangeable")
 	default:
