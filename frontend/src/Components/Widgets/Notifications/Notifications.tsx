@@ -1,81 +1,53 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Bell } from "lucide-react";
+import { memo, useEffect, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Bell, CheckCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import styles from "./Styles.module.scss";
-import { getExchanges } from "../../../Api/exchanges/exchanges";
-import type { TExchange } from "../../../Api/exchanges/exchanges.types";
+import {
+  getNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from "../../../Api/notifications/notifications";
 import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
+import {
+  formatNotificationTime,
+  getNotificationDescription,
+  getNotificationTitle,
+} from "./notificationPresentation";
 
-const getExchangeTitle = (exchange: TExchange, userId: string) => {
-  const participant =
-    exchange.participants.find(({ user }) => user.id === userId) ??
-    exchange.participants[0];
-
-  return participant
-    ? `${participant.gives_item.title} → ${participant.receives_item.title}`
-    : "Цепочка обмена";
-};
-
-const getUnreadLabel = (count: number) => {
-  const lastTwoDigits = count % 100;
-  const lastDigit = count % 10;
-
-  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) {
-    return `${count} новых сообщений`;
-  }
-
-  if (lastDigit === 1) {
-    return `${count} новое сообщение`;
-  }
-
-  if (lastDigit >= 2 && lastDigit <= 4) {
-    return `${count} новых сообщения`;
-  }
-
-  return `${count} новых сообщений`;
-};
+const previewLimit = 6;
 
 const NotificationsComponent = () => {
-  const { isAuth, user } = useAuthSelector();
+  const { isAuth } = useAuthSelector();
+  const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
-  const exchangesQuery = useQuery({
-    queryKey: ["exchanges"],
-    queryFn: getExchanges,
-    enabled: Boolean(isAuth && user),
+  const notificationsQuery = useQuery({
+    queryKey: ["notifications", "preview"],
+    queryFn: () =>
+      getNotifications({ unreadOnly: true, limit: previewLimit, offset: 0 }),
+    enabled: isAuth,
     refetchInterval: 3000,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
     retry: false,
   });
 
-  const unreadExchanges = useMemo(() => {
-    if (!user) {
-      return [];
-    }
+  const invalidateNotifications = () =>
+    queryClient.invalidateQueries({ queryKey: ["notifications"] });
+  const markReadMutation = useMutation({
+    mutationFn: markNotificationRead,
+    onSuccess: invalidateNotifications,
+  });
+  const markAllMutation = useMutation({
+    mutationFn: markAllNotificationsRead,
+    onSuccess: invalidateNotifications,
+  });
 
-    return (exchangesQuery.data ?? [])
-      .filter(
-        (exchange) =>
-          exchange.unread_count > 0 &&
-          exchange.participants.some(
-            (participant) => participant.user.id === user.id,
-          ),
-      )
-      .sort(
-        (first, second) =>
-          new Date(second.updated_at).getTime() -
-          new Date(first.updated_at).getTime(),
-      );
-  }, [exchangesQuery.data, user]);
-
-  const unreadCount = unreadExchanges.reduce(
-    (total, exchange) => total + exchange.unread_count,
-    0,
-  );
+  const notifications = notificationsQuery.data?.notifications ?? [];
+  const unreadCount = notificationsQuery.data?.unread_count ?? 0;
   const badge = unreadCount > 99 ? "99+" : String(unreadCount);
 
   useEffect(() => {
@@ -108,7 +80,7 @@ const NotificationsComponent = () => {
     };
   }, [isOpen]);
 
-  if (!isAuth || !user) {
+  if (!isAuth) {
     return null;
   }
 
@@ -116,6 +88,7 @@ const NotificationsComponent = () => {
     <div className={styles.notifications} ref={rootRef}>
       <button
         aria-expanded={isOpen}
+        aria-haspopup="dialog"
         aria-label={
           unreadCount > 0
             ? `Уведомления: ${unreadCount} непрочитанных`
@@ -137,32 +110,52 @@ const NotificationsComponent = () => {
       </button>
 
       {isOpen && (
-        <div className={styles.notifications__panel}>
+        <div
+          aria-label="Непрочитанные уведомления"
+          className={styles.notifications__panel}
+          role="dialog"
+        >
           <div className={styles.notifications__header}>
             <div className={styles.notifications__heading}>
               <h2 className={styles.notifications__title}>Уведомления</h2>
               <p className={styles.notifications__description}>
-                Новые сообщения в ваших цепочках
+                Цепочки, сообщения и этапы обмена
               </p>
             </div>
             {unreadCount > 0 && (
-              <span className={styles.notifications__total}>{badge}</span>
+              <button
+                aria-label="Отметить все уведомления прочитанными"
+                className={styles.notifications__markAll}
+                disabled={markAllMutation.isPending}
+                title="Прочитать все"
+                type="button"
+                onClick={() => markAllMutation.mutate()}
+              >
+                <CheckCheck aria-hidden="true" size={18} />
+              </button>
             )}
           </div>
 
-          {exchangesQuery.isPending && (
+          {notificationsQuery.isPending && (
             <p className={styles.notifications__state}>Загрузка...</p>
           )}
 
-          {exchangesQuery.isError && (
-            <p className={styles.notifications__state}>
-              Не удалось загрузить уведомления.
-            </p>
+          {notificationsQuery.isError && (
+            <div className={styles.notifications__state}>
+              <p>Не удалось загрузить уведомления.</p>
+              <button
+                className={styles.notifications__retry}
+                type="button"
+                onClick={() => notificationsQuery.refetch()}
+              >
+                Повторить
+              </button>
+            </div>
           )}
 
-          {!exchangesQuery.isPending &&
-            !exchangesQuery.isError &&
-            unreadExchanges.length === 0 && (
+          {!notificationsQuery.isPending &&
+            !notificationsQuery.isError &&
+            notifications.length === 0 && (
               <div className={styles.notifications__empty}>
                 <Bell
                   aria-hidden="true"
@@ -174,39 +167,55 @@ const NotificationsComponent = () => {
                   Новых уведомлений нет
                 </strong>
                 <span className={styles.notifications__emptyDescription}>
-                  Здесь появятся непрочитанные сообщения из цепочек.
+                  Здесь появятся новые цепочки, сообщения и этапы обмена.
                 </span>
               </div>
             )}
 
-          {!exchangesQuery.isPending &&
-            !exchangesQuery.isError &&
-            unreadExchanges.length > 0 && (
+          {!notificationsQuery.isPending &&
+            !notificationsQuery.isError &&
+            notifications.length > 0 && (
               <div className={styles.notifications__list}>
-                {unreadExchanges.map((exchange) => (
+                {notifications.map((notification) => (
                   <Link
                     className={styles.notifications__item}
-                    key={exchange.id}
-                    to={`/exchanges/${exchange.id}`}
-                    onClick={() => setIsOpen(false)}
+                    key={notification.id}
+                    to={`/exchanges/${notification.exchange_id}`}
+                    onClick={() => {
+                      markReadMutation.mutate(notification.id);
+                      setIsOpen(false);
+                    }}
                   >
+                    <span className={styles.notifications__unreadDot} />
                     <span className={styles.notifications__itemContent}>
                       <strong className={styles.notifications__itemTitle}>
-                        {getExchangeTitle(exchange, user.id)}
+                        {getNotificationTitle(notification)}
                       </strong>
                       <span className={styles.notifications__itemMeta}>
-                        {getUnreadLabel(exchange.unread_count)}
+                        {getNotificationDescription(notification)}
                       </span>
-                    </span>
-                    <span className={styles.notifications__itemCount}>
-                      {exchange.unread_count > 99
-                        ? "99+"
-                        : exchange.unread_count}
+                      <time
+                        className={styles.notifications__itemTime}
+                        dateTime={notification.created_at}
+                      >
+                        {formatNotificationTime(notification.created_at)}
+                      </time>
                     </span>
                   </Link>
                 ))}
               </div>
             )}
+
+          <Link
+            className={styles.notifications__footer}
+            to="/notifications"
+            onClick={() => setIsOpen(false)}
+          >
+            Все уведомления
+            {unreadCount > 0 && (
+              <span className={styles.notifications__footerCount}>{badge}</span>
+            )}
+          </Link>
         </div>
       )}
     </div>
