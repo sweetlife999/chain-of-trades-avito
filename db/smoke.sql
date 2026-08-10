@@ -302,15 +302,17 @@ END $$;
 -- цепочки, на которой стоят проверки выше.
 DO $$
 BEGIN
-    UPDATE chains SET status = 'cancelled', closed_at = now()
+    UPDATE chains
+    SET status = 'cancelled', closed_at = now(), cancel_reason = 'legacy'
     WHERE id = 'dddddddd-0000-0000-0000-000000000000';
 
-    INSERT INTO chains (signature, composition_key, status, closed_at)
+    INSERT INTO chains (signature, composition_key, status, closed_at, cancel_reason)
     VALUES (
         'smoke:dddddddd-0000-0000-0000-000000000000',
         'aaaaaaaa-0000-0000-0000-000000000000|bbbbbbbb-0000-0000-0000-000000000000|cccccccc-0000-0000-0000-000000000000',
         'cancelled',
-        now()
+        now(),
+        'legacy'
     );
     INSERT INTO chains (signature, composition_key)
     VALUES (
@@ -405,7 +407,36 @@ BEGIN
     IF n <> 1 THEN
         RAISE EXCEPTION 'ожидали одно событие снятия объявления, получили %', n;
     END IF;
-    RAISE NOTICE 'ok 25: снятие объявления имеет отдельное событие треда';
+RAISE NOTICE 'ok 25: снятие объявления имеет отдельное событие треда';
+END $$;
+
+-- Причина обязательна ровно для cancelled, а сорванный confirmed-состав хранится
+-- отдельно от обычной истории закрытых обменов.
+DO $$
+DECLARE
+    test_chain uuid;
+BEGIN
+    INSERT INTO chains (signature, composition_key, status, cancel_reason)
+    VALUES (
+        'smoke:broken-composition',
+        'smoke:broken-composition',
+        'cancelled',
+        'confirmed_broken'
+    )
+    RETURNING id INTO test_chain;
+
+    INSERT INTO broken_exchange_compositions (composition_key, source_chain_id)
+    VALUES ('smoke-broken-composition', test_chain);
+
+    BEGIN
+        INSERT INTO chains (signature, composition_key, status)
+        VALUES ('smoke:missing-reason', 'smoke:missing-reason', 'cancelled');
+        RAISE EXCEPTION 'cancelled без причины был принят';
+    EXCEPTION WHEN check_violation THEN
+        NULL;
+    END;
+
+    RAISE NOTICE 'ok 26: отмена хранит причину, сорванный состав — отдельное исключение';
 END $$;
 
 ROLLBACK;

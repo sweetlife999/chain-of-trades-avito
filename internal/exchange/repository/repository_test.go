@@ -213,6 +213,9 @@ func TestSaveExchange(t *testing.T) {
 	if queries.compositionKey != wantComposition {
 		t.Fatalf("composition key = %q, want %q", queries.compositionKey, wantComposition)
 	}
+	if queries.compositionLocked != wantComposition {
+		t.Fatalf("locked composition = %q, want %q", queries.compositionLocked, wantComposition)
+	}
 
 	wantParams := []db.CreateExchangeParticipantParams{
 		{
@@ -253,6 +256,26 @@ func TestSaveExchangeCreateErrorRollsBack(t *testing.T) {
 		t.Fatalf("SaveExchange() error = %v, want wrapped %v", err, databaseError)
 	}
 
+	if transactions.committed {
+		t.Fatal("failed transaction was committed")
+	}
+}
+
+func TestSaveExchangeCompositionLockErrorRollsBack(t *testing.T) {
+	t.Parallel()
+
+	databaseError := errors.New("composition lock failed")
+	queries := &fakeExchangeWriteQueries{lockCompositionErr: databaseError}
+	transactions := &fakeTransactionManager{queries: queries}
+	repository := newRepository(&fakeNeighborQueries{}, transactions)
+
+	_, err := repository.SaveExchange(context.Background(), exchangemodel.Exchange{})
+	if !errors.Is(err, databaseError) {
+		t.Fatalf("SaveExchange() error = %v, want wrapped %v", err, databaseError)
+	}
+	if queries.signature != "" {
+		t.Fatal("exchange was inserted without locking its composition")
+	}
 	if transactions.committed {
 		t.Fatal("failed transaction was committed")
 	}
@@ -398,12 +421,14 @@ type fakeNeighborQueries struct {
 }
 
 type fakeExchangeWriteQueries struct {
-	exchangeID     pgtype.UUID
-	createErr      error
-	signature      string
-	compositionKey string
-	participantErr error
-	participants   []db.CreateExchangeParticipantParams
+	exchangeID         pgtype.UUID
+	createErr          error
+	signature          string
+	compositionKey     string
+	compositionLocked  string
+	lockCompositionErr error
+	participantErr     error
+	participants       []db.CreateExchangeParticipantParams
 
 	chainStatus                  db.ChainStatus
 	chainSignature               string
@@ -428,7 +453,10 @@ type fakeExchangeWriteQueries struct {
 	confirmed                    bool
 	confirmErr                   error
 	cancelled                    bool
+	cancelParams                 db.CancelExchangeParams
 	cancelErr                    error
+	brokenCompositionCalled      bool
+	brokenCompositionErr         error
 	released                     int64
 	releaseErr                   error
 	releaseCalled                bool
@@ -560,6 +588,14 @@ func (f *fakeExchangeWriteQueries) CreateExchange(
 	return f.exchangeID, f.createErr
 }
 
+func (f *fakeExchangeWriteQueries) LockExchangeComposition(
+	_ context.Context,
+	compositionKey string,
+) error {
+	f.compositionLocked = compositionKey
+	return f.lockCompositionErr
+}
+
 func (f *fakeExchangeWriteQueries) CreateExchangeParticipant(
 	_ context.Context,
 	params db.CreateExchangeParticipantParams,
@@ -663,9 +699,21 @@ func (f *fakeExchangeWriteQueries) CancelCompetingProposedExchanges(
 	return f.competingCancelled, f.cancelCompetingErr
 }
 
-func (f *fakeExchangeWriteQueries) CancelExchange(context.Context, pgtype.UUID) error {
+func (f *fakeExchangeWriteQueries) CancelExchange(
+	_ context.Context,
+	params db.CancelExchangeParams,
+) error {
 	f.cancelled = true
+	f.cancelParams = params
 	return f.cancelErr
+}
+
+func (f *fakeExchangeWriteQueries) RecordBrokenExchangeComposition(
+	context.Context,
+	pgtype.UUID,
+) error {
+	f.brokenCompositionCalled = true
+	return f.brokenCompositionErr
 }
 
 func (f *fakeExchangeWriteQueries) ReleaseExchangeItems(

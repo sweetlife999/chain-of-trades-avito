@@ -130,6 +130,10 @@ func (r *Repository) SaveExchange(
 	var exchangeID uuid.UUID
 
 	err := r.transactions.WithinTransaction(ctx, func(queries exchangeWriteQueries) error {
+		if err := queries.LockExchangeComposition(ctx, exchange.CompositionKey()); err != nil {
+			return fmt.Errorf("lock exchange composition: %w", err)
+		}
+
 		id, err := queries.CreateExchange(ctx, db.CreateExchangeParams{
 			Signature:      exchange.Signature(),
 			CompositionKey: exchange.CompositionKey(),

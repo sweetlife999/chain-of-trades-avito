@@ -41,7 +41,8 @@ WITH current_items AS (
 ), cancelled AS (
     UPDATE chains AS competing_exchange
     SET status = 'cancelled',
-        closed_at = now()
+        closed_at = now(),
+        cancel_reason = 'superseded'
     WHERE competing_exchange.id <> $1
       AND competing_exchange.status = 'proposed'
       AND EXISTS (
@@ -74,12 +75,19 @@ func (q *Queries) CancelCompetingProposedExchanges(ctx context.Context, exchange
 const cancelExchange = `-- name: CancelExchange :exec
 UPDATE chains
 SET status = 'cancelled',
-    closed_at = now()
-WHERE id = $1
+    closed_at = now(),
+    cancel_reason = $1::chain_cancel_reason
+WHERE id = $2
+  AND status <> 'cancelled'
 `
 
-func (q *Queries) CancelExchange(ctx context.Context, exchangeID pgtype.UUID) error {
-	_, err := q.db.Exec(ctx, cancelExchange, exchangeID)
+type CancelExchangeParams struct {
+	CancelReason ChainCancelReason
+	ExchangeID   pgtype.UUID
+}
+
+func (q *Queries) CancelExchange(ctx context.Context, arg CancelExchangeParams) error {
+	_, err := q.db.Exec(ctx, cancelExchange, arg.CancelReason, arg.ExchangeID)
 	return err
 }
 
@@ -317,6 +325,22 @@ func (q *Queries) PromoteExchangeToDelivering(ctx context.Context, exchangeID pg
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const recordBrokenExchangeComposition = `-- name: RecordBrokenExchangeComposition :exec
+INSERT INTO broken_exchange_compositions (composition_key, source_chain_id)
+SELECT composition_key, id
+FROM chains
+WHERE id = $1
+  AND status = 'confirmed'
+ON CONFLICT DO NOTHING
+`
+
+// Точный состав блокируется только при срыве confirmed. Повторная запись безопасна,
+// но в нормальном потоке тот же composition_key уже не сможет создать новый обмен.
+func (q *Queries) RecordBrokenExchangeComposition(ctx context.Context, exchangeID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, recordBrokenExchangeComposition, exchangeID)
+	return err
 }
 
 const recordItemRefusal = `-- name: RecordItemRefusal :exec

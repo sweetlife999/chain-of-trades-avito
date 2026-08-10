@@ -12,6 +12,7 @@ import (
 
 type exchangeWriteQueries interface {
 	CreateExchange(context.Context, db.CreateExchangeParams) (pgtype.UUID, error)
+	LockExchangeComposition(context.Context, string) error
 	CreateExchangeParticipant(context.Context, db.CreateExchangeParticipantParams) error
 	LockExchangeDecisionItems(context.Context, pgtype.UUID) error
 	LockExchange(context.Context, pgtype.UUID) (db.LockExchangeRow, error)
@@ -32,7 +33,8 @@ type exchangeWriteQueries interface {
 	PromoteExchangeToDelivering(context.Context, pgtype.UUID) (int64, error)
 	MarkExchangeDelivered(context.Context, pgtype.UUID) (int64, error)
 	CancelCompetingProposedExchanges(context.Context, pgtype.UUID) (int64, error)
-	CancelExchange(context.Context, pgtype.UUID) error
+	CancelExchange(context.Context, db.CancelExchangeParams) error
+	RecordBrokenExchangeComposition(context.Context, pgtype.UUID) error
 	CreateChainSystemMessage(context.Context, db.CreateChainSystemMessageParams) error
 	ReleaseExchangeItems(context.Context, pgtype.UUID) (int64, error)
 	IncrementUserDealsBroken(context.Context, pgtype.UUID) (int64, error)

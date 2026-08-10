@@ -170,6 +170,13 @@ func TestAdminCancelProposedExchange(t *testing.T) {
 	if queries.declined || queries.dealsBrokenCalled || len(queries.refusals) != 0 {
 		t.Fatal("admin cancellation changed participant decision or user statistics")
 	}
+	if queries.cancelParams.CancelReason != db.ChainCancelReasonAdminCancelled {
+		t.Fatalf(
+			"cancel reason = %q, want %q",
+			queries.cancelParams.CancelReason,
+			db.ChainCancelReasonAdminCancelled,
+		)
+	}
 	if !transactions.committed {
 		t.Fatal("admin cancellation transaction was not committed")
 	}
