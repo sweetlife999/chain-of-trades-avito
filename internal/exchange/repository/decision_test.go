@@ -190,6 +190,16 @@ func TestDeclineParticipationCancelsExchange(t *testing.T) {
 			queries.cancelled,
 		)
 	}
+	if queries.cancelParams.CancelReason != db.ChainCancelReasonProposalDeclined {
+		t.Fatalf(
+			"cancel reason = %q, want %q",
+			queries.cancelParams.CancelReason,
+			db.ChainCancelReasonProposalDeclined,
+		)
+	}
+	if queries.brokenCompositionCalled {
+		t.Fatal("proposed decline permanently blocked the whole composition")
+	}
 	if !transactions.committed {
 		t.Fatal("decline transaction was not committed")
 	}
@@ -237,8 +247,42 @@ func TestDeclineConfirmedExchangeReleasesItems(t *testing.T) {
 			queries.dealsBrokenCalled,
 		)
 	}
+	if !queries.brokenCompositionCalled {
+		t.Fatal("broken confirmed composition was not persisted")
+	}
+	if queries.cancelParams.CancelReason != db.ChainCancelReasonConfirmedBroken {
+		t.Fatalf(
+			"cancel reason = %q, want %q",
+			queries.cancelParams.CancelReason,
+			db.ChainCancelReasonConfirmedBroken,
+		)
+	}
 	if !transactions.committed {
 		t.Fatal("confirmed decline transaction was not committed")
+	}
+}
+
+func TestDeclineConfirmedExchangeRollsBackWhenCompositionCannotBePersisted(t *testing.T) {
+	t.Parallel()
+
+	databaseError := errors.New("persist broken composition failed")
+	queries := pendingDecisionQueries()
+	queries.chainStatus = db.ChainStatusConfirmed
+	queries.participantStatus = db.ParticipantStatusAccepted
+	queries.items = []db.LockExchangeItemsRow{{Status: db.ItemStatusReserved}}
+	queries.brokenCompositionErr = databaseError
+	transactions := &fakeTransactionManager{queries: queries}
+	repository := newRepository(&fakeNeighborQueries{}, transactions)
+
+	_, _, err := repository.DeclineParticipation(context.Background(), uuid.New(), uuid.New())
+	if !errors.Is(err, databaseError) {
+		t.Fatalf("DeclineParticipation() error = %v, want wrapped %v", err, databaseError)
+	}
+	if queries.releaseCalled || queries.cancelled {
+		t.Fatal("exchange was changed without persisting the permanent exclusion")
+	}
+	if transactions.committed {
+		t.Fatal("failed confirmed decline transaction was committed")
 	}
 }
 

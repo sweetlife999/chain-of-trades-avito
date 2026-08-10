@@ -9,7 +9,8 @@ WITH inserted_block AS (
 )
 UPDATE chains AS exchange
 SET status = 'cancelled',
-    closed_at = now()
+    closed_at = now(),
+    cancel_reason = 'user_blocked'
 WHERE exchange.status = 'proposed'
   AND EXISTS (
       SELECT 1

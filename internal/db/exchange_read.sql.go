@@ -46,6 +46,7 @@ const getExchangeByID = `-- name: GetExchangeByID :many
 SELECT
     exchange.id          AS exchange_id,
     exchange.status      AS exchange_status,
+    exchange.cancel_reason AS exchange_cancel_reason,
     exchange.created_at  AS exchange_created_at,
     exchange.updated_at  AS exchange_updated_at,
     exchange.closed_at   AS exchange_closed_at,
@@ -113,6 +114,7 @@ type GetExchangeByIDParams struct {
 type GetExchangeByIDRow struct {
 	ExchangeID                 pgtype.UUID
 	ExchangeStatus             ChainStatus
+	ExchangeCancelReason       NullChainCancelReason
 	ExchangeCreatedAt          pgtype.Timestamptz
 	ExchangeUpdatedAt          pgtype.Timestamptz
 	ExchangeClosedAt           pgtype.Timestamptz
@@ -159,6 +161,7 @@ func (q *Queries) GetExchangeByID(ctx context.Context, arg GetExchangeByIDParams
 		if err := rows.Scan(
 			&i.ExchangeID,
 			&i.ExchangeStatus,
+			&i.ExchangeCancelReason,
 			&i.ExchangeCreatedAt,
 			&i.ExchangeUpdatedAt,
 			&i.ExchangeClosedAt,
@@ -224,6 +227,7 @@ WITH selected_exchanges AS (
 SELECT
     exchange.id          AS exchange_id,
     exchange.status      AS exchange_status,
+    exchange.cancel_reason AS exchange_cancel_reason,
     exchange.created_at  AS exchange_created_at,
     exchange.updated_at  AS exchange_updated_at,
     exchange.closed_at   AS exchange_closed_at,
@@ -285,6 +289,7 @@ type ListActiveExchangesForAdminParams struct {
 type ListActiveExchangesForAdminRow struct {
 	ExchangeID                 pgtype.UUID
 	ExchangeStatus             ChainStatus
+	ExchangeCancelReason       NullChainCancelReason
 	ExchangeCreatedAt          pgtype.Timestamptz
 	ExchangeUpdatedAt          pgtype.Timestamptz
 	ExchangeClosedAt           pgtype.Timestamptz
@@ -336,6 +341,7 @@ func (q *Queries) ListActiveExchangesForAdmin(ctx context.Context, arg ListActiv
 		if err := rows.Scan(
 			&i.ExchangeID,
 			&i.ExchangeStatus,
+			&i.ExchangeCancelReason,
 			&i.ExchangeCreatedAt,
 			&i.ExchangeUpdatedAt,
 			&i.ExchangeClosedAt,
@@ -380,6 +386,7 @@ const listExchangesByUser = `-- name: ListExchangesByUser :many
 SELECT
     exchange.id          AS exchange_id,
     exchange.status      AS exchange_status,
+    exchange.cancel_reason AS exchange_cancel_reason,
     exchange.created_at  AS exchange_created_at,
     exchange.updated_at  AS exchange_updated_at,
     exchange.closed_at   AS exchange_closed_at,
@@ -443,6 +450,7 @@ ORDER BY exchange.created_at DESC, exchange.id, participant.position
 type ListExchangesByUserRow struct {
 	ExchangeID                 pgtype.UUID
 	ExchangeStatus             ChainStatus
+	ExchangeCancelReason       NullChainCancelReason
 	ExchangeCreatedAt          pgtype.Timestamptz
 	ExchangeUpdatedAt          pgtype.Timestamptz
 	ExchangeClosedAt           pgtype.Timestamptz
@@ -491,6 +499,7 @@ func (q *Queries) ListExchangesByUser(ctx context.Context, userID pgtype.UUID) (
 		if err := rows.Scan(
 			&i.ExchangeID,
 			&i.ExchangeStatus,
+			&i.ExchangeCancelReason,
 			&i.ExchangeCreatedAt,
 			&i.ExchangeUpdatedAt,
 			&i.ExchangeClosedAt,

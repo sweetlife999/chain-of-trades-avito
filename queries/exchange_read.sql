@@ -6,6 +6,7 @@
 SELECT
     exchange.id          AS exchange_id,
     exchange.status      AS exchange_status,
+    exchange.cancel_reason AS exchange_cancel_reason,
     exchange.created_at  AS exchange_created_at,
     exchange.updated_at  AS exchange_updated_at,
     exchange.closed_at   AS exchange_closed_at,
@@ -70,6 +71,7 @@ ORDER BY exchange.created_at DESC, exchange.id, participant.position;
 SELECT
     exchange.id          AS exchange_id,
     exchange.status      AS exchange_status,
+    exchange.cancel_reason AS exchange_cancel_reason,
     exchange.created_at  AS exchange_created_at,
     exchange.updated_at  AS exchange_updated_at,
     exchange.closed_at   AS exchange_closed_at,
@@ -158,6 +160,7 @@ WITH selected_exchanges AS (
 SELECT
     exchange.id          AS exchange_id,
     exchange.status      AS exchange_status,
+    exchange.cancel_reason AS exchange_cancel_reason,
     exchange.created_at  AS exchange_created_at,
     exchange.updated_at  AS exchange_updated_at,
     exchange.closed_at   AS exchange_closed_at,

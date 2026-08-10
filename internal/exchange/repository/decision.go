@@ -56,6 +56,9 @@ func (r *Repository) DeclineParticipation(
 			return ErrConflict
 		}
 		compositionKey = exchange.CompositionKey
+		if err := queries.LockExchangeComposition(ctx, compositionKey); err != nil {
+			return fmt.Errorf("lock declined exchange composition: %w", err)
+		}
 
 		participant, err := queries.LockExchangeParticipant(ctx, db.LockExchangeParticipantParams{
 			ExchangeID: pgUUID(exchangeID),
@@ -98,7 +101,7 @@ func (r *Repository) DeclineParticipation(
 			})
 		}
 
-		if err := declineParticipation(ctx, queries, exchangeID, userID); err != nil {
+		if err := recordParticipantDecline(ctx, queries, exchangeID, userID); err != nil {
 			return err
 		}
 
@@ -116,6 +119,10 @@ func (r *Repository) DeclineParticipation(
 		}
 
 		if exchangeStatus == db.ChainStatusConfirmed {
+			if err := queries.RecordBrokenExchangeComposition(ctx, pgUUID(exchangeID)); err != nil {
+				return fmt.Errorf("record broken exchange composition: %w", err)
+			}
+
 			released, err := queries.ReleaseExchangeItems(ctx, pgUUID(exchangeID))
 			if err != nil {
 				return fmt.Errorf("release exchange items: %w", err)
@@ -131,6 +138,17 @@ func (r *Repository) DeclineParticipation(
 			if updated != 1 {
 				return ErrConflict
 			}
+		}
+
+		cancelReason := db.ChainCancelReasonProposalDeclined
+		if exchangeStatus == db.ChainStatusConfirmed {
+			cancelReason = db.ChainCancelReasonConfirmedBroken
+		}
+		if err := queries.CancelExchange(ctx, db.CancelExchangeParams{
+			CancelReason: cancelReason,
+			ExchangeID:   pgUUID(exchangeID),
+		}); err != nil {
+			return fmt.Errorf("cancel exchange: %w", err)
 		}
 
 		return nil
@@ -271,7 +289,7 @@ func confirmParticipation(
 	return promoteToDelivering(ctx, queries, exchangeID)
 }
 
-func declineParticipation(
+func recordParticipantDecline(
 	ctx context.Context,
 	queries exchangeWriteQueries,
 	exchangeID uuid.UUID,
@@ -296,10 +314,6 @@ func declineParticipation(
 	)
 	if err != nil {
 		return err
-	}
-
-	if err := queries.CancelExchange(ctx, pgUUID(exchangeID)); err != nil {
-		return fmt.Errorf("cancel exchange: %w", err)
 	}
 
 	return nil

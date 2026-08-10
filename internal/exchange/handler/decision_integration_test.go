@@ -203,6 +203,9 @@ func TestExchangeDecisionsIntegration(t *testing.T) {
 	if cancelled.Status != "cancelled" {
 		t.Fatalf("competing exchange status = %q, want cancelled", cancelled.Status)
 	}
+	if cancelled.CancelReason == nil || *cancelled.CancelReason != "superseded" {
+		t.Fatalf("competing exchange cancel reason = %v, want superseded", cancelled.CancelReason)
+	}
 	if cancelled.ClosedAt == nil {
 		t.Fatal("competing exchange closed_at is nil")
 	}

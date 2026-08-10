@@ -102,6 +102,53 @@ func (ns NullAdminAuditTarget) Value() (driver.Value, error) {
 	return string(ns.AdminAuditTarget), nil
 }
 
+type ChainCancelReason string
+
+const (
+	ChainCancelReasonProposalDeclined ChainCancelReason = "proposal_declined"
+	ChainCancelReasonConfirmedBroken  ChainCancelReason = "confirmed_broken"
+	ChainCancelReasonSuperseded       ChainCancelReason = "superseded"
+	ChainCancelReasonItemWithdrawn    ChainCancelReason = "item_withdrawn"
+	ChainCancelReasonUserBlocked      ChainCancelReason = "user_blocked"
+	ChainCancelReasonAdminCancelled   ChainCancelReason = "admin_cancelled"
+	ChainCancelReasonLegacy           ChainCancelReason = "legacy"
+)
+
+func (e *ChainCancelReason) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ChainCancelReason(s)
+	case string:
+		*e = ChainCancelReason(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ChainCancelReason: %T", src)
+	}
+	return nil
+}
+
+type NullChainCancelReason struct {
+	ChainCancelReason ChainCancelReason
+	Valid             bool // Valid is true if ChainCancelReason is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullChainCancelReason) Scan(value interface{}) error {
+	if value == nil {
+		ns.ChainCancelReason, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ChainCancelReason.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullChainCancelReason) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ChainCancelReason), nil
+}
+
 type ChainMessageKind string
 
 const (
@@ -382,6 +429,12 @@ type AdminAuditLog struct {
 	CreatedAt  pgtype.Timestamptz
 }
 
+type BrokenExchangeComposition struct {
+	CompositionKey string
+	SourceChainID  pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
+}
+
 type Category struct {
 	ID   int16
 	Slug string
@@ -396,6 +449,7 @@ type Chain struct {
 	ClosedAt       pgtype.Timestamptz
 	Signature      string
 	CompositionKey string
+	CancelReason   NullChainCancelReason
 }
 
 type ChainMessage struct {

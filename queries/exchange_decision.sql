@@ -146,7 +146,8 @@ WITH current_items AS (
 ), cancelled AS (
     UPDATE chains AS competing_exchange
     SET status = 'cancelled',
-        closed_at = now()
+        closed_at = now(),
+        cancel_reason = 'superseded'
     WHERE competing_exchange.id <> sqlc.arg(exchange_id)
       AND competing_exchange.status = 'proposed'
       AND EXISTS (
@@ -166,8 +167,20 @@ FROM cancelled;
 -- name: CancelExchange :exec
 UPDATE chains
 SET status = 'cancelled',
-    closed_at = now()
-WHERE id = sqlc.arg(exchange_id);
+    closed_at = now(),
+    cancel_reason = sqlc.arg(cancel_reason)::chain_cancel_reason
+WHERE id = sqlc.arg(exchange_id)
+  AND status <> 'cancelled';
+
+-- Точный состав блокируется только при срыве confirmed. Повторная запись безопасна,
+-- но в нормальном потоке тот же composition_key уже не сможет создать новый обмен.
+-- name: RecordBrokenExchangeComposition :exec
+INSERT INTO broken_exchange_compositions (composition_key, source_chain_id)
+SELECT composition_key, id
+FROM chains
+WHERE id = sqlc.arg(exchange_id)
+  AND status = 'confirmed'
+ON CONFLICT DO NOTHING;
 
 -- Подтверждённый обмен уже зарезервировал вещи. При его отмене освобождаем только
 -- вещи этого обмена и только из reserved: чужое параллельное изменение не затирается.

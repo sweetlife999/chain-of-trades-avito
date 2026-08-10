@@ -176,6 +176,13 @@ func TestGetByID(t *testing.T) {
 		getExchangeRow(exchangeID, uuid.New(), 0),
 		getExchangeRow(exchangeID, uuid.New(), 1),
 	}
+	rows[0].ExchangeStatus = db.ChainStatusCancelled
+	rows[1].ExchangeStatus = db.ChainStatusCancelled
+	rows[0].ExchangeCancelReason = db.NullChainCancelReason{
+		ChainCancelReason: db.ChainCancelReasonConfirmedBroken,
+		Valid:             true,
+	}
+	rows[1].ExchangeCancelReason = rows[0].ExchangeCancelReason
 	queries := &fakeExchangeReadQueries{getRows: rows}
 	repository := newRepositoryWithReads(queries)
 
@@ -190,6 +197,9 @@ func TestGetByID(t *testing.T) {
 
 	if exchange.ID != exchangeID || len(exchange.Participants) != 2 {
 		t.Fatalf("GetByID() = %+v, want ID %s with 2 participants", exchange, exchangeID)
+	}
+	if exchange.CancelReason == nil || *exchange.CancelReason != string(db.ChainCancelReasonConfirmedBroken) {
+		t.Fatalf("CancelReason = %v, want %q", exchange.CancelReason, db.ChainCancelReasonConfirmedBroken)
 	}
 
 	closedAt := rows[0].ExchangeClosedAt.Time
@@ -229,6 +239,9 @@ func TestOptionalValues(t *testing.T) {
 	if optionalText(pgtype.Text{}) != nil {
 		t.Fatal("optionalText() for NULL must return nil")
 	}
+	if optionalCancelReason(db.NullChainCancelReason{}) != nil {
+		t.Fatal("optionalCancelReason() for NULL must return nil")
+	}
 
 	now := time.Now().UTC()
 	text := "photo"
@@ -237,6 +250,13 @@ func TestOptionalValues(t *testing.T) {
 	}
 	if !reflect.DeepEqual(optionalText(pgtype.Text{String: text, Valid: true}), &text) {
 		t.Fatal("optionalText() lost a valid value")
+	}
+	wantReason := string(db.ChainCancelReasonProposalDeclined)
+	if !reflect.DeepEqual(optionalCancelReason(db.NullChainCancelReason{
+		ChainCancelReason: db.ChainCancelReasonProposalDeclined,
+		Valid:             true,
+	}), &wantReason) {
+		t.Fatal("optionalCancelReason() lost a valid value")
 	}
 }
 

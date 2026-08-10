@@ -160,7 +160,10 @@ func (r *Repository) CancelByAdmin(
 			}
 		}
 
-		if err := queries.CancelExchange(ctx, pgUUID(exchangeID)); err != nil {
+		if err := queries.CancelExchange(ctx, db.CancelExchangeParams{
+			CancelReason: db.ChainCancelReasonAdminCancelled,
+			ExchangeID:   pgUUID(exchangeID),
+		}); err != nil {
 			return fmt.Errorf("cancel exchange by admin: %w", err)
 		}
 

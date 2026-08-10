@@ -28,6 +28,7 @@ type exchangeReadQueries interface {
 type exchangeRecord struct {
 	ExchangeID                 pgtype.UUID
 	ExchangeStatus             db.ChainStatus
+	ExchangeCancelReason       db.NullChainCancelReason
 	ExchangeCreatedAt          pgtype.Timestamptz
 	ExchangeUpdatedAt          pgtype.Timestamptz
 	ExchangeClosedAt           pgtype.Timestamptz
@@ -188,6 +189,7 @@ func groupExchangeRecords(records []exchangeRecord) []exchangemodel.Details {
 			exchanges = append(exchanges, exchangemodel.Details{
 				ID:           exchangeID,
 				Status:       string(record.ExchangeStatus),
+				CancelReason: optionalCancelReason(record.ExchangeCancelReason),
 				Participants: make([]exchangemodel.DetailsParticipant, 0),
 				UnreadCount:  record.UnreadCount,
 				CreatedAt:    record.ExchangeCreatedAt.Time,
@@ -263,6 +265,7 @@ func recordFromGetRow(row db.GetExchangeByIDRow) exchangeRecord {
 	return exchangeRecord{
 		ExchangeID:                 row.ExchangeID,
 		ExchangeStatus:             row.ExchangeStatus,
+		ExchangeCancelReason:       row.ExchangeCancelReason,
 		ExchangeCreatedAt:          row.ExchangeCreatedAt,
 		ExchangeUpdatedAt:          row.ExchangeUpdatedAt,
 		ExchangeClosedAt:           row.ExchangeClosedAt,
@@ -327,5 +330,14 @@ func optionalText(value pgtype.Text) *string {
 	}
 
 	result := value.String
+	return &result
+}
+
+func optionalCancelReason(value db.NullChainCancelReason) *string {
+	if !value.Valid {
+		return nil
+	}
+
+	result := string(value.ChainCancelReason)
 	return &result
 }

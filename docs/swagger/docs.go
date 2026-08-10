@@ -3959,6 +3959,19 @@ const docTemplate = `{
         "github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.ExchangeResponse": {
             "type": "object",
             "properties": {
+                "cancel_reason": {
+                    "type": "string",
+                    "enum": [
+                        "proposal_declined",
+                        "confirmed_broken",
+                        "superseded",
+                        "item_withdrawn",
+                        "user_blocked",
+                        "admin_cancelled",
+                        "legacy"
+                    ],
+                    "x-nullable": true
+                },
                 "closed_at": {
                     "type": "string"
                 },

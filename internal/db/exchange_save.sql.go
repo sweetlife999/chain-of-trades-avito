@@ -13,7 +13,12 @@ import (
 
 const createExchange = `-- name: CreateExchange :one
 INSERT INTO chains (signature, composition_key)
-VALUES ($1, $2)
+SELECT $1, $2
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM broken_exchange_compositions AS broken
+    WHERE broken.composition_key = $2
+)
 ON CONFLICT DO NOTHING
 RETURNING id
 `
@@ -66,5 +71,17 @@ func (q *Queries) CreateExchangeParticipant(ctx context.Context, arg CreateExcha
 		arg.ReceivesItemID,
 		arg.Position,
 	)
+	return err
+}
+
+const lockExchangeComposition = `-- name: LockExchangeComposition :exec
+SELECT pg_advisory_xact_lock(hashtextextended($1, 1))
+`
+
+// Блокировка и INSERT намеренно разделены. В READ COMMITTED запрос, ожидавший
+// advisory lock, сохранил бы старый snapshot и мог не увидеть только что
+// зафиксированный запрет. Следующий запрос получает свежий snapshot.
+func (q *Queries) LockExchangeComposition(ctx context.Context, compositionKey string) error {
+	_, err := q.db.Exec(ctx, lockExchangeComposition, compositionKey)
 	return err
 }

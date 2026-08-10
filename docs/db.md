@@ -170,9 +170,18 @@ erDiagram
 |---|---|---|
 | `id` | `uuid` | Публичный идентификатор цепочки |
 | `status` | `chain_status` | ENUM `proposed / confirmed / delivering / delivered / completed / cancelled` |
+| `cancel_reason` | `chain_cancel_reason` NULL | Причина обязательна для `cancelled`, у остальных статусов равна NULL |
 | `signature` | `text` | Канонический набор направленных передач; одинаков для разных стартовых точек одного обхода |
 | `composition_key` | `text` | Отсортированные ID отдаваемых вещей; одинаков для любых перестановок и направлений одного состава |
 | `closed_at` | `timestamptz` NULL | Заполняется в терминальном состоянии; NULL = цепочка ещё живая |
+
+### `broken_exchange_compositions`
+
+| Колонка | Тип | Почему такой |
+|---|---|---|
+| `composition_key` | `text` PRIMARY KEY | Постоянно запрещённый точный набор объявлений сорванного confirmed-обмена |
+| `source_chain_id` | `uuid` UNIQUE FK | Исторический обмен, из-за которого появился запрет |
+| `created_at` | `timestamptz` | Когда состав был исключён |
 
 ### `chain_participants`
 

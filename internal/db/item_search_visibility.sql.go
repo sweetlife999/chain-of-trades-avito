@@ -15,7 +15,8 @@ const cancelProposedExchangesForItemWithdrawal = `-- name: CancelProposedExchang
 WITH cancelled AS (
     UPDATE chains AS exchange
     SET status = 'cancelled',
-        closed_at = now()
+        closed_at = now(),
+        cancel_reason = 'item_withdrawn'
     WHERE exchange.status = 'proposed'
       AND EXISTS (
           SELECT 1
