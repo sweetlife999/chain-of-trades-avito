@@ -98,6 +98,12 @@ const NotificationsPage = lazy(() =>
   ),
 );
 
+const SupportPage = lazy(() =>
+  import("../Components/Pages/Support/SupportPage").then((module) => ({
+    default: module.SupportPage,
+  })),
+);
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -123,6 +129,7 @@ function App() {
                   <Route path="/exchanges/create" element={<CreateChain />} />
                   <Route path="/exchanges/:id" element={<ExchangeDetails />} />
                   <Route path="/notifications" element={<NotificationsPage />} />
+                  <Route path="/support" element={<SupportPage />} />
                   <Route path="/admin" element={<AdminRoute />} />
                 </Route>
               </Routes>
