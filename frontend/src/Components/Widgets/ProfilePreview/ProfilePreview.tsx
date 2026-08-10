@@ -1,12 +1,10 @@
 import { memo } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Star } from "lucide-react";
 
 import type { TUser } from "../../../Api/auth/auth.types";
-import { logout } from "../../../Api/auth/auth";
 
-import { useAuthDispatch } from "../../../Hooks/useAuthDispatch";
-import { logoutState } from "../../../Store/authSlice";
+import { useLogout } from "../../../Hooks/useLogout";
 
 import { Button } from "../../UI/Button/Button";
 
@@ -18,19 +16,7 @@ type TProfilePreviewProps = {
 };
 
 const ProfilePreviewComponent = ({ user }: TProfilePreviewProps) => {
-  const navigate = useNavigate();
-  const dispatch = useAuthDispatch();
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-
-      dispatch(logoutState());
-      navigate("/");
-    } catch (error) {
-      console.error("Не удалось выйти", error);
-    }
-  };
+  const handleLogout = useLogout();
 
   return (
     <div className={styles.profile}>
