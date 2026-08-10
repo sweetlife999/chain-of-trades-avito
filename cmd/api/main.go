@@ -45,6 +45,9 @@ import (
 	reporthandler "github.com/sweetlife999/chain-of-trades-avito/internal/report/handler"
 	reportrepository "github.com/sweetlife999/chain-of-trades-avito/internal/report/repository"
 	reportservice "github.com/sweetlife999/chain-of-trades-avito/internal/report/service"
+	supporthandler "github.com/sweetlife999/chain-of-trades-avito/internal/support/handler"
+	supportrepository "github.com/sweetlife999/chain-of-trades-avito/internal/support/repository"
+	supportservice "github.com/sweetlife999/chain-of-trades-avito/internal/support/service"
 	userhandler "github.com/sweetlife999/chain-of-trades-avito/internal/user/handler"
 	userrepository "github.com/sweetlife999/chain-of-trades-avito/internal/user/repository"
 	userservice "github.com/sweetlife999/chain-of-trades-avito/internal/user/service"
@@ -116,6 +119,9 @@ func main() {
 	adminReports := reportservice.NewAdmin(reportsRepository, exchangesRepository)
 	adminAudit := adminauditservice.New(adminauditrepository.New(queries))
 	notifications := notificationservice.New(notificationrepository.New(queries))
+	supportRepository := supportrepository.New(queries)
+	support := supportservice.New(supportRepository)
+	adminSupport := supportservice.NewAdmin(supportRepository)
 
 	tokens := authtoken.NewManager(cfg.JWTSecret, authTokenTTL)
 	authenticator := authmiddleware.New(tokens, users)
@@ -134,6 +140,7 @@ func main() {
 	// Жалуется обычный участник обмена, поэтому маршрут живёт вне группы /admin.
 	reporthandler.New(reports).RegisterRoutes(router, authenticator.RequireAuthentication)
 	notificationhandler.New(notifications).RegisterRoutes(router, authenticator.RequireAuthentication)
+	supporthandler.New(support).RegisterRoutes(router, authenticator.RequireAuthentication)
 
 	// Все следующие административные модули регистрируются только внутри этой группы.
 	// JWT сначала определяет пользователя, затем роль проверяется по актуальным данным БД.
@@ -146,6 +153,7 @@ func main() {
 		exchangesHandler.RegisterAdminRoutes(adminRouter)
 		reporthandler.NewAdmin(adminReports).RegisterRoutes(adminRouter)
 		adminaudithandler.New(adminAudit).RegisterRoutes(adminRouter)
+		supporthandler.NewAdmin(adminSupport).RegisterRoutes(adminRouter)
 	})
 
 	router.Get("/health", health)

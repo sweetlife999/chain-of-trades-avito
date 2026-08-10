@@ -114,8 +114,12 @@ SELECT
     created.thread_id,
     created.author_id,
     created.body,
-    created.created_at
+    created.created_at,
+    author.nickname AS author_nickname,
+    author.photo_url AS author_photo_url,
+    author.is_admin AS author_is_admin
 FROM created
+JOIN users AS author ON author.id = created.author_id
 `
 
 type CreateAdminSupportMessageParams struct {
@@ -125,11 +129,14 @@ type CreateAdminSupportMessageParams struct {
 }
 
 type CreateAdminSupportMessageRow struct {
-	ID        pgtype.UUID
-	ThreadID  pgtype.UUID
-	AuthorID  pgtype.UUID
-	Body      string
-	CreatedAt pgtype.Timestamptz
+	ID             pgtype.UUID
+	ThreadID       pgtype.UUID
+	AuthorID       pgtype.UUID
+	Body           string
+	CreatedAt      pgtype.Timestamptz
+	AuthorNickname string
+	AuthorPhotoUrl pgtype.Text
+	AuthorIsAdmin  bool
 }
 
 func (q *Queries) CreateAdminSupportMessage(ctx context.Context, arg CreateAdminSupportMessageParams) (CreateAdminSupportMessageRow, error) {
@@ -141,6 +148,9 @@ func (q *Queries) CreateAdminSupportMessage(ctx context.Context, arg CreateAdmin
 		&i.AuthorID,
 		&i.Body,
 		&i.CreatedAt,
+		&i.AuthorNickname,
+		&i.AuthorPhotoUrl,
+		&i.AuthorIsAdmin,
 	)
 	return i, err
 }
@@ -226,8 +236,12 @@ SELECT
     created.thread_id,
     created.author_id,
     created.body,
-    created.created_at
+    created.created_at,
+    author.nickname AS author_nickname,
+    author.photo_url AS author_photo_url,
+    author.is_admin AS author_is_admin
 FROM created
+JOIN users AS author ON author.id = created.author_id
 `
 
 type CreateUserSupportMessageParams struct {
@@ -237,11 +251,14 @@ type CreateUserSupportMessageParams struct {
 }
 
 type CreateUserSupportMessageRow struct {
-	ID        pgtype.UUID
-	ThreadID  pgtype.UUID
-	AuthorID  pgtype.UUID
-	Body      string
-	CreatedAt pgtype.Timestamptz
+	ID             pgtype.UUID
+	ThreadID       pgtype.UUID
+	AuthorID       pgtype.UUID
+	Body           string
+	CreatedAt      pgtype.Timestamptz
+	AuthorNickname string
+	AuthorPhotoUrl pgtype.Text
+	AuthorIsAdmin  bool
 }
 
 func (q *Queries) CreateUserSupportMessage(ctx context.Context, arg CreateUserSupportMessageParams) (CreateUserSupportMessageRow, error) {
@@ -253,6 +270,9 @@ func (q *Queries) CreateUserSupportMessage(ctx context.Context, arg CreateUserSu
 		&i.AuthorID,
 		&i.Body,
 		&i.CreatedAt,
+		&i.AuthorNickname,
+		&i.AuthorPhotoUrl,
+		&i.AuthorIsAdmin,
 	)
 	return i, err
 }

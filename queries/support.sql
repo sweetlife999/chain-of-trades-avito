@@ -105,8 +105,12 @@ SELECT
     created.thread_id,
     created.author_id,
     created.body,
-    created.created_at
-FROM created;
+    created.created_at,
+    author.nickname AS author_nickname,
+    author.photo_url AS author_photo_url,
+    author.is_admin AS author_is_admin
+FROM created
+JOIN users AS author ON author.id = created.author_id;
 
 -- name: MarkSupportThreadReadByUser :execrows
 UPDATE support_threads
@@ -216,8 +220,12 @@ SELECT
     created.thread_id,
     created.author_id,
     created.body,
-    created.created_at
-FROM created;
+    created.created_at,
+    author.nickname AS author_nickname,
+    author.photo_url AS author_photo_url,
+    author.is_admin AS author_is_admin
+FROM created
+JOIN users AS author ON author.id = created.author_id;
 
 -- name: MarkSupportThreadReadByAdmin :execrows
 UPDATE support_threads
