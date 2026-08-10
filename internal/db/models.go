@@ -499,6 +499,16 @@ type ItemWant struct {
 	CategoryID int16
 }
 
+type Notification struct {
+	ID        pgtype.UUID
+	UserID    pgtype.UUID
+	ChainID   pgtype.UUID
+	MessageID pgtype.UUID
+	Kind      string
+	ReadAt    pgtype.Timestamptz
+	CreatedAt pgtype.Timestamptz
+}
+
 type PickupPoint struct {
 	ID        pgtype.UUID
 	Name      string
