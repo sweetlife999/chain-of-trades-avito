@@ -55,7 +55,7 @@ func TestExchangeRefusalIntegration(t *testing.T) {
 	if err := service.DeclineParticipation(ctx, refusedID, users[0]); err != nil {
 		t.Fatalf("decline proposed exchange: %v", err)
 	}
-	assertChainStatus(t, ctx, pool, refusedID, "cancelled")
+	assertChainCancellation(t, ctx, pool, refusedID, "proposal_declined")
 
 	var refusedItems int
 	if err := pool.QueryRow(

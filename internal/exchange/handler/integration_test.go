@@ -242,6 +242,13 @@ func cleanupIntegrationData(
 ) {
 	// Аудит ссылается на администратора через RESTRICT и должен уйти до пользователей.
 	_, _ = pool.Exec(ctx, "DELETE FROM admin_audit_log WHERE admin_id = ANY($1::uuid[])", users)
+	// Постоянный запрет специально не каскадится вместе с историей обмена. Тестовые
+	// данные удаляют его явно до исходной цепочки.
+	_, _ = pool.Exec(ctx, `
+		DELETE FROM broken_exchange_compositions
+		WHERE source_chain_id IN (
+			SELECT chain_id FROM chain_participants WHERE user_id = ANY($1::uuid[])
+		)`, users)
 
 	for _, userID := range users {
 		_, _ = pool.Exec(ctx, `

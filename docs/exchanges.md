@@ -17,6 +17,10 @@
 | `completed` | обмен состоялся | — |
 | `cancelled` | обмен закрыт отказом участника, чужим подтверждением или администратором | — |
 
+У отменённого обмена поле `cancel_reason` уточняет причину: `proposal_declined`,
+`confirmed_broken`, `superseded`, `item_withdrawn`, `user_blocked`, `admin_cancelled` или
+`legacy` для старых данных. У остальных статусов оно равно `null`.
+
 Переход `confirmed → delivering` backend делает сам: в тот момент, когда в пунктах
 оказывается последняя вещь обмена. Вещь можно отнести и заранее — тогда цепочка уходит в
 доставку сразу после того, как согласится последний участник. Как отмечать вещь, описано в
@@ -75,6 +79,7 @@ cookie `access_token`.
 {
   "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
   "status": "confirmed",
+  "cancel_reason": null,
   "participants": [
     {
       "user": {

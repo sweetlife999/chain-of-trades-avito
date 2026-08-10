@@ -125,7 +125,7 @@ func TestMultipleExchangeSearchIntegration(t *testing.T) {
 		}
 	}
 	assertChainStatus(t, ctx, pool, first[0], "confirmed")
-	assertChainStatus(t, ctx, pool, second[0], "cancelled")
+	assertChainCancellation(t, ctx, pool, second[0], "superseded")
 
 	for index, wantStatus := range []string{"reserved", "reserved", "available"} {
 		var status string
@@ -234,10 +234,15 @@ func TestExchangeRecoveryIntegration(t *testing.T) {
 		t.Fatalf("create original exchange: %v", err)
 	}
 
+	// Участник вправе передумать после accept, пока остальные ещё не подтвердили
+	// предложение и сам обмен остаётся proposed.
+	if err := service.ConfirmParticipation(ctx, originalID, users[2]); err != nil {
+		t.Fatalf("accept proposed exchange before changing decision: %v", err)
+	}
 	if err := service.DeclineParticipation(ctx, originalID, users[2]); err != nil {
 		t.Fatalf("decline proposed exchange: %v", err)
 	}
-	assertChainStatus(t, ctx, pool, originalID, "cancelled")
+	assertChainCancellation(t, ctx, pool, originalID, "proposal_declined")
 
 	// Отказ от предложения тоже запускает перепоиск: ребро 2 -> 0 вырезано, поэтому DFS
 	// собирает состав с другой третьей вещью, а не переподставляет отказанный.
@@ -259,7 +264,41 @@ func TestExchangeRecoveryIntegration(t *testing.T) {
 	if err := service.DeclineParticipation(ctx, confirmedID, users[3]); err != nil {
 		t.Fatalf("decline confirmed exchange: %v", err)
 	}
-	assertChainStatus(t, ctx, pool, confirmedID, "cancelled")
+	assertChainCancellation(t, ctx, pool, confirmedID, "confirmed_broken")
+
+	var permanentExclusions int
+	if err := pool.QueryRow(ctx, `
+		SELECT count(*)
+		FROM broken_exchange_compositions
+		WHERE source_chain_id = $1`, confirmedID).Scan(&permanentExclusions); err != nil {
+		t.Fatalf("read permanent broken composition exclusion: %v", err)
+	}
+	if permanentExclusions != 1 {
+		t.Fatalf("permanent broken composition exclusions = %d, want 1", permanentExclusions)
+	}
+
+	// Не только recovery-job, но и любой будущий обычный поиск/прямое сохранение
+	// обязаны помнить точный сорванный состав.
+	brokenAgain := exchangemodel.Exchange{Participants: []exchangemodel.Participant{
+		{UserID: users[0], GivesItemID: items[0], ReceivesItemID: items[1], Position: 0},
+		{UserID: users[1], GivesItemID: items[1], ReceivesItemID: items[3], Position: 1},
+		{UserID: users[3], GivesItemID: items[3], ReceivesItemID: items[0], Position: 2},
+	}}
+	if _, err := repository.SaveExchange(ctx, brokenAgain); !errors.Is(
+		err,
+		exchangerepository.ErrDuplicateExchange,
+	) {
+		t.Fatalf("save permanently excluded composition error = %v, want duplicate", err)
+	}
+	if _, err := service.FindAndSaveAll(
+		ctx,
+		exchangemodel.Node{ItemID: items[0], OwnerID: users[0]},
+	); err != nil {
+		t.Fatalf("ordinary search after confirmed break: %v", err)
+	}
+	if found := proposedExchangesWithItems(t, ctx, pool, items[0], items[1], items[3]); len(found) != 0 {
+		t.Fatalf("ordinary search re-proposed permanently excluded composition %d times", len(found))
+	}
 
 	if found := proposedExchangesWithItems(t, ctx, pool, items[0], items[1], items[4]); len(found) != 1 {
 		t.Fatalf("recovered exchanges with a new exact composition = %d, want 1", len(found))
@@ -343,12 +382,12 @@ func TestExchangeSupersededRecoveryIntegration(t *testing.T) {
 	}
 	assertChainStatus(t, ctx, pool, winnerID, "confirmed")
 	// Вторую цепь закрыло чужое подтверждение, а не отказ её участника.
-	assertChainStatus(t, ctx, pool, supersededID, "cancelled")
+	assertChainCancellation(t, ctx, pool, supersededID, "superseded")
 
 	if err := service.DeclineParticipation(ctx, winnerID, users[0]); err != nil {
 		t.Fatalf("break the winning exchange: %v", err)
 	}
-	assertChainStatus(t, ctx, pool, winnerID, "cancelled")
+	assertChainCancellation(t, ctx, pool, winnerID, "confirmed_broken")
 
 	if found := proposedExchangesWithItems(t, ctx, pool, items[2], items[3], items[4]); len(found) != 1 {
 		t.Fatalf("restored superseded exchanges = %d, want 1", len(found))
@@ -477,5 +516,33 @@ func assertChainStatus(
 	}
 	if status != want {
 		t.Fatalf("exchange %s status = %q, want %q", exchangeID, status, want)
+	}
+}
+
+func assertChainCancellation(
+	t *testing.T,
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	exchangeID uuid.UUID,
+	wantReason string,
+) {
+	t.Helper()
+
+	var status, reason string
+	if err := pool.QueryRow(
+		ctx,
+		"SELECT status, cancel_reason FROM chains WHERE id = $1",
+		exchangeID,
+	).Scan(&status, &reason); err != nil {
+		t.Fatalf("read exchange %s cancellation: %v", exchangeID, err)
+	}
+	if status != "cancelled" || reason != wantReason {
+		t.Fatalf(
+			"exchange %s cancellation = (%q, %q), want (cancelled, %q)",
+			exchangeID,
+			status,
+			reason,
+			wantReason,
+		)
 	}
 }

@@ -86,6 +86,17 @@ func TestItemSearchVisibilityIntegration(t *testing.T) {
 
 	assertIntegrationStatus(t, ctx, pool, "items", items[0], "withdrawn")
 	assertIntegrationStatus(t, ctx, pool, "chains", originalExchangeID, "cancelled")
+	var cancelReason string
+	if err := pool.QueryRow(
+		ctx,
+		"SELECT cancel_reason FROM chains WHERE id = $1",
+		originalExchangeID,
+	).Scan(&cancelReason); err != nil {
+		t.Fatalf("read item-withdrawal cancellation reason: %v", err)
+	}
+	if cancelReason != "item_withdrawn" {
+		t.Fatalf("item-withdrawal cancellation reason = %q, want item_withdrawn", cancelReason)
+	}
 	var withdrawalEvents int
 	if err := pool.QueryRow(ctx, `
 		SELECT count(*)
@@ -169,6 +180,11 @@ func cleanupSearchVisibilityData(
 	users []uuid.UUID,
 	items []uuid.UUID,
 ) {
+	_, _ = pool.Exec(ctx, `
+		DELETE FROM broken_exchange_compositions
+		WHERE source_chain_id IN (
+			SELECT chain_id FROM chain_participants WHERE user_id = ANY($1::uuid[])
+		)`, users)
 	for _, userID := range users {
 		_, _ = pool.Exec(ctx, `
 			DELETE FROM chains

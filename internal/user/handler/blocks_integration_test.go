@@ -155,6 +155,15 @@ func TestUserBlocksIntegration(t *testing.T) {
 
 	assertExchangeStatus(t, ctx, pool, proposedID, "cancelled")
 	assertExchangeStatus(t, ctx, pool, confirmedID, "confirmed")
+	var cancelReason string
+	if err := pool.QueryRow(ctx, "SELECT cancel_reason FROM chains WHERE id = $1", proposedID).Scan(
+		&cancelReason,
+	); err != nil {
+		t.Fatalf("read user-block cancellation reason: %v", err)
+	}
+	if cancelReason != "user_blocked" {
+		t.Fatalf("user-block cancellation reason = %q, want user_blocked", cancelReason)
+	}
 
 	for index, scenario := range []struct {
 		start         exchangemodel.Node
@@ -243,6 +252,14 @@ func cleanupUserBlocksIntegration(
 	itemIDs []uuid.UUID,
 	userIDs []uuid.UUID,
 ) {
+	_, _ = pool.Exec(ctx, `
+		DELETE FROM broken_exchange_compositions
+		WHERE source_chain_id = ANY($1::uuid[])
+		   OR source_chain_id IN (
+			SELECT participant.chain_id
+			FROM chain_participants AS participant
+			WHERE participant.user_id = ANY($2::uuid[])
+		)`, exchangeIDs, userIDs)
 	_, _ = pool.Exec(ctx, `
 		DELETE FROM chains
 		WHERE id = ANY($1::uuid[])
