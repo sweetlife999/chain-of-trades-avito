@@ -2,7 +2,7 @@
 export
 
 
-.PHONY: lint run up db down reset migrate-up migrate-down migrate-status sqlc smoke swagger test-exchange-integration test-user-blocks-integration test-exchange-recovery-integration test-exchange-refusal-integration test-exchange-messages-integration test-delivery-integration test-reports-integration test-admin-audit-integration
+.PHONY: lint run up db down reset migrate-up migrate-down migrate-status sqlc smoke swagger test-exchange-integration test-user-blocks-integration test-exchange-recovery-integration test-exchange-refusal-integration test-exchange-messages-integration test-item-search-visibility-integration test-delivery-integration test-reports-integration test-admin-audit-integration
 
 # Линтер. Требует golangci-lint v2 той же версии, что пиннится в CI:
 # go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
@@ -63,6 +63,12 @@ test-exchange-integration:
 test-exchange-messages-integration:
 	go test -tags=integration ./internal/exchange/handler \
 		-run TestExchangeMessagesIntegration -count=1
+
+# Живой сценарий управления поиском: снятие вещи, отмена предложений, событие в чате,
+# повторная публикация и запрет снятия уже зарезервированной вещи.
+test-item-search-visibility-integration:
+	go test -tags=integration ./internal/item/handler \
+		-run TestItemSearchVisibilityIntegration -count=1
 
 # Живой сценарий блокировок: API, отмена proposed-обмена и фильтрация DFS.
 test-user-blocks-integration:
