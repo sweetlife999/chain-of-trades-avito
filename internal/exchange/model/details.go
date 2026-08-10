@@ -9,6 +9,7 @@ import (
 type Details struct {
 	ID           uuid.UUID
 	Status       string
+	CancelReason *string
 	Participants []DetailsParticipant
 	UnreadCount  int64
 	CreatedAt    time.Time

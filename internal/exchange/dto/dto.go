@@ -9,6 +9,7 @@ import (
 type ExchangeResponse struct {
 	ID           string                `json:"id"`
 	Status       string                `json:"status"`
+	CancelReason *string               `json:"cancel_reason" extensions:"x-nullable" enums:"proposal_declined,confirmed_broken,superseded,item_withdrawn,user_blocked,admin_cancelled,legacy"`
 	Participants []ParticipantResponse `json:"participants"`
 	UnreadCount  int64                 `json:"unread_count"`
 	CreatedAt    time.Time             `json:"created_at"`
@@ -130,6 +131,7 @@ func FromModel(exchange exchangemodel.Details) ExchangeResponse {
 	return ExchangeResponse{
 		ID:           exchange.ID.String(),
 		Status:       exchange.Status,
+		CancelReason: exchange.CancelReason,
 		Participants: participants,
 		UnreadCount:  exchange.UnreadCount,
 		CreatedAt:    exchange.CreatedAt,
