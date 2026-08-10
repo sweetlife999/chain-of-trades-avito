@@ -1,5 +1,14 @@
 basePath: /
 definitions:
+  dto.ActorResponse:
+    properties:
+      id:
+        type: string
+      nickname:
+        type: string
+      photo_url:
+        type: string
+    type: object
   dto.AdminDecisionRequest:
     properties:
       comment:
@@ -311,6 +320,11 @@ definitions:
       password:
         type: string
     type: object
+  dto.MarkAllResponse:
+    properties:
+      marked_count:
+        type: integer
+    type: object
   dto.MarkReadRequest:
     properties:
       last_message_id:
@@ -347,18 +361,30 @@ definitions:
         - exchange_item_withdrawn
         type: string
     type: object
-  dto.PageResponse:
+  dto.NotificationResponse:
     properties:
-      entries:
-        items:
-          $ref: '#/definitions/dto.EntryResponse'
-        type: array
-      limit:
-        type: integer
-      offset:
-        type: integer
-      total:
-        type: integer
+      actor:
+        $ref: '#/definitions/dto.ActorResponse'
+      created_at:
+        type: string
+      exchange_id:
+        type: string
+      exchange_status:
+        type: string
+      gives_item_title:
+        type: string
+      id:
+        type: string
+      is_read:
+        type: boolean
+      kind:
+        type: string
+      message_id:
+        type: string
+      read_at:
+        type: string
+      receives_item_title:
+        type: string
     type: object
   dto.ParticipantItemResponse:
     properties:
@@ -540,6 +566,19 @@ definitions:
       error:
         type: string
     type: object
+  github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.PageResponse:
+    properties:
+      entries:
+        items:
+          $ref: '#/definitions/dto.EntryResponse'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+      total:
+        type: integer
+    type: object
   github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse:
     properties:
       error:
@@ -625,6 +664,24 @@ definitions:
         example: bikes
         type: string
     type: object
+  github_com_sweetlife999_chain-of-trades-avito_internal_notification_dto.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  github_com_sweetlife999_chain-of-trades-avito_internal_notification_dto.PageResponse:
+    properties:
+      limit:
+        type: integer
+      notifications:
+        items:
+          $ref: '#/definitions/dto.NotificationResponse'
+        type: array
+      offset:
+        type: integer
+      unread_count:
+        type: integer
+    type: object
   github_com_sweetlife999_chain-of-trades-avito_internal_report_dto.PaginationResponse:
     properties:
       limit:
@@ -689,7 +746,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.PageResponse'
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.PageResponse'
         "400":
           description: Bad Request
           schema:
@@ -2365,6 +2422,104 @@ paths:
       summary: Вернуть объявление в поиск
       tags:
       - items
+  /notifications:
+    get:
+      description: Возвращает уведомления текущего пользователя, число всех непрочитанных
+        и контекст обмена.
+      parameters:
+      - default: false
+        description: Вернуть только непрочитанные
+        in: query
+        name: unread_only
+        type: boolean
+      - default: 50
+        description: Размер страницы, от 1 до 100
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Смещение, начиная с 0
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_notification_dto.PageResponse'
+        "400":
+          description: Некорректные параметры
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_notification_dto.ErrorResponse'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_notification_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_notification_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Получить уведомления
+      tags:
+      - notifications
+  /notifications/{id}/read:
+    post:
+      parameters:
+      - description: UUID уведомления
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Некорректный UUID
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_notification_dto.ErrorResponse'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_notification_dto.ErrorResponse'
+        "404":
+          description: Уведомление не найдено у пользователя
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_notification_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_notification_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Отметить уведомление прочитанным
+      tags:
+      - notifications
+  /notifications/read-all:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.MarkAllResponse'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_notification_dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_notification_dto.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Отметить все уведомления прочитанными
+      tags:
+      - notifications
   /pickup-points:
     get:
       description: |-

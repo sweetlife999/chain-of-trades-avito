@@ -74,7 +74,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dto.PageResponse"
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.PageResponse"
                         }
                     },
                     "400": {
@@ -2564,6 +2564,159 @@ const docTemplate = `{
                 }
             }
         },
+        "/notifications": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Возвращает уведомления текущего пользователя, число всех непрочитанных и контекст обмена.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "notifications"
+                ],
+                "summary": "Получить уведомления",
+                "parameters": [
+                    {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Вернуть только непрочитанные",
+                        "name": "unread_only",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 50,
+                        "description": "Размер страницы, от 1 до 100",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Смещение, начиная с 0",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_notification_dto.PageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные параметры",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_notification_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_notification_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_notification_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/notifications/read-all": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "notifications"
+                ],
+                "summary": "Отметить все уведомления прочитанными",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.MarkAllResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_notification_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_notification_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/notifications/{id}/read": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "tags": [
+                    "notifications"
+                ],
+                "summary": "Отметить уведомление прочитанным",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID уведомления",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Некорректный UUID",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_notification_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_notification_dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Уведомление не найдено у пользователя",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_notification_dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_notification_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/pickup-points": {
             "get": {
                 "security": [
@@ -3068,6 +3221,20 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "dto.ActorResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "nickname": {
+                    "type": "string"
+                },
+                "photo_url": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.AdminDecisionRequest": {
             "type": "object",
             "properties": {
@@ -3542,6 +3709,14 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.MarkAllResponse": {
+            "type": "object",
+            "properties": {
+                "marked_count": {
+                    "type": "integer"
+                }
+            }
+        },
         "dto.MarkReadRequest": {
             "type": "object",
             "properties": {
@@ -3592,23 +3767,41 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.PageResponse": {
+        "dto.NotificationResponse": {
             "type": "object",
             "properties": {
-                "entries": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.EntryResponse"
-                    }
+                "actor": {
+                    "$ref": "#/definitions/dto.ActorResponse"
                 },
-                "limit": {
-                    "type": "integer"
+                "created_at": {
+                    "type": "string"
                 },
-                "offset": {
-                    "type": "integer"
+                "exchange_id": {
+                    "type": "string"
                 },
-                "total": {
-                    "type": "integer"
+                "exchange_status": {
+                    "type": "string"
+                },
+                "gives_item_title": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_read": {
+                    "type": "boolean"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "message_id": {
+                    "type": "string"
+                },
+                "read_at": {
+                    "type": "string"
+                },
+                "receives_item_title": {
+                    "type": "string"
                 }
             }
         },
@@ -3886,6 +4079,26 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_sweetlife999_chain-of-trades-avito_internal_adminaudit_dto.PageResponse": {
+            "type": "object",
+            "properties": {
+                "entries": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.EntryResponse"
+                    }
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
         "github_com_sweetlife999_chain-of-trades-avito_internal_adminexchange_dto.ErrorResponse": {
             "type": "object",
             "properties": {
@@ -4008,6 +4221,34 @@ const docTemplate = `{
                 "slug": {
                     "type": "string",
                     "example": "bikes"
+                }
+            }
+        },
+        "github_com_sweetlife999_chain-of-trades-avito_internal_notification_dto.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_sweetlife999_chain-of-trades-avito_internal_notification_dto.PageResponse": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer"
+                },
+                "notifications": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.NotificationResponse"
+                    }
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "unread_count": {
+                    "type": "integer"
                 }
             }
         },
