@@ -63,7 +63,7 @@ type ErrorResponse struct {
 // расхождение с enum chain_message_kind уже приводило к пропущенному виду события.
 type MessageResponse struct {
 	ID   string `json:"id"`
-	Kind string `json:"kind" enums:"text,participant_accepted,participant_declined,participant_completed,participant_delivered_item,exchange_confirmed,exchange_delivering,exchange_delivered,exchange_completed,exchange_superseded"`
+	Kind string `json:"kind" enums:"text,participant_accepted,participant_declined,participant_completed,participant_delivered_item,exchange_confirmed,exchange_delivering,exchange_delivered,exchange_completed,exchange_superseded,exchange_item_withdrawn"`
 	// Заполнен только у kind = text.
 	Body *string `json:"body" extensions:"x-nullable"`
 	// Пуст у событий, которые принадлежат всему обмену, а не участнику.

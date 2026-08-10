@@ -52,3 +52,16 @@ type Category struct {
 	Slug string
 	Name string
 }
+
+// SearchCandidate — объявление из отменённого предложения, для которого после коммита
+// нужно заново запланировать поиск. Полная карточка DFS не нужна.
+type SearchCandidate struct {
+	ItemID  uuid.UUID
+	OwnerID uuid.UUID
+}
+
+type SearchVisibilityChange struct {
+	Item               Item
+	RecoveryCandidates []SearchCandidate
+	Changed            bool
+}

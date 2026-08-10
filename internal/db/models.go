@@ -115,6 +115,7 @@ const (
 	ChainMessageKindParticipantDeliveredItem ChainMessageKind = "participant_delivered_item"
 	ChainMessageKindExchangeDelivering       ChainMessageKind = "exchange_delivering"
 	ChainMessageKindExchangeDelivered        ChainMessageKind = "exchange_delivered"
+	ChainMessageKindExchangeItemWithdrawn    ChainMessageKind = "exchange_item_withdrawn"
 )
 
 func (e *ChainMessageKind) Scan(src interface{}) error {

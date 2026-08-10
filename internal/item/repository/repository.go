@@ -16,18 +16,25 @@ import (
 )
 
 var (
-	ErrNotFound        = errors.New("item not found")
-	ErrUnknownCategory = errors.New("unknown category")
-	ErrItemInChain     = errors.New("item participates in a chain")
+	ErrNotFound                 = errors.New("item not found")
+	ErrForbidden                = errors.New("item belongs to another user")
+	ErrUnknownCategory          = errors.New("unknown category")
+	ErrItemInChain              = errors.New("item participates in a chain")
+	ErrSearchVisibilityConflict = errors.New("item status does not allow changing search visibility")
 )
 
 type Repository struct {
-	pool    *pgxpool.Pool
-	queries *db.Queries
+	pool         *pgxpool.Pool
+	queries      *db.Queries
+	transactions searchVisibilityTransactionManager
 }
 
 func New(pool *pgxpool.Pool) *Repository {
-	return &Repository{pool: pool, queries: db.New(pool)}
+	return &Repository{
+		pool:         pool,
+		queries:      db.New(pool),
+		transactions: &pgxSearchVisibilityTransactionManager{pool: pool},
+	}
 }
 
 // Вещь и её желания пишутся двумя запросами, поэтому они идут одной транзакцией:

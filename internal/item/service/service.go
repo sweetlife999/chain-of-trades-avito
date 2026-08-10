@@ -25,11 +25,12 @@ const (
 )
 
 var (
-	ErrValidation      = errors.New("validation error")
-	ErrForbidden       = errors.New("item belongs to another user")
-	ErrNotFound        = itemrepository.ErrNotFound
-	ErrUnknownCategory = itemrepository.ErrUnknownCategory
-	ErrItemInChain     = itemrepository.ErrItemInChain
+	ErrValidation               = errors.New("validation error")
+	ErrForbidden                = itemrepository.ErrForbidden
+	ErrNotFound                 = itemrepository.ErrNotFound
+	ErrUnknownCategory          = itemrepository.ErrUnknownCategory
+	ErrItemInChain              = itemrepository.ErrItemInChain
+	ErrSearchVisibilityConflict = itemrepository.ErrSearchVisibilityConflict
 	// Обе приходят из обмена: пункт вещи пишет его транзакция, она же и решает, что
 	// пункта нет или вещь уже вне оборота.
 	ErrUnknownPickupPoint = exchangeservice.ErrUnknownPickupPoint
@@ -45,6 +46,12 @@ type Repository interface {
 	ListCategories(context.Context) ([]itemmodel.Category, error)
 	HasOpenExchange(context.Context, uuid.UUID) (bool, error)
 	ClearPickupPoint(context.Context, uuid.UUID, uuid.UUID) error
+	SetSearchVisibility(
+		context.Context,
+		uuid.UUID,
+		uuid.UUID,
+		bool,
+	) (itemmodel.SearchVisibilityChange, error)
 }
 
 type ExchangeFinder interface {
@@ -248,6 +255,39 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) er
 	return s.repository.Delete(ctx, id)
 }
 
+// SetSearchVisibility включает или выключает участие объявления в автоматическом
+// подборе. Изменение и отмена ещё не подтверждённых предложений уже завершены в БД к
+// моменту постановки новых поисков в очередь, поэтому worker не увидит промежуточное
+// состояние.
+func (s *Service) SetSearchVisibility(
+	ctx context.Context,
+	id uuid.UUID,
+	userID uuid.UUID,
+	enabled bool,
+) (itemmodel.Item, error) {
+	change, err := s.repository.SetSearchVisibility(ctx, id, userID, enabled)
+	if err != nil {
+		return itemmodel.Item{}, err
+	}
+	if !change.Changed {
+		return change.Item, nil
+	}
+
+	if enabled {
+		s.findExchange(ctx, change.Item)
+		return change.Item, nil
+	}
+
+	for _, candidate := range change.RecoveryCandidates {
+		s.scheduleSearch(ctx, exchangemodel.Node{
+			ItemID:  candidate.ItemID,
+			OwnerID: candidate.OwnerID,
+		})
+	}
+
+	return change.Item, nil
+}
+
 // SetPickupPoint отмечает, что владелец отнёс вещь в пункт выдачи. Отнести можно и вещь,
 // которая ни в каком обмене не участвует: к моменту сборки цепочки она уже будет на месте.
 // Саму запись делает exchange — там же, где живёт переход обмена в доставку.
@@ -308,16 +348,20 @@ func sameWants(a []string, b []string) bool {
 }
 
 func (s *Service) findExchange(ctx context.Context, item itemmodel.Item) {
+	s.scheduleSearch(ctx, exchangemodel.Node{
+		ItemID:  item.ID,
+		OwnerID: item.OwnerID,
+	})
+}
+
+func (s *Service) scheduleSearch(ctx context.Context, node exchangemodel.Node) {
 	if s.exchanges == nil {
 		return
 	}
 
-	err := s.exchanges.ScheduleSearch(ctx, exchangemodel.Node{
-		ItemID:  item.ID,
-		OwnerID: item.OwnerID,
-	})
+	err := s.exchanges.ScheduleSearch(ctx, node)
 	if err != nil {
-		s.logger.Printf("automatic exchange search for item %s: %v", item.ID, err)
+		s.logger.Printf("automatic exchange search for item %s: %v", node.ItemID, err)
 	}
 }
 

@@ -22,6 +22,7 @@ type fakeService struct {
 	list       func(context.Context, uuid.UUID) ([]itemmodel.Item, error)
 	update     func(context.Context, uuid.UUID, uuid.UUID, itemservice.UpdateInput) (itemmodel.Item, error)
 	remove     func(context.Context, uuid.UUID, uuid.UUID) error
+	setSearch  func(context.Context, uuid.UUID, uuid.UUID, bool) (itemmodel.Item, error)
 	categories func(context.Context) ([]itemmodel.Category, error)
 
 	setPickup   func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) error
@@ -64,6 +65,15 @@ func (f *fakeService) Update(
 
 func (f *fakeService) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
 	return f.remove(ctx, id, userID)
+}
+
+func (f *fakeService) SetSearchVisibility(
+	ctx context.Context,
+	id uuid.UUID,
+	userID uuid.UUID,
+	enabled bool,
+) (itemmodel.Item, error) {
+	return f.setSearch(ctx, id, userID, enabled)
 }
 
 func (f *fakeService) ListCategories(ctx context.Context) ([]itemmodel.Category, error) {
@@ -305,6 +315,93 @@ func TestClearPickupPointReturns409ForItemInChain(t *testing.T) {
 	}
 }
 
+func TestSetSearchVisibilityReturnsUpdatedItem(t *testing.T) {
+	t.Parallel()
+
+	itemID, userID := uuid.New(), uuid.New()
+	tests := []struct {
+		name    string
+		method  string
+		enabled bool
+		status  string
+	}{
+		{name: "вернуть в поиск", method: http.MethodPut, enabled: true, status: "available"},
+		{name: "снять с поиска", method: http.MethodDelete, enabled: false, status: "withdrawn"},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeService{
+				setSearch: func(
+					_ context.Context,
+					actualItemID uuid.UUID,
+					actualUserID uuid.UUID,
+					enabled bool,
+				) (itemmodel.Item, error) {
+					if actualItemID != itemID || actualUserID != userID || enabled != test.enabled {
+						t.Fatalf("SetSearchVisibility(%s, %s, %t)", actualItemID, actualUserID, enabled)
+					}
+					return itemmodel.Item{ID: itemID, OwnerID: userID, Status: test.status}, nil
+				},
+			}
+
+			response := performRequest(
+				service,
+				test.method,
+				"/items/"+itemID.String()+"/search",
+				"",
+				authenticateAs(userID),
+			)
+			if response.Code != http.StatusOK {
+				t.Fatalf("status = %d, want %d; body = %s", response.Code, http.StatusOK, response.Body.String())
+			}
+			if !strings.Contains(response.Body.String(), `"status":"`+test.status+`"`) {
+				t.Fatalf("body = %s, want status %s", response.Body.String(), test.status)
+			}
+		})
+	}
+}
+
+func TestSetSearchVisibilityErrorStatuses(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		err        error
+		wantStatus int
+	}{
+		{name: "чужое объявление", err: itemservice.ErrForbidden, wantStatus: http.StatusForbidden},
+		{name: "объявление не найдено", err: itemservice.ErrNotFound, wantStatus: http.StatusNotFound},
+		{name: "объявление занято", err: itemservice.ErrSearchVisibilityConflict, wantStatus: http.StatusConflict},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeService{
+				setSearch: func(context.Context, uuid.UUID, uuid.UUID, bool) (itemmodel.Item, error) {
+					return itemmodel.Item{}, test.err
+				},
+			}
+			response := performRequest(
+				service,
+				http.MethodDelete,
+				"/items/"+uuid.New().String()+"/search",
+				"",
+				authenticateAs(uuid.New()),
+			)
+			if response.Code != test.wantStatus {
+				t.Fatalf("status = %d, want %d; body = %s", response.Code, test.wantStatus, response.Body.String())
+			}
+		})
+	}
+}
+
 func TestListCategoriesReturns200(t *testing.T) {
 	t.Parallel()
 
@@ -336,6 +433,8 @@ func TestProtectedRoutesRequireAuthenticatedUser(t *testing.T) {
 		{method: http.MethodGet, path: "/items"},
 		{method: http.MethodPatch, path: "/items/" + id.String(), body: `{"title":"Новый"}`},
 		{method: http.MethodDelete, path: "/items/" + id.String()},
+		{method: http.MethodPut, path: "/items/" + id.String() + "/search"},
+		{method: http.MethodDelete, path: "/items/" + id.String() + "/search"},
 		{
 			method: http.MethodPost,
 			path:   "/items/" + id.String() + "/pickup",
