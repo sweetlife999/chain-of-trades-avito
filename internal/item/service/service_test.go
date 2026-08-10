@@ -15,12 +15,18 @@ import (
 )
 
 type fakeRepository struct {
-	create     func(context.Context, itemmodel.NewItem) (itemmodel.Item, error)
-	get        func(context.Context, uuid.UUID) (itemmodel.Item, error)
-	update     func(context.Context, uuid.UUID, itemmodel.Changes) (itemmodel.Item, error)
-	remove     func(context.Context, uuid.UUID) error
-	categories func(context.Context) ([]itemmodel.Category, error)
-	hasOpen    func(context.Context, uuid.UUID) (bool, error)
+	create              func(context.Context, itemmodel.NewItem) (itemmodel.Item, error)
+	get                 func(context.Context, uuid.UUID) (itemmodel.Item, error)
+	update              func(context.Context, uuid.UUID, itemmodel.Changes) (itemmodel.Item, error)
+	remove              func(context.Context, uuid.UUID) error
+	categories          func(context.Context) ([]itemmodel.Category, error)
+	hasOpen             func(context.Context, uuid.UUID) (bool, error)
+	setSearchVisibility func(
+		context.Context,
+		uuid.UUID,
+		uuid.UUID,
+		bool,
+	) (itemmodel.SearchVisibilityChange, error)
 
 	clearedPickupItem  uuid.UUID
 	clearedPickupOwner uuid.UUID
@@ -65,6 +71,15 @@ func (f *fakeRepository) HasOpenExchange(ctx context.Context, id uuid.UUID) (boo
 	}
 
 	return f.hasOpen(ctx, id)
+}
+
+func (f *fakeRepository) SetSearchVisibility(
+	ctx context.Context,
+	id uuid.UUID,
+	ownerID uuid.UUID,
+	enabled bool,
+) (itemmodel.SearchVisibilityChange, error) {
+	return f.setSearchVisibility(ctx, id, ownerID, enabled)
 }
 
 func validCreateInput() CreateInput {
@@ -485,6 +500,136 @@ func TestSearchErrorIsLoggedWithoutBreakingCreate(t *testing.T) {
 	}
 }
 
+func TestSetSearchVisibilitySchedulesPublishedItem(t *testing.T) {
+	t.Parallel()
+
+	itemID, ownerID := uuid.New(), uuid.New()
+	published := itemmodel.Item{ID: itemID, OwnerID: ownerID, Status: "available"}
+	repository := &fakeRepository{
+		setSearchVisibility: func(
+			_ context.Context,
+			actualItemID uuid.UUID,
+			actualOwnerID uuid.UUID,
+			enabled bool,
+		) (itemmodel.SearchVisibilityChange, error) {
+			if actualItemID != itemID || actualOwnerID != ownerID || !enabled {
+				t.Fatalf("SetSearchVisibility(%s, %s, %t), want (%s, %s, true)",
+					actualItemID, actualOwnerID, enabled, itemID, ownerID)
+			}
+			return itemmodel.SearchVisibilityChange{Item: published, Changed: true}, nil
+		},
+	}
+	finder := &fakeExchangeFinder{}
+
+	actual, err := newWithDependencies(repository, finder, log.Default()).SetSearchVisibility(
+		context.Background(), itemID, ownerID, true,
+	)
+	if err != nil {
+		t.Fatalf("SetSearchVisibility() error = %v", err)
+	}
+	if actual.ID != itemID || finder.calls != 1 || finder.node.ItemID != itemID || finder.node.OwnerID != ownerID {
+		t.Fatalf("item = %+v, scheduled = %+v, calls = %d", actual, finder.node, finder.calls)
+	}
+}
+
+func TestSetSearchVisibilitySchedulesOnlyRecoveryCandidatesOnWithdrawal(t *testing.T) {
+	t.Parallel()
+
+	itemID, ownerID := uuid.New(), uuid.New()
+	first := itemmodel.SearchCandidate{ItemID: uuid.New(), OwnerID: uuid.New()}
+	second := itemmodel.SearchCandidate{ItemID: uuid.New(), OwnerID: uuid.New()}
+	repository := &fakeRepository{
+		setSearchVisibility: func(
+			context.Context,
+			uuid.UUID,
+			uuid.UUID,
+			bool,
+		) (itemmodel.SearchVisibilityChange, error) {
+			return itemmodel.SearchVisibilityChange{
+				Item:               itemmodel.Item{ID: itemID, OwnerID: ownerID, Status: "withdrawn"},
+				RecoveryCandidates: []itemmodel.SearchCandidate{first, second},
+				Changed:            true,
+			}, nil
+		},
+	}
+	finder := &fakeExchangeFinder{}
+
+	_, err := newWithDependencies(repository, finder, log.Default()).SetSearchVisibility(
+		context.Background(), itemID, ownerID, false,
+	)
+	if err != nil {
+		t.Fatalf("SetSearchVisibility() error = %v", err)
+	}
+	if finder.calls != 2 || len(finder.nodes) != 2 {
+		t.Fatalf("scheduled calls = %d, nodes = %+v, want two recovery nodes", finder.calls, finder.nodes)
+	}
+	if finder.nodes[0].ItemID != first.ItemID || finder.nodes[0].OwnerID != first.OwnerID ||
+		finder.nodes[1].ItemID != second.ItemID || finder.nodes[1].OwnerID != second.OwnerID {
+		t.Fatalf("scheduled nodes = %+v, want %+v and %+v", finder.nodes, first, second)
+	}
+	for _, node := range finder.nodes {
+		if node.ItemID == itemID {
+			t.Fatal("withdrawn item was scheduled for search")
+		}
+	}
+}
+
+func TestSetSearchVisibilityDoesNotScheduleAfterIdempotentRequest(t *testing.T) {
+	t.Parallel()
+
+	itemID, ownerID := uuid.New(), uuid.New()
+	repository := &fakeRepository{
+		setSearchVisibility: func(
+			context.Context,
+			uuid.UUID,
+			uuid.UUID,
+			bool,
+		) (itemmodel.SearchVisibilityChange, error) {
+			return itemmodel.SearchVisibilityChange{
+				Item: itemmodel.Item{ID: itemID, OwnerID: ownerID, Status: "withdrawn"},
+			}, nil
+		},
+	}
+	finder := &fakeExchangeFinder{}
+
+	_, err := newWithDependencies(repository, finder, log.Default()).SetSearchVisibility(
+		context.Background(), itemID, ownerID, false,
+	)
+	if err != nil {
+		t.Fatalf("SetSearchVisibility() error = %v", err)
+	}
+	if finder.calls != 0 {
+		t.Fatalf("ScheduleSearch() calls = %d, want 0", finder.calls)
+	}
+}
+
+func TestSetSearchVisibilityReturnsRepositoryErrorWithoutSearch(t *testing.T) {
+	t.Parallel()
+
+	databaseError := errors.New("database unavailable")
+	repository := &fakeRepository{
+		setSearchVisibility: func(
+			context.Context,
+			uuid.UUID,
+			uuid.UUID,
+			bool,
+		) (itemmodel.SearchVisibilityChange, error) {
+			return itemmodel.SearchVisibilityChange{}, databaseError
+		},
+	}
+	finder := &fakeExchangeFinder{}
+
+	_, err := newWithDependencies(repository, finder, log.Default()).SetSearchVisibility(
+		context.Background(), uuid.New(), uuid.New(), false,
+	)
+	if !errors.Is(err, databaseError) {
+		t.Fatalf("SetSearchVisibility() error = %v, want %v", err, databaseError)
+	}
+	if finder.calls != 0 {
+		t.Fatalf("ScheduleSearch() calls = %d, want 0", finder.calls)
+	}
+}
+
 func TestCompatibilityUpdateRejectsItemInOpenExchange(t *testing.T) {
 	t.Parallel()
 
@@ -547,6 +692,7 @@ func TestCompatibilityUpdateCheckError(t *testing.T) {
 type fakeExchangeFinder struct {
 	err   error
 	node  exchangemodel.Node
+	nodes []exchangemodel.Node
 	calls int
 
 	pickupItem  uuid.UUID
@@ -574,6 +720,7 @@ func (f *fakeExchangeFinder) ScheduleSearch(
 ) error {
 	f.calls++
 	f.node = node
+	f.nodes = append(f.nodes, node)
 	return f.err
 }
 
