@@ -10,18 +10,11 @@ import {
   getItemErrorMessage,
   removeItemFromPickupPoint,
 } from "../../../Api/items/items";
-import type { TItemStatus } from "../../../Api/items/items.types";
 import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
 import { Button } from "../../UI/Button/Button";
 import { ConfirmationPopup } from "../../UI/ConfirmationPopup/ConfirmationPopup";
 import { PhotoGallery } from "../../UI/PhotoGallery/PhotoGallery";
-
-const labels: Record<TItemStatus, string> = {
-  available: "Доступно для обмена",
-  reserved: "Участвует в цепочке",
-  traded: "Обменяно",
-  withdrawn: "Снято с публикации",
-};
+import { ItemStatusBadge } from "../ItemStatusBadge/ItemStatusBadge";
 
 const getDeleteErrorMessage = (error: unknown) => {
   if (axios.isAxiosError<{ error?: string }>(error)) {
@@ -111,11 +104,7 @@ const ItemDetailsComponent = () => {
           </div>
 
           <div className={styles.item__info}>
-            <span
-              className={`${styles.item__status} ${styles[`item__status_${item.status}`]}`}
-            >
-              {labels[item.status]}
-            </span>
+            <ItemStatusBadge item={item} />
             <h1 className={styles.item__title}>{item.title}</h1>
             <small className={styles.item__category}>{item.category}</small>
             <p className={styles.item__description}>{item.description}</p>
