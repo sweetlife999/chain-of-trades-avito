@@ -90,6 +90,14 @@ const AdminRoute = lazy(() =>
   ),
 );
 
+const NotificationsPage = lazy(() =>
+  import("../Components/Pages/Notifications/NotificationsPage").then(
+    (module) => ({
+      default: module.NotificationsPage,
+    }),
+  ),
+);
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -114,6 +122,7 @@ function App() {
                   <Route path="/exchanges" element={<MyChains />} />
                   <Route path="/exchanges/create" element={<CreateChain />} />
                   <Route path="/exchanges/:id" element={<ExchangeDetails />} />
+                  <Route path="/notifications" element={<NotificationsPage />} />
                   <Route path="/admin" element={<AdminRoute />} />
                 </Route>
               </Routes>

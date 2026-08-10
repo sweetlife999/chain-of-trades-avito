@@ -2,7 +2,7 @@
 export
 
 
-.PHONY: lint run up db down reset migrate-up migrate-down migrate-status sqlc smoke swagger test-exchange-integration test-user-blocks-integration test-exchange-recovery-integration test-exchange-refusal-integration test-exchange-messages-integration test-item-search-visibility-integration test-delivery-integration test-reports-integration test-admin-audit-integration
+.PHONY: lint run up db down reset migrate-up migrate-down migrate-status sqlc smoke swagger test-exchange-integration test-user-blocks-integration test-exchange-recovery-integration test-exchange-refusal-integration test-exchange-messages-integration test-item-search-visibility-integration test-delivery-integration test-reports-integration test-admin-audit-integration test-notifications-integration
 
 # Линтер. Требует golangci-lint v2 той же версии, что пиннится в CI:
 # go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
@@ -102,3 +102,9 @@ test-reports-integration:
 test-admin-audit-integration:
 	go test -tags=integration ./internal/adminaudit/handler \
 		-run TestAdminUserBlockAuditIntegration -count=1
+
+# Живой сценарий центра уведомлений: предложение, сообщение, событие сделки,
+# изоляция пользователей и отметки одного/всех уведомлений прочитанными.
+test-notifications-integration:
+	go test -tags=integration ./internal/notification/handler \
+		-run TestNotificationsIntegration -count=1
