@@ -419,6 +419,49 @@ func (ns NullReportStatus) Value() (driver.Value, error) {
 	return string(ns.ReportStatus), nil
 }
 
+type SupportThreadStatus string
+
+const (
+	SupportThreadStatusOpen       SupportThreadStatus = "open"
+	SupportThreadStatusInProgress SupportThreadStatus = "in_progress"
+	SupportThreadStatusClosed     SupportThreadStatus = "closed"
+)
+
+func (e *SupportThreadStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = SupportThreadStatus(s)
+	case string:
+		*e = SupportThreadStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for SupportThreadStatus: %T", src)
+	}
+	return nil
+}
+
+type NullSupportThreadStatus struct {
+	SupportThreadStatus SupportThreadStatus
+	Valid               bool // Valid is true if SupportThreadStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullSupportThreadStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.SupportThreadStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.SupportThreadStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullSupportThreadStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.SupportThreadStatus), nil
+}
+
 type AdminAuditLog struct {
 	ID         pgtype.UUID
 	AdminID    pgtype.UUID
@@ -500,13 +543,15 @@ type ItemWant struct {
 }
 
 type Notification struct {
-	ID        pgtype.UUID
-	UserID    pgtype.UUID
-	ChainID   pgtype.UUID
-	MessageID pgtype.UUID
-	Kind      string
-	ReadAt    pgtype.Timestamptz
-	CreatedAt pgtype.Timestamptz
+	ID               pgtype.UUID
+	UserID           pgtype.UUID
+	ChainID          pgtype.UUID
+	MessageID        pgtype.UUID
+	Kind             string
+	ReadAt           pgtype.Timestamptz
+	CreatedAt        pgtype.Timestamptz
+	SupportThreadID  pgtype.UUID
+	SupportMessageID pgtype.UUID
 }
 
 type PickupPoint struct {
@@ -529,6 +574,27 @@ type Report struct {
 	AssignedAt        pgtype.Timestamptz
 	ClosedAt          pgtype.Timestamptz
 	ResolutionComment string
+}
+
+type SupportMessage struct {
+	ID        pgtype.UUID
+	ThreadID  pgtype.UUID
+	AuthorID  pgtype.UUID
+	Body      string
+	CreatedAt pgtype.Timestamptz
+}
+
+type SupportThread struct {
+	ID              pgtype.UUID
+	UserID          pgtype.UUID
+	Subject         string
+	Status          SupportThreadStatus
+	AssignedAdminID pgtype.UUID
+	UserReadAt      pgtype.Timestamptz
+	AdminReadAt     pgtype.Timestamptz
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	ClosedAt        pgtype.Timestamptz
 }
 
 type User struct {
