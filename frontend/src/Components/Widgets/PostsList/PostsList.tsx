@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import styles from "./Styles.module.scss";
 import { getExchanges } from "../../../Api/exchanges/exchanges";
+import { getItems } from "../../../Api/items/items";
 import { FetchStatus } from "../FetchStatus/FetchStatus";
 import { Post } from "../Post/Post";
 import { ExchangeSearchStatus } from "../ExchangeSearchStatus/ExchangeSearchStatus";
@@ -16,11 +17,11 @@ const PostsListComponent = () => {
     refetchOnWindowFocus: true,
   });
 
-  // const exchanges = (exchangesQuery.data ?? []).filter(
-  //   (exchange) =>
-  //     exchange.status === "proposed" &&
-  //     !exchange.participants.some((participant) => participant.user.id === user?.id),
-  // );
+  const { data: hasOwnItems = false } = useQuery({
+    queryKey: ["items"],
+    queryFn: getItems,
+    select: (items) => items.length > 0,
+  });
 
   const exchanges = exchangesQuery.data ?? [];
 
@@ -29,7 +30,9 @@ const PostsListComponent = () => {
       <ExchangeSearchStatus
         exchangesCount={exchanges.length}
         isLoading={exchangesQuery.isPending || exchangesQuery.isFetching}
+        hasOwnItems={hasOwnItems}
       />
+
       <FetchStatus status={exchangesQuery.status}>
         {exchanges.length ? (
           <ul className={styles.posts}>
@@ -44,9 +47,11 @@ const PostsListComponent = () => {
             <strong className={styles.postsSection__emptyTitle}>
               Предложений пока нет
             </strong>
+
             <p className={styles.postsSection__emptyDescription}>
-              Поиск продолжает работать. Добавьте вещь или вернитесь немного
-              позже — новые варианты появятся автоматически.
+              {hasOwnItems
+                ? "Поиск продолжает работать. Вернитесь немного позже — новые варианты появятся автоматически."
+                : "Добавьте вещь, чтобы начать поиск подходящих вариантов обмена."}
             </p>
           </div>
         )}
