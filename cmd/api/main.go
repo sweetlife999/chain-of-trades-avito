@@ -36,6 +36,9 @@ import (
 	itemhandler "github.com/sweetlife999/chain-of-trades-avito/internal/item/handler"
 	itemrepository "github.com/sweetlife999/chain-of-trades-avito/internal/item/repository"
 	itemservice "github.com/sweetlife999/chain-of-trades-avito/internal/item/service"
+	notificationhandler "github.com/sweetlife999/chain-of-trades-avito/internal/notification/handler"
+	notificationrepository "github.com/sweetlife999/chain-of-trades-avito/internal/notification/repository"
+	notificationservice "github.com/sweetlife999/chain-of-trades-avito/internal/notification/service"
 	pickuppointhandler "github.com/sweetlife999/chain-of-trades-avito/internal/pickuppoint/handler"
 	pickuppointrepository "github.com/sweetlife999/chain-of-trades-avito/internal/pickuppoint/repository"
 	pickuppointservice "github.com/sweetlife999/chain-of-trades-avito/internal/pickuppoint/service"
@@ -112,6 +115,7 @@ func main() {
 	reports := reportservice.New(reportsRepository)
 	adminReports := reportservice.NewAdmin(reportsRepository, exchangesRepository)
 	adminAudit := adminauditservice.New(adminauditrepository.New(queries))
+	notifications := notificationservice.New(notificationrepository.New(queries))
 
 	tokens := authtoken.NewManager(cfg.JWTSecret, authTokenTTL)
 	authenticator := authmiddleware.New(tokens, users)
@@ -129,6 +133,7 @@ func main() {
 	pickupPointsHandler.RegisterPublicRoutes(router, authenticator.RequireAuthentication)
 	// Жалуется обычный участник обмена, поэтому маршрут живёт вне группы /admin.
 	reporthandler.New(reports).RegisterRoutes(router, authenticator.RequireAuthentication)
+	notificationhandler.New(notifications).RegisterRoutes(router, authenticator.RequireAuthentication)
 
 	// Все следующие административные модули регистрируются только внутри этой группы.
 	// JWT сначала определяет пользователя, затем роль проверяется по актуальным данным БД.
