@@ -3,7 +3,11 @@ import { z } from "zod";
 export const SupportPersonSchema = z.object({
   id: z.string(),
   nickname: z.string(),
-  photo_url: z.string().nullable().optional(),
+  photo_url: z
+    .url("Введите корректную ссылку")
+    .regex(/^https?:\/\//, "Должна быть ссылка с http или https")
+    .nullable()
+    .optional(),
   is_admin: z.boolean(),
 });
 
@@ -43,5 +47,7 @@ export const AdminSupportPageSchema = z.object({
 
 export type TSupportThread = z.infer<typeof SupportThreadSchema>;
 export type TSupportMessage = z.infer<typeof SupportMessageSchema>;
-export type TSupportThreadMessages = z.infer<typeof SupportThreadMessagesSchema>;
+export type TSupportThreadMessages = z.infer<
+  typeof SupportThreadMessagesSchema
+>;
 export type TAdminSupportPage = z.infer<typeof AdminSupportPageSchema>;

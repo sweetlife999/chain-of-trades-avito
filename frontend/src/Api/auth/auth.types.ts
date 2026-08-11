@@ -7,8 +7,13 @@ const BaseUserSchema = z.object({
   description: z.string(),
   id: z.string(),
   nickname: z.string(),
-  photo_url: z.string(),
-  rating: z.number().nullable().transform((value) => value ?? 0),
+  photo_url: z
+    .url("Введите корректную ссылку")
+    .regex(/^https?:\/\//, "Должна быть ссылка с http или https"),
+  rating: z
+    .number()
+    .nullable()
+    .transform((value) => value ?? 0),
   updated_at: z.string(),
 });
 
@@ -25,17 +30,15 @@ export const BlockedUserSchema = z.object({
   blocked_at: z.string(),
   id: z.string(),
   nickname: z.string(),
-  photo_url: z.string(),
+  photo_url: z
+    .url("Введите корректную ссылку")
+    .regex(/^https?:\/\//, "Должна быть ссылка с http или https"),
 });
 
 export const BlockedUsersSchema = z.array(BlockedUserSchema);
 
 export type TBlockedUser = z.infer<typeof BlockedUserSchema>;
 export type TBlockedUsers = z.infer<typeof BlockedUsersSchema>;
-
-const getByteLength = (value: string) => {
-  return new TextEncoder().encode(value).length;
-};
 
 export const registerSchema = z.object({
   nickname: z
@@ -46,28 +49,24 @@ export const registerSchema = z.object({
 
   password: z
     .string()
-    .refine(
-      (value) => getByteLength(value) >= 8,
-      "Пароль должен содержать минимум 8 байт",
-    )
-    .refine(
-      (value) => getByteLength(value) <= 72,
-      "Пароль должен содержать максимум 72 байта",
-    ),
+    .min(8, "Пароль должен содержать минимум 8 символов")
+    .max(72, "Пароль должен содержать максимум 72 символа"),
 
   description: z.string().trim(),
 
   photo_url: z
-    .string()
-    .trim()
     .url("Введите корректную ссылку")
-    .or(z.literal("")),
+    .regex(/^https?:\/\//, "Должна быть ссылка с http или https"),
 });
 
 export const UpdateUserSchema = z.object({
   nickname: z.string().trim().min(3).max(32).optional(),
   description: z.string().trim().optional(),
-  photo_url: z.string().trim().regex(/^https?:\/\//, "Должна быть ссылка с http или https").optional(),
+  photo_url: z
+    .string()
+    .trim()
+    .regex(/^https?:\/\//, "Должна быть ссылка с http или https")
+    .optional(),
 });
 
 export type TRegister = z.infer<typeof registerSchema>;

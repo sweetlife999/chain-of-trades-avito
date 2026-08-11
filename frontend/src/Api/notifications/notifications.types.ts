@@ -19,7 +19,11 @@ export const NotificationKindSchema = z.enum([
 export const NotificationActorSchema = z.object({
   id: z.string(),
   nickname: z.string(),
-  photo_url: z.string().nullable().optional(),
+  photo_url: z
+    .url("Введите корректную ссылку")
+    .regex(/^https?:\/\//, "Должна быть ссылка с http или https")
+    .nullable()
+    .optional(),
 });
 
 export const NotificationSchema = z.object({

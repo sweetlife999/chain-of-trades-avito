@@ -12,7 +12,11 @@ export const ExchangeStatusSchema = z.enum([
 export const ExchangeUserSchema = z.object({
   id: z.string(),
   nickname: z.string(),
-  photo_url: z.string().nullable().optional(),
+  photo_url: z
+    .url("Введите корректную ссылку")
+    .regex(/^https?:\/\//, "Должна быть ссылка с http или https")
+    .nullable()
+    .optional(),
 });
 
 export const ExchangeItemSchema = z.object({

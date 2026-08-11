@@ -8,7 +8,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import styles from "./Styles.module.scss";
 import { updateUser } from "../../../Api/auth/auth";
 import type { TAuthenticatedUser, TUser } from "../../../Api/auth/auth.types";
-import { useAuthDispatch, useAuthSelector } from "../../../Hooks/useAuthDispatch";
+import {
+  useAuthDispatch,
+  useAuthSelector,
+} from "../../../Hooks/useAuthDispatch";
 import { setUserState } from "../../../Store/authSlice";
 import { Button } from "../../UI/Button/Button";
 import { Input } from "../../UI/Input/Input";
@@ -21,10 +24,8 @@ const profileEditSchema = z.object({
     .max(32, "Никнейм должен содержать максимум 32 символа"),
   description: z.string().trim(),
   photo_url: z
-    .string()
-    .trim()
     .url("Введите корректную ссылку")
-    .or(z.literal("")),
+    .regex(/^https?:\/\//, "Должна быть ссылка с http или https"),
 });
 
 type TProfileEdit = z.infer<typeof profileEditSchema>;

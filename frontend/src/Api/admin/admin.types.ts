@@ -77,18 +77,16 @@ export const AdminUserExchangesParamsSchema = z.object({
   offset: z.number().int().nonnegative().default(0),
 });
 
-export const AdminReportStatusSchema = z.enum([
-  "open",
-  "resolved",
-  "rejected",
-]);
+export const AdminReportStatusSchema = z.enum(["open", "resolved", "rejected"]);
 
 export const AdminReportReasonSchema = z.enum(["spam", "abuse", "other"]);
 
 export const AdminReportUserSchema = z.object({
   id: z.string(),
   nickname: z.string(),
-  photo_url: z.string().nullable().optional(),
+  photo_url: z
+    .url("Введите корректную ссылку")
+    .regex(/^https?:\/\//, "Должна быть ссылка с http или https"),
 });
 
 export const AdminReportSchema = z.object({
