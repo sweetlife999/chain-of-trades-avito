@@ -121,7 +121,7 @@ const ExchangeChatComponent = ({
   useEffect(() => {
     endRef.current?.scrollIntoView({
       behavior: "smooth",
-      block: "end",
+      block: "start",
     });
   }, [messages.length]);
 

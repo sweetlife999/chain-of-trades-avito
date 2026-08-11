@@ -50,6 +50,16 @@ export const deleteItem = async (id: string): Promise<void> => {
   await api.delete(`/items/${id}`);
 };
 
+export const restoreItemToSearch = async (id: string): Promise<TItem> => {
+  const { data } = await api.put(`/items/${id}/search`);
+  return ItemSchema.parse(data);
+};
+
+export const withdrawItemFromSearch = async (id: string): Promise<TItem> => {
+  const { data } = await api.delete(`/items/${id}/search`);
+  return ItemSchema.parse(data);
+};
+
 export const setItemPickupPoint = async (
   id: string,
   request: TSetPickupPointRequest,

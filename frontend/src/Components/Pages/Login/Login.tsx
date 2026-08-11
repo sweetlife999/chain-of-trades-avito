@@ -17,9 +17,10 @@ const LoginComponent = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useAuthDispatch();
-  const locationState = location.state as
-    | { closeTo?: string; from?: string }
-    | null;
+  const locationState = location.state as {
+    closeTo?: string;
+    from?: string;
+  } | null;
   const destination = locationState?.from ?? "/profile";
 
   const {
@@ -79,22 +80,14 @@ const LoginComponent = () => {
         </div>
 
         <div className={styles.login__fields}>
-          <label className={styles.login__label}>
-            <span className={styles.login__labelText}>Nickname</span>
-
-            <input
-              className={styles.login__input}
-              type="text"
-              placeholder="nickname"
-              autoComplete="username"
-              {...register("nickname")}
-            />
-            {errors.nickname && (
-              <span className={styles.login__error}>
-                {errors.nickname.message}
-              </span>
-            )}
-          </label>
+          <Input
+            label="Никнейм"
+            type="text"
+            autoComplete="username"
+            placeholder="Ваш никнейм"
+            error={errors.nickname?.message}
+            {...register("nickname")}
+          />
 
           <Input
             label="Пароль"
