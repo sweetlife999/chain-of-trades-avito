@@ -67,7 +67,7 @@ export const registerSchema = z.object({
 export const UpdateUserSchema = z.object({
   nickname: z.string().trim().min(3).max(32).optional(),
   description: z.string().trim().optional(),
-  photo_url: z.string().trim().optional(),
+  photo_url: z.string().trim().regex(/^https?:\/\//, "Должна быть ссылка с http или https").optional(),
 });
 
 export type TRegister = z.infer<typeof registerSchema>;
