@@ -43,11 +43,24 @@ SELECT
           -- IS DISTINCT FROM, а не <>: у событий обмена автора нет, и они тоже считаются
           -- непрочитанными — ради них счётчик в основном и нужен.
           AND unread.author_id IS DISTINCT FROM sqlc.arg(user_id)
-    ) AS unread_count
+    ) AS unread_count,
+    rated.user_id                                          AS rating_target_user_id,
+    (exchange.closed_at + interval '14 days')::timestamptz AS rating_until,
+    my_rating.score                                        AS my_rating_score,
+    my_rating.comment                                      AS my_rating_comment
 FROM chains AS exchange
 JOIN chain_participants AS current_participant
     ON current_participant.chain_id = exchange.id
    AND current_participant.user_id = sqlc.arg(user_id)
+-- Кого оценивает текущий пользователь: участник, чья отдаваемая вещь пришла к нему.
+-- UNIQUE (chain_id, gives_item_id) и UNIQUE (chain_id, rater_id) держат оба JOIN'а
+-- однострочными, поэтому участники не размножаются.
+LEFT JOIN chain_participants AS rated
+    ON rated.chain_id = exchange.id
+   AND rated.gives_item_id = current_participant.receives_item_id
+LEFT JOIN chain_ratings AS my_rating
+    ON my_rating.chain_id = exchange.id
+   AND my_rating.rater_id = sqlc.arg(user_id)
 JOIN chain_participants AS participant
     ON participant.chain_id = exchange.id
 JOIN users AS exchange_user
@@ -106,13 +119,25 @@ SELECT
         WHERE unread.chain_id = exchange.id
           AND unread.created_at > coalesce(current_participant.messages_read_at, '-infinity')
           AND unread.author_id IS DISTINCT FROM sqlc.arg(user_id)
-    ) AS unread_count
+    ) AS unread_count,
+    rated.user_id                                          AS rating_target_user_id,
+    (exchange.closed_at + interval '14 days')::timestamptz AS rating_until,
+    my_rating.score                                        AS my_rating_score,
+    my_rating.comment                                      AS my_rating_comment
 FROM chains AS exchange
 -- LEFT JOIN, в отличие от списка: обмен обязан вернуться и постороннему, иначе сервис
 -- ответил бы «не найден» вместо «нельзя смотреть». Счётчик для него всё равно не поедет.
 LEFT JOIN chain_participants AS current_participant
     ON current_participant.chain_id = exchange.id
    AND current_participant.user_id = sqlc.arg(user_id)
+-- Постороннему current_participant не нашёлся, поэтому и партнёр для оценки не найдётся:
+-- обе колонки приедут пустыми, а до ответа дело всё равно не дойдёт — сервис отдаст 403.
+LEFT JOIN chain_participants AS rated
+    ON rated.chain_id = exchange.id
+   AND rated.gives_item_id = current_participant.receives_item_id
+LEFT JOIN chain_ratings AS my_rating
+    ON my_rating.chain_id = exchange.id
+   AND my_rating.rater_id = sqlc.arg(user_id)
 JOIN chain_participants AS participant
     ON participant.chain_id = exchange.id
 JOIN users AS exchange_user
@@ -189,7 +214,14 @@ SELECT
     receives_pickup.id        AS receives_pickup_point_id,
     receives_pickup.name      AS receives_pickup_point_name,
     receives_pickup.address   AS receives_pickup_point_address,
-    0::bigint AS unread_count
+    0::bigint AS unread_count,
+    -- Оценка — свойство «меня» в обмене, а у административного списка текущего участника
+    -- нет. Пустые колонки держат строки трёх запросов одинаковыми: на этом стоит общий
+    -- маппер в read.go, и разъехавшиеся колонки ломают сборку, а не ответ.
+    NULL::uuid        AS rating_target_user_id,
+    NULL::timestamptz AS rating_until,
+    NULL::smallint    AS my_rating_score,
+    NULL::text        AS my_rating_comment
 FROM selected_exchanges AS selected
 JOIN chains AS exchange
     ON exchange.id = selected.id

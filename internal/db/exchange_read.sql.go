@@ -81,11 +81,21 @@ SELECT
         WHERE unread.chain_id = exchange.id
           AND unread.created_at > coalesce(current_participant.messages_read_at, '-infinity')
           AND unread.author_id IS DISTINCT FROM $1
-    ) AS unread_count
+    ) AS unread_count,
+    rated.user_id                                          AS rating_target_user_id,
+    (exchange.closed_at + interval '14 days')::timestamptz AS rating_until,
+    my_rating.score                                        AS my_rating_score,
+    my_rating.comment                                      AS my_rating_comment
 FROM chains AS exchange
 LEFT JOIN chain_participants AS current_participant
     ON current_participant.chain_id = exchange.id
    AND current_participant.user_id = $1
+LEFT JOIN chain_participants AS rated
+    ON rated.chain_id = exchange.id
+   AND rated.gives_item_id = current_participant.receives_item_id
+LEFT JOIN chain_ratings AS my_rating
+    ON my_rating.chain_id = exchange.id
+   AND my_rating.rater_id = $1
 JOIN chain_participants AS participant
     ON participant.chain_id = exchange.id
 JOIN users AS exchange_user
@@ -144,10 +154,16 @@ type GetExchangeByIDRow struct {
 	ReceivesPickupPointName    pgtype.Text
 	ReceivesPickupPointAddress pgtype.Text
 	UnreadCount                int64
+	RatingTargetUserID         pgtype.UUID
+	RatingUntil                pgtype.Timestamptz
+	MyRatingScore              pgtype.Int2
+	MyRatingComment            pgtype.Text
 }
 
 // LEFT JOIN, в отличие от списка: обмен обязан вернуться и постороннему, иначе сервис
 // ответил бы «не найден» вместо «нельзя смотреть». Счётчик для него всё равно не поедет.
+// Постороннему current_participant не нашёлся, поэтому и партнёр для оценки не найдётся:
+// обе колонки приедут пустыми, а до ответа дело всё равно не дойдёт — сервис отдаст 403.
 // LEFT: вещь дома пункта не имеет, INNER выбросил бы её участника из ответа целиком.
 func (q *Queries) GetExchangeByID(ctx context.Context, arg GetExchangeByIDParams) ([]GetExchangeByIDRow, error) {
 	rows, err := q.db.Query(ctx, getExchangeByID, arg.UserID, arg.ExchangeID)
@@ -191,6 +207,10 @@ func (q *Queries) GetExchangeByID(ctx context.Context, arg GetExchangeByIDParams
 			&i.ReceivesPickupPointName,
 			&i.ReceivesPickupPointAddress,
 			&i.UnreadCount,
+			&i.RatingTargetUserID,
+			&i.RatingUntil,
+			&i.MyRatingScore,
+			&i.MyRatingComment,
 		); err != nil {
 			return nil, err
 		}
@@ -256,7 +276,14 @@ SELECT
     receives_pickup.id        AS receives_pickup_point_id,
     receives_pickup.name      AS receives_pickup_point_name,
     receives_pickup.address   AS receives_pickup_point_address,
-    0::bigint AS unread_count
+    0::bigint AS unread_count,
+    -- Оценка — свойство «меня» в обмене, а у административного списка текущего участника
+    -- нет. Пустые колонки держат строки трёх запросов одинаковыми: на этом стоит общий
+    -- маппер в read.go, и разъехавшиеся колонки ломают сборку, а не ответ.
+    NULL::uuid        AS rating_target_user_id,
+    NULL::timestamptz AS rating_until,
+    NULL::smallint    AS my_rating_score,
+    NULL::text        AS my_rating_comment
 FROM selected_exchanges AS selected
 JOIN chains AS exchange
     ON exchange.id = selected.id
@@ -319,6 +346,10 @@ type ListActiveExchangesForAdminRow struct {
 	ReceivesPickupPointName    pgtype.Text
 	ReceivesPickupPointAddress pgtype.Text
 	UnreadCount                int64
+	RatingTargetUserID         pgtype.UUID
+	RatingUntil                pgtype.Timestamptz
+	MyRatingScore              pgtype.Int2
+	MyRatingComment            pgtype.Text
 }
 
 // Общий список для администратора: существующая ручка фильтрует его по user_id,
@@ -371,6 +402,10 @@ func (q *Queries) ListActiveExchangesForAdmin(ctx context.Context, arg ListActiv
 			&i.ReceivesPickupPointName,
 			&i.ReceivesPickupPointAddress,
 			&i.UnreadCount,
+			&i.RatingTargetUserID,
+			&i.RatingUntil,
+			&i.MyRatingScore,
+			&i.MyRatingComment,
 		); err != nil {
 			return nil, err
 		}
@@ -423,11 +458,21 @@ SELECT
           -- IS DISTINCT FROM, а не <>: у событий обмена автора нет, и они тоже считаются
           -- непрочитанными — ради них счётчик в основном и нужен.
           AND unread.author_id IS DISTINCT FROM $1
-    ) AS unread_count
+    ) AS unread_count,
+    rated.user_id                                          AS rating_target_user_id,
+    (exchange.closed_at + interval '14 days')::timestamptz AS rating_until,
+    my_rating.score                                        AS my_rating_score,
+    my_rating.comment                                      AS my_rating_comment
 FROM chains AS exchange
 JOIN chain_participants AS current_participant
     ON current_participant.chain_id = exchange.id
    AND current_participant.user_id = $1
+LEFT JOIN chain_participants AS rated
+    ON rated.chain_id = exchange.id
+   AND rated.gives_item_id = current_participant.receives_item_id
+LEFT JOIN chain_ratings AS my_rating
+    ON my_rating.chain_id = exchange.id
+   AND my_rating.rater_id = $1
 JOIN chain_participants AS participant
     ON participant.chain_id = exchange.id
 JOIN users AS exchange_user
@@ -480,12 +525,19 @@ type ListExchangesByUserRow struct {
 	ReceivesPickupPointName    pgtype.Text
 	ReceivesPickupPointAddress pgtype.Text
 	UnreadCount                int64
+	RatingTargetUserID         pgtype.UUID
+	RatingUntil                pgtype.Timestamptz
+	MyRatingScore              pgtype.Int2
+	MyRatingComment            pgtype.Text
 }
 
 // Все участники нужны frontend, поэтому текущего пользователя подмешиваем отдельным
 // JOIN: основной JOIN оставил бы в ответе только его строку. UNIQUE (chain_id, user_id)
 // гарантирует, что этот JOIN даёт ровно одну строку и не размножает участников,
 // а заодно открывает доступ к его отметке о прочтении треда.
+// Кого оценивает текущий пользователь: участник, чья отдаваемая вещь пришла к нему.
+// UNIQUE (chain_id, gives_item_id) и UNIQUE (chain_id, rater_id) держат оба JOIN'а
+// однострочными, поэтому участники не размножаются.
 // LEFT: вещь дома пункта не имеет, INNER выбросил бы её участника из ответа целиком.
 func (q *Queries) ListExchangesByUser(ctx context.Context, userID pgtype.UUID) ([]ListExchangesByUserRow, error) {
 	rows, err := q.db.Query(ctx, listExchangesByUser, userID)
@@ -529,6 +581,10 @@ func (q *Queries) ListExchangesByUser(ctx context.Context, userID pgtype.UUID) (
 			&i.ReceivesPickupPointName,
 			&i.ReceivesPickupPointAddress,
 			&i.UnreadCount,
+			&i.RatingTargetUserID,
+			&i.RatingUntil,
+			&i.MyRatingScore,
+			&i.MyRatingComment,
 		); err != nil {
 			return nil, err
 		}

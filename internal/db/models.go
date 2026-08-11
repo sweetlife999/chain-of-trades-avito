@@ -518,6 +518,17 @@ type ChainParticipant struct {
 	MessagesReadAt        pgtype.Timestamptz
 }
 
+type ChainRating struct {
+	ID        pgtype.UUID
+	ChainID   pgtype.UUID
+	RaterID   pgtype.UUID
+	RatedID   pgtype.UUID
+	Score     int16
+	Comment   string
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+}
+
 type Item struct {
 	ID            pgtype.UUID
 	OwnerID       pgtype.UUID
@@ -612,6 +623,7 @@ type User struct {
 	IsBlocked      bool
 	BlockedAt      pgtype.Timestamptz
 	BlockedBy      pgtype.UUID
+	RatingsCount   int32
 }
 
 type UserBlock struct {
