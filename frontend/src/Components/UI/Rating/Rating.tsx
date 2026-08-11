@@ -24,6 +24,8 @@ type TRatingProps = {
   /** Сколько оценок собрано. Не передан — подпись не показывается. */
   count?: number;
   size?: "s" | "m";
+  /** false — только звёзды: в строке отзыва число рядом с ними ничего не добавляет. */
+  withValue?: boolean;
 };
 
 const ratingLabel = (value: number | null, count?: number) => {
@@ -36,7 +38,12 @@ const ratingLabel = (value: number | null, count?: number) => {
   return `Рейтинг ${value.toFixed(1)} из 5 по ${count} ${ratingForms[pluralRules.select(count)]}`;
 };
 
-const RatingComponent = ({ value, count, size = "m" }: TRatingProps) => {
+const RatingComponent = ({
+  value,
+  count,
+  size = "m",
+  withValue = true,
+}: TRatingProps) => {
   // 4.7 — это 4.7 звезды, а не пять: округление до целой звезды стирает разницу между
   // «почти безупречно» и «безупречно», а её-то и читают в первую очередь.
   const filledWidth = value === null ? 0 : (value / scale.length) * 100;
@@ -69,9 +76,11 @@ const RatingComponent = ({ value, count, size = "m" }: TRatingProps) => {
         </span>
       </span>
 
-      <span className={styles.rating__value}>
-        {value === null ? "—" : value.toFixed(1)}
-      </span>
+      {withValue && (
+        <span className={styles.rating__value}>
+          {value === null ? "—" : value.toFixed(1)}
+        </span>
+      )}
 
       {count !== undefined && (
         <span className={styles.rating__count}>

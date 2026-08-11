@@ -85,13 +85,20 @@ $star-empty: #d7dade;
     border: 0;
   }
 
+  // Незалитая звезда — контур, а не серая заливка: залитая серым читается как
+  // «выключено», а контур сам просит, чтобы его налили.
   &__label {
     display: inline-flex;
     padding: 4px;
     border-radius: $border-radius;
-    color: $star-empty;
+    color: #b7bcc4;
     cursor: pointer;
-    transition: color 0.15s ease, transform 0.15s ease;
+    transition: color 0.15s ease, fill 0.15s ease, transform 0.15s ease;
+
+    svg {
+      fill: none;
+      transition: fill 0.15s ease;
+    }
   }
 
   &__text {
@@ -109,17 +116,29 @@ $star-empty: #d7dade;
   &__star:has(.input__control:checked) .input__label,
   &__star:has(~ .input__star .input__control:checked) .input__label {
     color: $star-gold;
+
+    svg {
+      fill: $star-gold;
+    }
   }
 
   // На наведении показываем предполагаемую оценку, а не уже выставленную: иначе две
   // подсветки спорят друг с другом.
   &:hover &__label {
-    color: $star-empty;
+    color: #b7bcc4;
+
+    svg {
+      fill: none;
+    }
   }
 
   &:hover &__star:has(.input__label:hover) .input__label,
   &:hover &__star:has(~ .input__star .input__label:hover) .input__label {
     color: $star-gold;
+
+    svg {
+      fill: $star-gold;
+    }
   }
 
   &__control:focus-visible + &__label {

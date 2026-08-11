@@ -18,6 +18,7 @@ import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
 import { getAvatarGradient } from "../../Utils/getAvatarGradient";
 import { AdminGlobalBlockButton } from "../../Widgets/Admin/AdminGlobalBlockButton/AdminGlobalBlockButton";
 import { AdminUserExchanges } from "../../Widgets/Admin/AdminUserExchanges/AdminUserExchanges";
+import { ProfileRatings } from "../../Widgets/ProfileRatings/ProfileRatings";
 
 type TBlockAction = {
   type: "block" | "unblock";
@@ -218,6 +219,8 @@ const ProfileComponent = () => {
           </div>
         </div>
       </section>
+
+      <ProfileRatings ratingsCount={user.ratings_count} userId={user.id} />
 
       {!isOwnProfile && currentUser?.is_admin && (
         <AdminUserExchanges

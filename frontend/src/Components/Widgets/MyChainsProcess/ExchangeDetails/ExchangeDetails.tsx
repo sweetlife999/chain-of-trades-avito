@@ -23,6 +23,7 @@ import { ExchangeProgress } from "../ExchangeProgress/ExchangeProgress";
 import { ConfirmationPopup } from "../../../UI/ConfirmationPopup/ConfirmationPopup";
 import { CancelExchangeButton } from "../../Admin/CancelExchangeButton/CancelExchangeButton";
 import { ExchangePickupStage } from "../ExchangePickupStage/ExchangePickupStage";
+import { ExchangeRating } from "../ExchangeRating/ExchangeRating";
 
 const statusLabels: Record<TExchangeStatus, string> = {
   proposed: "Ждём подтверждения",
@@ -247,6 +248,11 @@ const ExchangeDetailsComponent = () => {
   const isAdmin = Boolean(user?.is_admin);
   const adminCanCancel =
     isAdmin && ["proposed", "confirmed"].includes(exchange.status);
+  // Кого оценивать, решил сервер — здесь только достаём его ник для подписи.
+  const ratedPartnerNickname =
+    exchange.participants.find(
+      ({ user: participant }) => participant.id === exchange.rating?.rated_user_id,
+    )?.user.nickname ?? "участника";
   const returnTo = isParticipant ? "/exchanges" : "/feed";
   const returnLabel = isParticipant ? "Мои цепочки" : "Обмены";
 
@@ -485,6 +491,13 @@ const ExchangeDetailsComponent = () => {
             exchangeStatus={exchange.status}
             participants={exchange.participants}
           />
+          {exchange.rating && (
+            <ExchangeRating
+              exchangeId={exchange.id}
+              partnerNickname={ratedPartnerNickname}
+              rating={exchange.rating}
+            />
+          )}
           <Link className={styles.details__resultAction} to="/exchanges">
             Вернуться к цепочкам
           </Link>
