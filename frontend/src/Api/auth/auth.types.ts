@@ -7,7 +7,9 @@ const BaseUserSchema = z.object({
   description: z.string(),
   id: z.string(),
   nickname: z.string(),
-  photo_url: z.string(),
+  // API отдаёт null у всех, кто не поставил аватар, и строгая строка роняла разбор
+  // всего ответа: страница профиля показывала «Пользователь не найден».
+  photo_url: z.string().nullable(),
   // null означает «оценок ещё не было», и схлопывать его в 0 нельзя: на экране это
   // превращало новичка в человека с нулевым рейтингом.
   rating: z.number().nullable(),
@@ -28,7 +30,9 @@ export const BlockedUserSchema = z.object({
   blocked_at: z.string(),
   id: z.string(),
   nickname: z.string(),
-  photo_url: z.string(),
+  // API отдаёт null у всех, кто не поставил аватар, и строгая строка роняла разбор
+  // всего ответа: страница профиля показывала «Пользователь не найден».
+  photo_url: z.string().nullable(),
 });
 
 export const BlockedUsersSchema = z.array(BlockedUserSchema);
