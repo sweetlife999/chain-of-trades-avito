@@ -20,15 +20,17 @@ type UpdateUserRequest struct {
 }
 
 type UserResponse struct {
-	ID             string    `json:"id"`
-	Nickname       string    `json:"nickname"`
-	PhotoURL       *string   `json:"photo_url"`
-	Description    string    `json:"description"`
-	DealsCompleted int32     `json:"deals_completed"`
-	DealsBroken    int32     `json:"deals_broken"`
-	Rating         *float64  `json:"rating"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID             string  `json:"id"`
+	Nickname       string  `json:"nickname"`
+	PhotoURL       *string `json:"photo_url"`
+	Description    string  `json:"description"`
+	DealsCompleted int32   `json:"deals_completed"`
+	DealsBroken    int32   `json:"deals_broken"`
+	// null — оценок ещё нет, и это не ноль. Сколько их — в ratings_count.
+	Rating       *float64  `json:"rating" extensions:"x-nullable"`
+	RatingsCount int32     `json:"ratings_count"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 type ErrorResponse struct {
@@ -51,6 +53,7 @@ func FromModel(user usermodel.User) UserResponse {
 		DealsCompleted: user.DealsCompleted,
 		DealsBroken:    user.DealsBroken,
 		Rating:         user.Rating,
+		RatingsCount:   user.RatingsCount,
 		CreatedAt:      user.CreatedAt,
 		UpdatedAt:      user.UpdatedAt,
 	}

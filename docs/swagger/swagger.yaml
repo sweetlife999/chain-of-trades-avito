@@ -125,7 +125,11 @@ definitions:
       photo_url:
         type: string
       rating:
+        description: null — оценок ещё нет, и это не ноль. Сколько их — в ratings_count.
         type: number
+        x-nullable: true
+      ratings_count:
+        type: integer
       updated_at:
         type: string
     type: object
@@ -239,6 +243,19 @@ definitions:
         type: string
       target_type:
         type: string
+    type: object
+  dto.ExchangeRatingResponse:
+    properties:
+      comment:
+        type: string
+      rate_until:
+        type: string
+      rated_user_id:
+        type: string
+      score:
+        description: null — оценка ещё не поставлена.
+        type: integer
+        x-nullable: true
     type: object
   dto.ExchangeStatisticsResponse:
     properties:
@@ -457,6 +474,53 @@ definitions:
       updated_at:
         type: string
     type: object
+  dto.RateRequest:
+    properties:
+      comment:
+        example: Всё пришло вовремя, спасибо
+        type: string
+      score:
+        example: 5
+        type: integer
+    type: object
+  dto.RatingError:
+    properties:
+      error:
+        type: string
+    type: object
+  dto.RatingResponse:
+    properties:
+      comment:
+        type: string
+      created_at:
+        type: string
+      rated_user_id:
+        type: string
+      score:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  dto.RatingsPageResponse:
+    properties:
+      limit:
+        type: integer
+      offset:
+        type: integer
+      ratings:
+        items:
+          $ref: '#/definitions/dto.ReceivedRatingResponse'
+        type: array
+    type: object
+  dto.ReceivedRatingResponse:
+    properties:
+      comment:
+        type: string
+      created_at:
+        type: string
+      score:
+        type: integer
+    type: object
   dto.ReportError:
     properties:
       error:
@@ -590,7 +654,11 @@ definitions:
       photo_url:
         type: string
       rating:
+        description: null — оценок ещё нет, и это не ноль. Сколько их — в ratings_count.
         type: number
+        x-nullable: true
+      ratings_count:
+        type: integer
       updated_at:
         type: string
     type: object
@@ -691,6 +759,11 @@ definitions:
         items:
           $ref: '#/definitions/dto.ParticipantResponse'
         type: array
+      rating:
+        allOf:
+        - $ref: '#/definitions/dto.ExchangeRatingResponse'
+        description: 'null — оценивать нечего: обмен не завершён либо смотрит не участник.'
+        x-nullable: true
       status:
         type: string
       unread_count:
@@ -2344,6 +2417,62 @@ paths:
       summary: Отметить тред прочитанным
       tags:
       - exchanges
+  /exchanges/{id}/rating:
+    put:
+      consumes:
+      - application/json
+      description: |-
+        Ставит оценку участнику, который передал вещь текущему пользователю. Кого
+        оценивают, определяет сама цепочка. Повторный запрос переписывает оценку.
+        Доступно 14 дней после завершения обмена.
+      parameters:
+      - description: UUID обмена
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Балл от 1 до 5 и необязательный комментарий
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.RatingResponse'
+        "400":
+          description: Некорректный UUID, тело или балл вне 1..5
+          schema:
+            $ref: '#/definitions/dto.RatingError'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/dto.RatingError'
+        "403":
+          description: Пользователь не участвует в обмене
+          schema:
+            $ref: '#/definitions/dto.RatingError'
+        "404":
+          description: Обмен не найден
+          schema:
+            $ref: '#/definitions/dto.RatingError'
+        "409":
+          description: Обмен не завершён или срок оценки истёк
+          schema:
+            $ref: '#/definitions/dto.RatingError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.RatingError'
+      security:
+      - CookieAuth: []
+      summary: Оценить партнёра по обмену
+      tags:
+      - ratings
   /health:
     get:
       description: Отвечает 200, если процесс поднят. Состояние БД не проверяет.
@@ -3286,6 +3415,45 @@ paths:
       summary: Обновить свой профиль
       tags:
       - users
+  /users/{id}/ratings:
+    get:
+      description: |-
+        Возвращает оценки, полученные пользователем, от новых к старым. Отзывы
+        анонимны: автор не возвращается. Общее число оценок лежит в профиле.
+      parameters:
+      - description: UUID пользователя
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 20
+        description: Размер страницы, от 1 до 100
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Смещение, начиная с 0
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.RatingsPageResponse'
+        "400":
+          description: Некорректный UUID или параметры страницы
+          schema:
+            $ref: '#/definitions/dto.RatingError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.RatingError'
+      summary: Получить отзывы о пользователе
+      tags:
+      - ratings
   /users/me/blocks:
     get:
       description: Возвращает личный список блокировок текущего пользователя. Заблокированные

@@ -12,9 +12,25 @@ type ExchangeResponse struct {
 	CancelReason *string               `json:"cancel_reason" extensions:"x-nullable" enums:"proposal_declined,confirmed_broken,superseded,item_withdrawn,user_blocked,admin_cancelled,legacy"`
 	Participants []ParticipantResponse `json:"participants"`
 	UnreadCount  int64                 `json:"unread_count"`
-	CreatedAt    time.Time             `json:"created_at"`
-	UpdatedAt    time.Time             `json:"updated_at"`
-	ClosedAt     *time.Time            `json:"closed_at"`
+	// null — оценивать нечего: обмен не завершён либо смотрит не участник.
+	Rating    *ExchangeRatingResponse `json:"rating" extensions:"x-nullable"`
+	CreatedAt time.Time               `json:"created_at"`
+	UpdatedAt time.Time               `json:"updated_at"`
+	ClosedAt  *time.Time              `json:"closed_at"`
+}
+
+// ExchangeRatingResponse — состояние оценки текущего пользователя в этом обмене.
+// rated_user_id приходит с сервера, хотя клиент мог бы вычислить его сам по участникам:
+// правило «кого оценивают» живёт в одном месте, и это база.
+//
+// Имя не RatingResponse: такой тип уже есть в rating/dto, и swag развёл бы коллизию
+// нечитаемыми именами схем — тот же случай, что с ItemError.
+type ExchangeRatingResponse struct {
+	RatedUserID string    `json:"rated_user_id"`
+	RateUntil   time.Time `json:"rate_until"`
+	// null — оценка ещё не поставлена.
+	Score   *int32 `json:"score" extensions:"x-nullable"`
+	Comment string `json:"comment"`
 }
 
 type ParticipantResponse struct {
@@ -128,12 +144,23 @@ func FromModel(exchange exchangemodel.Details) ExchangeResponse {
 		}
 	}
 
+	var rating *ExchangeRatingResponse
+	if exchange.Rating != nil {
+		rating = &ExchangeRatingResponse{
+			RatedUserID: exchange.Rating.RatedUserID.String(),
+			RateUntil:   exchange.Rating.RateUntil,
+			Score:       exchange.Rating.Score,
+			Comment:     exchange.Rating.Comment,
+		}
+	}
+
 	return ExchangeResponse{
 		ID:           exchange.ID.String(),
 		Status:       exchange.Status,
 		CancelReason: exchange.CancelReason,
 		Participants: participants,
 		UnreadCount:  exchange.UnreadCount,
+		Rating:       rating,
 		CreatedAt:    exchange.CreatedAt,
 		UpdatedAt:    exchange.UpdatedAt,
 		ClosedAt:     exchange.ClosedAt,

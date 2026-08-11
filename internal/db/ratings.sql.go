@@ -14,7 +14,7 @@ import (
 const getExchangeRatingEligibility = `-- name: GetExchangeRatingEligibility :one
 SELECT
     exchange.status AS exchange_status,
-    (exchange.closed_at > now() - interval '14 days')::boolean AS window_open,
+    COALESCE(exchange.closed_at > now() - interval '14 days', false)::boolean AS window_open,
     (rater.user_id IS NOT NULL)::boolean AS is_participant
 FROM chains AS exchange
 LEFT JOIN chain_participants AS rater
@@ -40,6 +40,10 @@ type GetExchangeRatingEligibilityRow struct {
 //
 // Окно приезжает готовым ответом, а не сроком: сравнивал бы его Go — в проверке
 // появились бы вторые часы, расходящиеся с теми, по которым отказал сам upsert.
+//
+// COALESCE обязателен: у незавершённого обмена closed_at пуст, и сравнение даёт NULL.
+// В WHERE у upsert'а этого достаточно — NULL не проходит проверку, — но здесь это
+// значение, которое поедет в bool.
 func (q *Queries) GetExchangeRatingEligibility(ctx context.Context, arg GetExchangeRatingEligibilityParams) (GetExchangeRatingEligibilityRow, error) {
 	row := q.db.QueryRow(ctx, getExchangeRatingEligibility, arg.RaterID, arg.ExchangeID)
 	var i GetExchangeRatingEligibilityRow

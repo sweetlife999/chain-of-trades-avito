@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -85,6 +86,27 @@ func TestExchangeDeliveryIntegration(t *testing.T) {
 		}
 	}
 	assertChainStatus(t, ctx, pool, exchangeID, "completed")
+
+	// Завершение открывает оценку: партнёром назначен тот, чья вещь пришла, срок отсчитан
+	// от закрытия обмена, а самой оценки ещё нет. Сама ручка живёт в internal/rating —
+	// здесь проверяется только то, что обмен отдаёт участнику эти данные.
+	completedExchange, err := service.GetForUser(ctx, exchangeID, users[0])
+	if err != nil {
+		t.Fatalf("get completed exchange: %v", err)
+	}
+	if completedExchange.Rating == nil {
+		t.Fatal("завершённый обмен не отдал данные для оценки")
+	}
+	if completedExchange.Rating.RatedUserID != users[1] {
+		t.Fatalf("оценить предлагают %s, а вещь пришла от %s",
+			completedExchange.Rating.RatedUserID, users[1])
+	}
+	if completedExchange.Rating.Score != nil {
+		t.Fatalf("оценка появилась сама: %d", *completedExchange.Rating.Score)
+	}
+	if !completedExchange.Rating.RateUntil.After(time.Now()) {
+		t.Fatalf("срок оценки уже истёк: %s", completedExchange.Rating.RateUntil)
+	}
 
 	for index, itemID := range items[:2] {
 		var status string
