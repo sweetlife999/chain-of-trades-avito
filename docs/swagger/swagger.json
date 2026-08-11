@@ -2325,6 +2325,88 @@
                 }
             }
         },
+        "/exchanges/{id}/rating": {
+            "put": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Ставит оценку участнику, который передал вещь текущему пользователю. Кого\nоценивают, определяет сама цепочка. Повторный запрос переписывает оценку.\nДоступно 14 дней после завершения обмена.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ratings"
+                ],
+                "summary": "Оценить партнёра по обмену",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID обмена",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Балл от 1 до 5 и необязательный комментарий",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.RateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.RatingResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный UUID, тело или балл вне 1..5",
+                        "schema": {
+                            "$ref": "#/definitions/dto.RatingError"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/dto.RatingError"
+                        }
+                    },
+                    "403": {
+                        "description": "Пользователь не участвует в обмене",
+                        "schema": {
+                            "$ref": "#/definitions/dto.RatingError"
+                        }
+                    },
+                    "404": {
+                        "description": "Обмен не найден",
+                        "schema": {
+                            "$ref": "#/definitions/dto.RatingError"
+                        }
+                    },
+                    "409": {
+                        "description": "Обмен не завершён или срок оценки истёк",
+                        "schema": {
+                            "$ref": "#/definitions/dto.RatingError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/dto.RatingError"
+                        }
+                    }
+                }
+            }
+        },
         "/health": {
             "get": {
                 "description": "Отвечает 200, если процесс поднят. Состояние БД не проверяет.",
@@ -3861,6 +3943,61 @@
                     }
                 }
             }
+        },
+        "/users/{id}/ratings": {
+            "get": {
+                "description": "Возвращает оценки, полученные пользователем, от новых к старым. Отзывы\nанонимны: автор не возвращается. Общее число оценок лежит в профиле.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ratings"
+                ],
+                "summary": "Получить отзывы о пользователе",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID пользователя",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Размер страницы, от 1 до 100",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Смещение, начиная с 0",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.RatingsPageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный UUID или параметры страницы",
+                        "schema": {
+                            "$ref": "#/definitions/dto.RatingError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/dto.RatingError"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -4056,7 +4193,12 @@
                     "type": "string"
                 },
                 "rating": {
-                    "type": "number"
+                    "description": "null — оценок ещё нет, и это не ноль. Сколько их — в ratings_count.",
+                    "type": "number",
+                    "x-nullable": true
+                },
+                "ratings_count": {
+                    "type": "integer"
                 },
                 "updated_at": {
                     "type": "string"
@@ -4225,6 +4367,25 @@
                 },
                 "target_type": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.ExchangeRatingResponse": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "rate_until": {
+                    "type": "string"
+                },
+                "rated_user_id": {
+                    "type": "string"
+                },
+                "score": {
+                    "description": "null — оценка ещё не поставлена.",
+                    "type": "integer",
+                    "x-nullable": true
                 }
             }
         },
@@ -4563,6 +4724,78 @@
                 }
             }
         },
+        "dto.RateRequest": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string",
+                    "example": "Всё пришло вовремя, спасибо"
+                },
+                "score": {
+                    "type": "integer",
+                    "example": 5
+                }
+            }
+        },
+        "dto.RatingError": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.RatingResponse": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "rated_user_id": {
+                    "type": "string"
+                },
+                "score": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.RatingsPageResponse": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "ratings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ReceivedRatingResponse"
+                    }
+                }
+            }
+        },
+        "dto.ReceivedRatingResponse": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "score": {
+                    "type": "integer"
+                }
+            }
+        },
         "dto.ReportError": {
             "type": "object",
             "properties": {
@@ -4763,7 +4996,12 @@
                     "type": "string"
                 },
                 "rating": {
-                    "type": "number"
+                    "description": "null — оценок ещё нет, и это не ноль. Сколько их — в ratings_count.",
+                    "type": "number",
+                    "x-nullable": true
+                },
+                "ratings_count": {
+                    "type": "integer"
                 },
                 "updated_at": {
                     "type": "string"
@@ -4912,6 +5150,15 @@
                     "items": {
                         "$ref": "#/definitions/dto.ParticipantResponse"
                     }
+                },
+                "rating": {
+                    "description": "null — оценивать нечего: обмен не завершён либо смотрит не участник.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.ExchangeRatingResponse"
+                        }
+                    ],
+                    "x-nullable": true
                 },
                 "status": {
                     "type": "string"

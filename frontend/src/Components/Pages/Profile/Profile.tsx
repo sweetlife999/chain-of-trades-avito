@@ -1,7 +1,7 @@
 import { memo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { CalendarDays, CircleCheck, CircleX, Star } from "lucide-react";
+import { CalendarDays, CircleCheck, CircleX } from "lucide-react";
 
 import styles from "./Styles.module.scss";
 
@@ -13,10 +13,12 @@ import {
 } from "../../../Api/auth/auth";
 import { Button } from "../../UI/Button/Button";
 import { ConfirmationPopup } from "../../UI/ConfirmationPopup/ConfirmationPopup";
+import { Rating } from "../../UI/Rating/Rating";
 import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
 import { getAvatarGradient } from "../../Utils/getAvatarGradient";
 import { AdminGlobalBlockButton } from "../../Widgets/Admin/AdminGlobalBlockButton/AdminGlobalBlockButton";
 import { AdminUserExchanges } from "../../Widgets/Admin/AdminUserExchanges/AdminUserExchanges";
+import { ProfileRatings } from "../../Widgets/ProfileRatings/ProfileRatings";
 
 type TBlockAction = {
   type: "block" | "unblock";
@@ -193,12 +195,7 @@ const ProfileComponent = () => {
         <div className={styles.profile__statistics}>
           <div className={styles.profile__statistic}>
             <div className={styles.profile__statisticValue}>
-              <span>{(user.rating ?? 0).toFixed(1)}</span>
-              <Star
-                className={styles.profile__ratingIcon}
-                size={20}
-                fill="currentColor"
-              />
+              <Rating count={user.ratings_count} value={user.rating} />
             </div>
             <span className={styles.profile__statisticLabel}>Рейтинг</span>
           </div>
@@ -222,6 +219,8 @@ const ProfileComponent = () => {
           </div>
         </div>
       </section>
+
+      <ProfileRatings ratingsCount={user.ratings_count} userId={user.id} />
 
       {!isOwnProfile && currentUser?.is_admin && (
         <AdminUserExchanges

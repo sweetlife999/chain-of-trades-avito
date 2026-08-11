@@ -1,0 +1,46 @@
+.rating {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  width: min(100%, 460px);
+  padding: 20px;
+
+  background: $background-input;
+  border-radius: 12px;
+  text-align: center;
+
+  &__title {
+    @include section-title;
+
+    margin: 0;
+  }
+
+  &__hint {
+    @include section-description;
+
+    margin: 0;
+  }
+
+  &__comment {
+    width: 100%;
+    text-align: left;
+  }
+
+  &__error {
+    margin: 0;
+    color: #991b1b;
+    font-size: 13px;
+  }
+
+  &__saved {
+    margin: 0;
+    color: #166534;
+    font-size: 13px;
+  }
+
+  &__closed {
+    margin: 0;
+    color: #727780;
+    font-size: 13px;
+  }
+}

@@ -13,7 +13,7 @@ const kindTitles: Record<TNotificationKind, string> = {
   exchange_confirmed: "Обмен подтверждён",
   exchange_delivering: "Вещи отправлены между ПВЗ",
   exchange_delivered: "Вещь доставлена в ПВЗ",
-  exchange_completed: "Обмен завершён",
+  exchange_completed: "Обмен завершён — оцените партнёра",
   exchange_superseded: "Предложение обмена закрыто",
   exchange_item_withdrawn: "Объявление снято с поиска",
   support_message: "Новое сообщение в поддержке",
