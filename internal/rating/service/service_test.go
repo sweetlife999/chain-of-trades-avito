@@ -112,19 +112,19 @@ func TestRateTrimsComment(t *testing.T) {
 	}
 }
 
-func TestRateRequiresIdentifiers(t *testing.T) {
+// Нулевой UUID — валидный идентификатор, который просто ни с чем не совпадёт. Отвечать на
+// него 400 значило бы отличать «нет такого обмена» от «обмен не ваш» ещё и третьим кодом.
+func TestRateTreatsNilUUIDAsOrdinaryMiss(t *testing.T) {
 	t.Parallel()
 
-	repository := &fakeRepository{}
-	if _, err := New(repository).Rate(
-		context.Background(), uuid.Nil, uuid.New(), 5, "",
-	); !errors.Is(err, ErrValidation) {
-		t.Fatalf("пустой обмен: ожидали ErrValidation, получили %v", err)
+	repository := &fakeRepository{err: ErrNotFound}
+
+	_, err := New(repository).Rate(context.Background(), uuid.Nil, uuid.Nil, 5, "")
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("ожидали ErrNotFound из репозитория, получили %v", err)
 	}
-	if _, err := New(repository).Rate(
-		context.Background(), uuid.New(), uuid.Nil, 5, "",
-	); !errors.Is(err, ErrValidation) {
-		t.Fatalf("пустой пользователь: ожидали ErrValidation, получили %v", err)
+	if !repository.called {
+		t.Fatal("нулевой UUID отсеян сервисом, а должен был дойти до базы")
 	}
 }
 

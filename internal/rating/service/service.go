@@ -55,12 +55,6 @@ func (s *Service) Rate(
 	score int32,
 	comment string,
 ) (ratingmodel.Rating, error) {
-	if exchangeID == uuid.Nil {
-		return ratingmodel.Rating{}, validationError("exchange id is required")
-	}
-	if raterID == uuid.Nil {
-		return ratingmodel.Rating{}, validationError("user id is required")
-	}
 	if score < minScore || score > maxScore {
 		return ratingmodel.Rating{}, validationError(
 			fmt.Sprintf("score must be between %d and %d", minScore, maxScore),
@@ -83,16 +77,14 @@ func (s *Service) Rate(
 }
 
 // ListForUser отдаёт полученные пользователем отзывы. Существование пользователя не
-// проверяется: пустая страница вместо 404 не даёт перебирать чужие id.
+// проверяется: пустая страница вместо 404 не даёт перебирать чужие id. Нулевой UUID тоже
+// просто ни с чем не совпадёт — отдельной проверки он не заслуживает.
 func (s *Service) ListForUser(
 	ctx context.Context,
 	ratedID uuid.UUID,
 	limit int32,
 	offset int32,
 ) (ratingmodel.Page, error) {
-	if ratedID == uuid.Nil {
-		return ratingmodel.Page{}, validationError("user id is required")
-	}
 	if limit < 1 || limit > MaxLimit {
 		return ratingmodel.Page{}, validationError(
 			fmt.Sprintf("limit must be between 1 and %d", MaxLimit),
