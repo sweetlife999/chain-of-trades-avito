@@ -1,12 +1,12 @@
 import { memo } from "react";
 import { Link } from "react-router-dom";
-import { Star } from "lucide-react";
 
 import type { TUser } from "../../../Api/auth/auth.types";
 
 import { useLogout } from "../../../Hooks/useLogout";
 
 import { Button } from "../../UI/Button/Button";
+import { Rating } from "../../UI/Rating/Rating";
 
 import styles from "./Styles.module.scss";
 import { getAvatarGradient } from "../../Utils/getAvatarGradient";
@@ -48,13 +48,7 @@ const ProfilePreviewComponent = ({ user }: TProfilePreviewProps) => {
         </span>
 
         <div className={styles.profile__rating}>
-          <span>{(user.rating ?? 1).toFixed(1)}</span>
-
-          <Star
-            className={styles.profile__star}
-            fill="currentColor"
-            stroke="currentColor"
-          />
+          <Rating size="s" value={user.rating} />
         </div>
       </Link>
 

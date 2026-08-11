@@ -8,7 +8,10 @@ const BaseUserSchema = z.object({
   id: z.string(),
   nickname: z.string(),
   photo_url: z.string(),
-  rating: z.number().nullable().transform((value) => value ?? 0),
+  // null означает «оценок ещё не было», и схлопывать его в 0 нельзя: на экране это
+  // превращало новичка в человека с нулевым рейтингом.
+  rating: z.number().nullable(),
+  ratings_count: z.number().int().nonnegative().default(0),
   updated_at: z.string(),
 });
 

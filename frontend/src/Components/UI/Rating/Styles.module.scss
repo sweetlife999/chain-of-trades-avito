@@ -1,0 +1,149 @@
+// Палитра звезды живёт здесь, а не в глобальных переменных: до этого компонента её знали
+// два экрана, и каждый держал свой хекс.
+$star-gold: #f4c430;
+$star-empty: #d7dade;
+
+.rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  font-family: $font-main;
+  line-height: 1;
+
+  &__stars {
+    position: relative;
+    display: inline-block;
+    color: $star-empty;
+  }
+
+  &__row {
+    display: inline-flex;
+    gap: 2px;
+    white-space: nowrap;
+  }
+
+  // Заливка накрывает пустой ряд и обрезается по ширине: 4.7 звезды видно как 4.7,
+  // а не как «почти пять».
+  &__row_filled {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: inline-flex;
+    gap: 2px;
+    overflow: hidden;
+    white-space: nowrap;
+    color: $star-gold;
+    pointer-events: none;
+  }
+
+  &__value {
+    font-weight: 700;
+    color: #171717;
+  }
+
+  &__count {
+    color: #777;
+  }
+
+  &_m {
+    font-size: 20px;
+
+    .rating__count {
+      font-size: 12px;
+    }
+  }
+
+  &_s {
+    gap: 6px;
+    font-size: 14px;
+
+    .rating__count {
+      font-size: 11px;
+    }
+  }
+}
+
+.input {
+  display: inline-flex;
+  gap: 4px;
+
+  &__star {
+    display: inline-flex;
+  }
+
+  // Радиокнопка остаётся в потоке и фокусируется — прячем только внешний вид.
+  &__control {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  &__label {
+    display: inline-flex;
+    padding: 4px;
+    border-radius: $border-radius;
+    color: $star-empty;
+    cursor: pointer;
+    transition: color 0.15s ease, transform 0.15s ease;
+  }
+
+  &__text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  // Залита выбранная звезда и все, что стоят до неё. :has смотрит вперёд по соседям,
+  // поэтому порядок в разметке остаётся естественным — а с ним и порядок обхода стрелками.
+  &__star:has(.input__control:checked) .input__label,
+  &__star:has(~ .input__star .input__control:checked) .input__label {
+    color: $star-gold;
+  }
+
+  // На наведении показываем предполагаемую оценку, а не уже выставленную: иначе две
+  // подсветки спорят друг с другом.
+  &:hover &__label {
+    color: $star-empty;
+  }
+
+  &:hover &__star:has(.input__label:hover) .input__label,
+  &:hover &__star:has(~ .input__star .input__label:hover) .input__label {
+    color: $star-gold;
+  }
+
+  &__control:focus-visible + &__label {
+    outline: none;
+    box-shadow: 0 0 0 4px rgba($green-button, 0.18);
+  }
+
+  &__label:hover {
+    transform: translateY(-1px);
+  }
+
+  &__control:disabled + &__label {
+    cursor: not-allowed;
+    opacity: 0.55;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .input__label {
+    transition: none;
+
+    &:hover {
+      transform: none;
+    }
+  }
+}
