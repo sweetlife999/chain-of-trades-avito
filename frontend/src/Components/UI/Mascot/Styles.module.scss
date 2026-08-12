@@ -1,0 +1,256 @@
+.mascot {
+  --mascot-green: #00a86b;
+  --mascot-green-dark: #087848;
+  --mascot-green-light: #62e2a7;
+  --mascot-screen: #14231d;
+  --mascot-cream: #f6fffa;
+  --mascot-size: 190px;
+
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 14px;
+  min-width: 0;
+
+  &_size_small { --mascot-size: 96px; }
+  &_size_medium { --mascot-size: 154px; }
+  &_size_large { --mascot-size: min(31vw, 300px); }
+
+  &_placement_landing {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  &_placement_chat {
+    align-items: center;
+    justify-content: flex-start;
+  }
+
+  &__stage {
+    position: relative;
+    width: var(--mascot-size);
+    min-width: var(--mascot-size);
+    aspect-ratio: 240 / 280;
+    isolation: isolate;
+  }
+
+  &__robot {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    filter: drop-shadow(0 16px 18px rgb(17 59 38 / 16%));
+    transform-origin: 50% 90%;
+    animation: mascotFloat 3.8s ease-in-out infinite;
+  }
+
+  &__shadow {
+    position: absolute;
+    z-index: 1;
+    left: 22%;
+    right: 22%;
+    bottom: 0;
+    height: 8%;
+    border-radius: 50%;
+    background: rgb(15 60 37 / 16%);
+    filter: blur(6px);
+    animation: shadowFloat 3.8s ease-in-out infinite;
+  }
+
+  &__bubble {
+    position: relative;
+    z-index: 4;
+    width: min(330px, 72vw);
+    padding: 13px 15px;
+    color: #20362b;
+    background: rgb(255 255 255 / 96%);
+    border: 1px solid #cceadd;
+    border-radius: 16px 16px 16px 5px;
+    box-shadow: 0 12px 34px rgb(31 75 53 / 12%);
+    font-size: 13px;
+    line-height: 1.45;
+    animation: bubbleIn .32s cubic-bezier(.2, .8, .2, 1) both;
+
+    &_attention {
+      border-color: #90d8b9;
+      box-shadow: 0 12px 34px rgb(0 153 81 / 16%);
+    }
+  }
+
+  &__bubbleName {
+    display: inline-grid;
+    width: 23px;
+    height: 23px;
+    margin-right: 7px;
+    place-items: center;
+    color: #fff;
+    background: var(--mascot-green);
+    border-radius: 8px;
+    font-size: 13px;
+  }
+
+  &__antenna path,
+  &__leftArm rect,
+  &__leftArm circle,
+  &__rightArm rect,
+  &__rightArm circle,
+  &__leftLeg rect,
+  &__rightLeg rect {
+    fill: var(--mascot-green);
+    stroke: var(--mascot-green-dark);
+    stroke-width: 4;
+  }
+
+  &__antenna circle {
+    fill: var(--mascot-green-light);
+    stroke: var(--mascot-green-dark);
+    stroke-width: 4;
+  }
+
+  &__antenna path {
+    fill: none;
+    stroke-linecap: round;
+  }
+
+  &__antennaGlow {
+    opacity: 0;
+    stroke: #b9ffdc !important;
+    stroke-width: 9 !important;
+    filter: blur(5px);
+  }
+
+  &__torso,
+  &__headShell {
+    fill: var(--mascot-green);
+    stroke: var(--mascot-green-dark);
+    stroke-width: 5;
+  }
+
+  &__chest {
+    fill: #e8fff3;
+    stroke: #087848;
+    stroke-width: 4;
+  }
+
+  &__letter {
+    fill: #087848;
+    font-family: Arial, sans-serif;
+    font-size: 37px;
+    font-weight: 900;
+  }
+
+  &__face { fill: var(--mascot-screen); }
+  &__eye { fill: #9bffd0; filter: drop-shadow(0 0 5px #4df4a5); transform-origin: center; }
+  &__mouth { fill: none; stroke: #9bffd0; stroke-width: 4; stroke-linecap: round; }
+  &__cheek { fill: #4ccb91; opacity: .35; }
+  &__head { transform-origin: 120px 130px; }
+  &__leftArm { transform-origin: 45px 139px; }
+  &__rightArm { transform-origin: 195px 139px; }
+  &__thinkingDots { opacity: 0; fill: var(--mascot-green); }
+
+  &__confetti {
+    position: absolute;
+    z-index: 3;
+    inset: -4% -6% 22%;
+    pointer-events: none;
+    opacity: 0;
+
+    i {
+      position: absolute;
+      width: 6px;
+      height: 11px;
+      border-radius: 2px;
+      background: var(--mascot-green);
+    }
+
+    i:nth-child(1) { left: 8%; top: 18%; transform: rotate(-25deg); }
+    i:nth-child(2) { left: 24%; top: 4%; background: #f0bd3f; transform: rotate(24deg); }
+    i:nth-child(3) { left: 43%; top: 12%; background: #e0656b; transform: rotate(-16deg); }
+    i:nth-child(4) { right: 27%; top: 2%; background: #50a8ff; transform: rotate(31deg); }
+    i:nth-child(5) { right: 8%; top: 19%; background: #f0bd3f; transform: rotate(-35deg); }
+    i:nth-child(6) { right: 17%; top: 42%; background: #e0656b; transform: rotate(18deg); }
+  }
+
+  &_mood_hello {
+    .mascot__rightArm { animation: wave .7s ease-in-out 4; }
+    .mascot__robot { animation: helloBounce .8s cubic-bezier(.2,.8,.2,1) 1, mascotFloat 3.8s .8s ease-in-out infinite; }
+  }
+
+  &_mood_listening {
+    .mascot__head { animation: listenTilt 1.2s ease-in-out infinite alternate; }
+    .mascot__eye { animation: blink 2.2s ease-in-out infinite; }
+  }
+
+  &_mood_thinking {
+    .mascot__head { animation: thinkTilt 1.5s ease-in-out infinite alternate; }
+    .mascot__eyes { transform: translateY(-5px); }
+    .mascot__thinkingDots { opacity: 1; animation: thinkingDots 1.1s ease-in-out infinite alternate; }
+  }
+
+  &_mood_hint {
+    .mascot__antennaGlow { opacity: .75; animation: antennaPulse .9s ease-in-out infinite alternate; }
+    .mascot__rightArm { animation: pointUp .9s ease-in-out infinite alternate; }
+  }
+
+  &_mood_happy {
+    .mascot__robot { animation: happyBounce .6s cubic-bezier(.22,.9,.28,1.25) 2, mascotFloat 3.8s 1.2s ease-in-out infinite; }
+    .mascot__mouth { d: path("M101 108 Q120 127 139 108"); }
+    .mascot__eye { transform: scaleY(.7); }
+  }
+
+  &_mood_celebrate {
+    .mascot__robot { animation: celebrateBounce .62s cubic-bezier(.22,.9,.28,1.25) 3, mascotFloat 3.8s 1.86s ease-in-out infinite; }
+    .mascot__leftArm { animation: armsUp .55s ease-in-out infinite alternate; }
+    .mascot__rightArm { animation: armsUpRight .55s ease-in-out infinite alternate; }
+    .mascot__confetti { opacity: 1; animation: confettiPop 1.1s ease-out 2; }
+    .mascot__mouth { d: path("M99 106 Q120 130 141 106"); }
+  }
+
+  &_mood_concerned {
+    .mascot__head { transform: rotate(-5deg) translateY(4px); }
+    .mascot__mouth { d: path("M105 119 Q120 108 135 119"); }
+    .mascot__eye { transform: scaleY(.72); }
+    .mascot__robot { animation: concernedSway 1.8s ease-in-out infinite alternate; }
+  }
+}
+
+@keyframes mascotFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes shadowFloat { 0%, 100% { transform: scale(1); opacity: .7; } 50% { transform: scale(.88); opacity: .45; } }
+@keyframes bubbleIn { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes wave { 0%, 100% { transform: rotate(0deg); } 45% { transform: rotate(-55deg) translate(2px, -8px); } }
+@keyframes helloBounce { 0% { transform: translateY(14px) scale(.94); } 55% { transform: translateY(-9px) scale(1.02); } 100% { transform: none; } }
+@keyframes listenTilt { from { transform: rotate(-4deg); } to { transform: rotate(6deg); } }
+@keyframes blink { 0%, 44%, 50%, 100% { transform: scaleY(1); } 47% { transform: scaleY(.08); } }
+@keyframes thinkTilt { from { transform: rotate(-2deg); } to { transform: rotate(7deg); } }
+@keyframes thinkingDots { from { transform: translateY(3px); opacity: .35; } to { transform: translateY(-4px); opacity: 1; } }
+@keyframes antennaPulse { from { opacity: .25; } to { opacity: 1; } }
+@keyframes pointUp { from { transform: rotate(0deg); } to { transform: rotate(-34deg) translateY(-8px); } }
+@keyframes happyBounce { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-13px) scale(1.025); } }
+@keyframes celebrateBounce { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-17px) rotate(2deg); } }
+@keyframes armsUp { from { transform: rotate(0); } to { transform: rotate(35deg) translate(-5px, -10px); } }
+@keyframes armsUpRight { from { transform: rotate(0); } to { transform: rotate(-35deg) translate(5px, -10px); } }
+@keyframes confettiPop { 0% { transform: translateY(-8px) scale(.8); opacity: 0; } 35% { opacity: 1; } 100% { transform: translateY(24px) scale(1.05); opacity: 0; } }
+@keyframes concernedSway { from { transform: rotate(-1.3deg) translateY(2px); } to { transform: rotate(1.3deg) translateY(5px); } }
+
+@media (max-width: 680px) {
+  .mascot {
+    &_placement_chat {
+      align-items: flex-end;
+    }
+
+    &__bubble {
+      width: min(260px, 68vw);
+      font-size: 12px;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mascot,
+  .mascot * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

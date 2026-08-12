@@ -2,6 +2,7 @@ import {
   memo,
   useEffect,
   useRef,
+  useMemo,
   useState,
   type KeyboardEvent,
 } from "react";
@@ -20,6 +21,9 @@ import {
 } from "../../../../Api/exchanges/exchanges";
 import type { TExchangeMessage } from "../../../../Api/exchanges/exchanges.types";
 import { ReportMessageButton } from "../ReportMessageButton/ReportMessageButton";
+import { Mascot } from "../../../UI/Mascot/Mascot";
+import { useMascot } from "../../../../Hooks/useMascot";
+import type { MascotEvent } from "../../../../Features/Mascot/mascot.types";
 
 type TProps = {
   exchangeId: string;
@@ -73,14 +77,53 @@ const getSystemMessageText = (message: TExchangeMessage) => {
   }
 };
 
+
+const starterHints = [
+  "Привет! Давайте договоримся, как удобнее передать вещи?",
+  "Когда вам удобно передать вещь?",
+  "В каком пункте выдачи вам удобнее встретиться?",
+];
+
+const activeHints = [
+  "Когда вам удобно передать вещь?",
+  "В каком пункте выдачи вам удобнее?",
+  "Всё в силе?",
+  "Напишите, пожалуйста, когда передадите вещь.",
+];
+
+const getMascotEventForSystemMessage = (message: TExchangeMessage): MascotEvent | null => {
+  switch (message.kind.toLowerCase()) {
+    case "participant_accepted":
+      return "PARTICIPANT_ACCEPTED";
+    case "participant_declined":
+    case "participant_rejected":
+      return "PARTICIPANT_DECLINED";
+    case "participant_delivered_item":
+      return "PARTICIPANT_DELIVERED";
+    case "exchange_confirmed":
+      return "EXCHANGE_CONFIRMED";
+    case "exchange_delivering":
+      return "EXCHANGE_DELIVERING";
+    case "exchange_delivered":
+      return "EXCHANGE_DELIVERED";
+    case "exchange_completed":
+      return "EXCHANGE_COMPLETED";
+    default:
+      return null;
+  }
+};
+
 const ExchangeChatComponent = ({
   exchangeId,
   currentUserId,
   readOnly = false,
 }: TProps) => {
   const [body, setBody] = useState("");
+  const { reactTo } = useMascot();
   const endRef = useRef<HTMLDivElement>(null);
   const lastMarkedMessageRef = useRef<string | null>(null);
+  const lastObservedMessageRef = useRef<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const queryClient = useQueryClient();
   const queryKey = ["exchanges", exchangeId, "messages"] as const;
 
@@ -112,11 +155,21 @@ const ExchangeChatComponent = ({
         exact: true,
       });
       setBody("");
+      reactTo("MESSAGE_SENT_SUCCESS");
     },
+    onError: () => reactTo("ERROR"),
   });
 
-  const messages = messagesQuery.data ?? [];
+  const messages = useMemo(() => messagesQuery.data ?? [], [messagesQuery.data]);
   const lastMessageId = messages.at(-1)?.id;
+  const hints = messages.length === 0 ? starterHints : activeHints;
+
+  useEffect(() => {
+    reactTo("CHAT_OPENED");
+
+    const hintTimer = window.setTimeout(() => reactTo("HINT_SHOWN"), 1200);
+    return () => window.clearTimeout(hintTimer);
+  }, [exchangeId, reactTo]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({
@@ -124,6 +177,37 @@ const ExchangeChatComponent = ({
       block: "start",
     });
   }, [messages.length]);
+
+  useEffect(() => {
+    const latest = messages.at(-1);
+
+    if (!latest) {
+      return;
+    }
+
+    if (lastObservedMessageRef.current === null) {
+      lastObservedMessageRef.current = latest.id;
+      return;
+    }
+
+    if (lastObservedMessageRef.current === latest.id) {
+      return;
+    }
+
+    lastObservedMessageRef.current = latest.id;
+
+    if (isSystemMessage(latest)) {
+      const event = getMascotEventForSystemMessage(latest);
+      if (event) {
+        reactTo(event);
+      }
+      return;
+    }
+
+    if (latest.author?.id !== currentUserId) {
+      reactTo("MESSAGE_RECEIVED");
+    }
+  }, [currentUserId, messages, reactTo]);
 
   useEffect(() => {
     if (!lastMessageId || lastMarkedMessageRef.current === lastMessageId) {
@@ -153,7 +237,17 @@ const ExchangeChatComponent = ({
       return;
     }
 
+    reactTo("MESSAGE_SENT");
     sendMutation.mutate(value);
+  };
+
+  const handleHintSelect = (hint: string) => {
+    setBody(hint);
+    reactTo("HINT_SELECTED");
+    window.requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+      textareaRef.current?.setSelectionRange(hint.length, hint.length);
+    });
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -311,10 +405,38 @@ const ExchangeChatComponent = ({
             submitMessage();
           }}
         >
+          <div className={styles.chat__assistant}>
+            <Mascot size="small" placement="chat" />
+            <div className={styles.chat__hints}>
+              <span className={styles.chat__hintsLabel}>Быстрые подсказки</span>
+              <div className={styles.chat__hintList}>
+                {hints.map((hint) => (
+                  <button
+                    className={styles.chat__hint}
+                    key={hint}
+                    type="button"
+                    onClick={() => handleHintSelect(hint)}
+                    onMouseEnter={() => reactTo("HINT_SHOWN")}
+                    onFocus={() => reactTo("HINT_SHOWN")}
+                  >
+                    {hint}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
           <textarea
+            ref={textareaRef}
             className={styles.chat__textarea}
             maxLength={2000}
-            onChange={(event) => setBody(event.target.value)}
+            onChange={(event) => {
+              const nextBody = event.target.value;
+              if (!body && nextBody) {
+                reactTo("USER_TYPING");
+              }
+              setBody(nextBody);
+            }}
+            onFocus={() => body && reactTo("USER_TYPING")}
             onKeyDown={handleKeyDown}
             placeholder="Напишите сообщение..."
             rows={2}

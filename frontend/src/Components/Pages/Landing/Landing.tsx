@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 
 import styles from "./Styles.module.scss";
 import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
+import { useMascot } from "../../../Hooks/useMascot";
+import { Mascot } from "../../UI/Mascot/Mascot";
 
 const steps: [string, string, string][] = [
   ["01", "Добавь вещь", "Опиши, что отдаёшь и что хочешь получить взамен."],
@@ -94,8 +96,13 @@ const faq: [string, string][] = [
 const LandingComponent = () => {
   const navigate = useNavigate();
   const { isAuth } = useAuthSelector();
+  const { reactTo } = useMascot();
   const rootRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    reactTo("APP_OPENED");
+  }, [reactTo]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -164,19 +171,47 @@ const LandingComponent = () => {
 
       <div className={styles.container}>
         <section className={`${styles.section} ${styles.hero}`}>
-          <h1 className={styles.heroTitle}>
-            <span className={`${styles.heroLine} ${styles.heroReveal}`}>
-              Отдай <span className={styles.heroGive}>ненужное</span>.
-            </span>
-            <span className={`${styles.heroLine} ${styles.heroReveal}`}>
-              Получи <span className={styles.heroGet}>нужное</span>.
-            </span>
-          </h1>
-          <p className={`${styles.heroText} ${styles.heroReveal}`}>
-            Цепочка обмена собирает нескольких человек в замкнутую цепочку: каждый
-            отдаёт вещь, которая ему не нужна, и получает ту, что искал. Без денег
-            и посредников — просто цепочка людей, которым это выгодно всем сразу.
-          </p>
+          <div className={styles.heroGrid}>
+            <div className={styles.heroCopy}>
+              <span className={`${styles.heroEyebrow} ${styles.heroReveal}`}>
+                <span className={styles.heroEyebrowDot} />
+                У — ваш проводник по обмену
+              </span>
+              <h1 className={styles.heroTitle}>
+                <span className={`${styles.heroLine} ${styles.heroReveal}`}>
+                  Отдай <span className={styles.heroGive}>ненужное</span>.
+                </span>
+                <span className={`${styles.heroLine} ${styles.heroReveal}`}>
+                  Получи <span className={styles.heroGet}>нужное</span>.
+                </span>
+              </h1>
+              <p className={`${styles.heroText} ${styles.heroReveal}`}>
+                Цепочка обмена собирает нескольких человек в замкнутую цепочку: каждый
+                отдаёт вещь, которая ему не нужна, и получает ту, что искал. Без денег
+                и посредников — просто цепочка людей, которым это выгодно всем сразу.
+              </p>
+              <div className={`${styles.heroActions} ${styles.heroReveal}`}>
+                <button
+                  className={`${styles.btn} ${styles.btnPrimary} ${styles.heroButton}`}
+                  type="button"
+                  onClick={startExchange}
+                >
+                  Начать обмен
+                </button>
+                <a className={styles.heroSecondary} href="#how">
+                  Как это работает ↓
+                </a>
+              </div>
+            </div>
+
+            <div className={`${styles.heroMascot} ${styles.heroReveal}`}>
+              <div className={styles.heroMascotGlow} aria-hidden="true" />
+              <Mascot size="large" placement="landing" />
+              <span className={styles.heroMascotCaption}>
+                Реагирует на этапы обмена и помогает в чатах
+              </span>
+            </div>
+          </div>
         </section>
 
         <section className={styles.section} id="how">
