@@ -1,13 +1,11 @@
 import { z } from "zod";
 
+import { OptionalPhotoUrlResponseSchema } from "../common.types";
+
 export const SupportPersonSchema = z.object({
   id: z.string(),
   nickname: z.string(),
-  photo_url: z
-    .url("Введите корректную ссылку")
-    .regex(/^https?:\/\//, "Должна быть ссылка с http или https")
-    .nullable()
-    .optional(),
+  photo_url: OptionalPhotoUrlResponseSchema,
   is_admin: z.boolean(),
 });
 

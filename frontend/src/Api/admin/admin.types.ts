@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { OptionalPhotoUrlResponseSchema } from "../common.types";
 import {
   ExchangeMessagesSchema,
   ExchangeParticipantSchema,
@@ -84,9 +85,7 @@ export const AdminReportReasonSchema = z.enum(["spam", "abuse", "other"]);
 export const AdminReportUserSchema = z.object({
   id: z.string(),
   nickname: z.string(),
-  photo_url: z
-    .url("Введите корректную ссылку")
-    .regex(/^https?:\/\//, "Должна быть ссылка с http или https"),
+  photo_url: OptionalPhotoUrlResponseSchema,
 });
 
 export const AdminReportSchema = z.object({

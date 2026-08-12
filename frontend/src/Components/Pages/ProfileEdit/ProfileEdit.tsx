@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 
 import styles from "./Styles.module.scss";
 import { updateUser } from "../../../Api/auth/auth";
+import { PhotoUrlInputSchema } from "../../../Api/common.types";
 import type { TAuthenticatedUser, TUser } from "../../../Api/auth/auth.types";
 import {
   useAuthDispatch,
@@ -23,9 +24,7 @@ const profileEditSchema = z.object({
     .min(3, "Никнейм должен содержать минимум 3 символа")
     .max(32, "Никнейм должен содержать максимум 32 символа"),
   description: z.string().trim(),
-  photo_url: z
-    .url("Введите корректную ссылку")
-    .regex(/^https?:\/\//, "Должна быть ссылка с http или https"),
+  photo_url: PhotoUrlInputSchema,
 });
 
 type TProfileEdit = z.infer<typeof profileEditSchema>;
