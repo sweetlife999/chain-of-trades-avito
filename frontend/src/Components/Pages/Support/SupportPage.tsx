@@ -16,12 +16,21 @@ import {
 import type { TSupportThread } from "../../../Api/support/support.types";
 import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
 import { AuthRequiredState } from "../../UI/AuthRequiredState/AuthRequiredState";
+import { Mascot } from "../../UI/Mascot/Mascot";
+import { useMascot } from "../../../Hooks/useMascot";
 
 const statusLabels: Record<TSupportThread["status"], string> = {
   open: "Ждёт ответа",
   in_progress: "В работе",
   closed: "Закрыто",
 };
+
+const supportHints = [
+  "Подскажите, пожалуйста, что делать дальше?",
+  "Проблема всё ещё актуальна.",
+  "Участник обмена не отвечает.",
+  "Возникла проблема с пунктом выдачи.",
+];
 
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat("ru-RU", {
@@ -33,6 +42,7 @@ const formatDate = (value: string) =>
 
 const SupportPageComponent = () => {
   const { isAuth, user } = useAuthSelector();
+  const { reactTo } = useMascot();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [creating, setCreating] = useState(false);
@@ -40,6 +50,14 @@ const SupportPageComponent = () => {
   const [firstMessage, setFirstMessage] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!isAuth) {
+      return;
+    }
+
+    reactTo("CHAT_OPENED");
+  }, [isAuth, reactTo]);
 
   const selectedID = searchParams.get("thread") ?? "";
   const threadsQuery = useQuery({
@@ -80,20 +98,26 @@ const SupportPageComponent = () => {
       setFirstMessage("");
       setError("");
       setSearchParams({ thread: thread.id });
+      reactTo("MESSAGE_SENT_SUCCESS");
       await refresh();
     },
-    onError: (requestError) =>
-      setError(getSupportError(requestError, "Не удалось создать обращение")),
+    onError: (requestError) => {
+      reactTo("ERROR");
+      setError(getSupportError(requestError, "Не удалось создать обращение"));
+    },
   });
   const sendMutation = useMutation({
     mutationFn: sendSupportMessage,
     onSuccess: async () => {
       setMessage("");
       setError("");
+      reactTo("MESSAGE_SENT_SUCCESS");
       await refresh();
     },
-    onError: (requestError) =>
-      setError(getSupportError(requestError, "Не удалось отправить сообщение")),
+    onError: (requestError) => {
+      reactTo("ERROR");
+      setError(getSupportError(requestError, "Не удалось отправить сообщение"));
+    },
   });
   const closeMutation = useMutation({
     mutationFn: closeSupportThread,
@@ -124,6 +148,7 @@ const SupportPageComponent = () => {
   const submitMessage = (event: FormEvent) => {
     event.preventDefault();
     if (selectedID && message.trim()) {
+      reactTo("MESSAGE_SENT");
       sendMutation.mutate({ threadID: selectedID, body: message.trim() });
     }
   };
@@ -185,7 +210,7 @@ const SupportPageComponent = () => {
 
         <section className={styles.support__chat}>
           {!selectedID && (
-            <div className={styles.support__empty}><Headset size={46} /><h2>Напишите нам</h2><p>Создайте обращение, и команда поддержки поможет разобраться.</p></div>
+            <div className={styles.support__empty}><Mascot size="medium" placement="inline" message="Я У. Если что-то пошло не так с обменом — помогу сформулировать обращение в поддержку." /><Headset size={32} /><h2>Напишите нам</h2><p>Создайте обращение, и команда поддержки поможет разобраться.</p></div>
           )}
           {selectedID && messagesQuery.isPending && <p className={styles.support__state}>Загружаем переписку...</p>}
           {selectedID && messagesQuery.isError && <p className={styles.support__error}>Не удалось открыть переписку.</p>}
@@ -212,10 +237,45 @@ const SupportPageComponent = () => {
               </div>
               {error && <p className={styles.support__error}>{error}</p>}
               {selectedThread.status !== "closed" ? (
-                <form className={styles.support__composer} onSubmit={submitMessage}>
-                  <textarea aria-label="Сообщение" maxLength={4000} placeholder="Напишите сообщение..." required rows={2} value={message} onChange={(event) => setMessage(event.target.value)} />
-                  <button aria-label="Отправить" disabled={sendMutation.isPending || !message.trim()} type="submit"><Send size={20} /></button>
-                </form>
+                <div className={styles.support__composerArea}>
+                  <div className={styles.support__assistant}>
+                    <Mascot size="small" placement="chat" />
+                    <div className={styles.support__hints}>
+                      {supportHints.map((hint) => (
+                        <button
+                          className={styles.support__hint}
+                          key={hint}
+                          type="button"
+                          onClick={() => {
+                            setMessage(hint);
+                            reactTo("HINT_SELECTED");
+                          }}
+                          onMouseEnter={() => reactTo("HINT_SHOWN")}
+                          onFocus={() => reactTo("HINT_SHOWN")}
+                        >
+                          {hint}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <form className={styles.support__composer} onSubmit={submitMessage}>
+                    <textarea
+                      aria-label="Сообщение"
+                      maxLength={4000}
+                      placeholder="Напишите сообщение..."
+                      required
+                      rows={2}
+                      value={message}
+                      onChange={(event) => {
+                        if (!message && event.target.value) {
+                          reactTo("USER_TYPING");
+                        }
+                        setMessage(event.target.value);
+                      }}
+                    />
+                    <button aria-label="Отправить" disabled={sendMutation.isPending || !message.trim()} type="submit"><Send size={20} /></button>
+                  </form>
+                </div>
               ) : (
                 <p className={styles.support__closed}>Обращение закрыто. Можно создать новое.</p>
               )}

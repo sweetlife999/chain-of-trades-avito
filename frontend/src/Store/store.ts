@@ -1,10 +1,12 @@
 import { configureStore } from "@reduxjs/toolkit";
 import authReducer from './authSlice'
+import mascotReducer from '../Features/Mascot/mascotSlice'
 
 
 export const store = configureStore({
     reducer: {
-        auth: authReducer
+        auth: authReducer,
+        mascot: mascotReducer
     }
 })
 
