@@ -2482,7 +2482,7 @@ const docTemplate = `{
                         "CookieAuth": []
                     }
                 ],
-                "description": "Требует cookie ` + "`" + `access_token` + "`" + `. Владелец берётся из токена, а не из тела запроса.\nНужна хотя бы одна фотография (ссылкой) и хотя бы одна желаемая категория —\nбез них объявление не участвует в подборе обменов. Список категорий: GET /categories.",
+                "description": "Требует cookie ` + "`" + `access_token` + "`" + `. Владелец берётся из токена, а не из тела запроса.\nНужна хотя бы одна фотография и хотя бы одна желаемая категория —\nбез них объявление не участвует в подборе обменов. Список категорий: GET /categories.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2651,7 +2651,7 @@ const docTemplate = `{
                         "CookieAuth": []
                     }
                 ],
-                "description": "Требует cookie ` + "`" + `access_token` + "`" + `, менять можно только свои объявления. Достаточно одного поля.\n` + "`" + `photo_urls` + "`" + ` и ` + "`" + `wants` + "`" + ` заменяются целиком: чтобы добавить фотографию, пришлите старые\nссылки вместе с новой. Пустой список запрещён — у объявления всегда есть хотя бы одно фото.",
+                "description": "Требует cookie ` + "`" + `access_token` + "`" + `, менять можно только свои объявления. Достаточно одного поля.\n` + "`" + `photo_urls` + "`" + ` и ` + "`" + `wants` + "`" + ` заменяются целиком: чтобы добавить фотографию, загрузите её\nчерез POST /uploads и пришлите старые ссылки вместе с новой. Пустой список запрещён —\nу объявления всегда есть хотя бы одно фото.",
                 "consumes": [
                     "application/json"
                 ],
@@ -4307,8 +4307,7 @@ const docTemplate = `{
                         "type": "string"
                     },
                     "example": [
-                        "https://example.com/bike-1.jpg",
-                        "https://example.com/bike-2.jpg"
+                        "/uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg"
                     ]
                 },
                 "title": {
@@ -4973,8 +4972,7 @@ const docTemplate = `{
                         "type": "string"
                     },
                     "example": [
-                        "https://example.com/bike-1.jpg",
-                        "https://example.com/bike-3.jpg"
+                        "/uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg"
                     ]
                 },
                 "title": {
@@ -5015,7 +5013,8 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "photo_url": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "/uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg"
                 }
             }
         },

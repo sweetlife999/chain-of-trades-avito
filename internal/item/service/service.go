@@ -16,6 +16,7 @@ import (
 	exchangeservice "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/service"
 	itemmodel "github.com/sweetlife999/chain-of-trades-avito/internal/item/model"
 	itemrepository "github.com/sweetlife999/chain-of-trades-avito/internal/item/repository"
+	uploadservice "github.com/sweetlife999/chain-of-trades-avito/internal/upload/service"
 )
 
 const (
@@ -374,8 +375,10 @@ func validateTitle(title string) error {
 	return nil
 }
 
-// Фотографии хранятся ссылками, поэтому строка обязана быть абсолютным http(s)-адресом:
-// относительный путь или mailto: в карточке останутся битой картинкой.
+// Фотографии хранятся ссылками: либо путь загруженного файла, либо абсолютный http(s)-адрес.
+// Внешние ссылки остаются валидными ради объявлений, созданных до загрузки файлов: иначе их
+// нельзя было бы отредактировать, не переснимая вещь заново. Всё остальное — относительный
+// путь, mailto: — в карточке осталось бы битой картинкой.
 func cleanPhotoURLs(photoURLs []string) ([]string, error) {
 	cleaned := make([]string, 0, len(photoURLs))
 	for _, photoURL := range photoURLs {
@@ -384,9 +387,11 @@ func cleanPhotoURLs(photoURLs []string) ([]string, error) {
 			continue
 		}
 
-		parsed, err := url.Parse(photoURL)
-		if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
-			return nil, validationError("photo url must be an absolute http(s) link")
+		if !uploadservice.IsPath(photoURL) {
+			parsed, err := url.Parse(photoURL)
+			if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+				return nil, validationError("photo url must be an uploaded file or an absolute http(s) link")
+			}
 		}
 
 		cleaned = append(cleaned, photoURL)

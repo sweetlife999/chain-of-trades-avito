@@ -154,8 +154,7 @@ definitions:
         type: string
       photo_urls:
         example:
-        - https://example.com/bike-1.jpg
-        - https://example.com/bike-2.jpg
+        - /uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg
         items:
           type: string
         type: array
@@ -591,8 +590,7 @@ definitions:
         type: string
       photo_urls:
         example:
-        - https://example.com/bike-1.jpg
-        - https://example.com/bike-3.jpg
+        - /uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg
         items:
           type: string
         type: array
@@ -622,6 +620,7 @@ definitions:
       nickname:
         type: string
       photo_url:
+        example: /uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg
         type: string
     type: object
   dto.UploadError:
@@ -2531,7 +2530,7 @@ paths:
       - application/json
       description: |-
         Требует cookie `access_token`. Владелец берётся из токена, а не из тела запроса.
-        Нужна хотя бы одна фотография (ссылкой) и хотя бы одна желаемая категория —
+        Нужна хотя бы одна фотография и хотя бы одна желаемая категория —
         без них объявление не участвует в подборе обменов. Список категорий: GET /categories.
       parameters:
       - description: Данные объявления
@@ -2648,8 +2647,9 @@ paths:
       - application/json
       description: |-
         Требует cookie `access_token`, менять можно только свои объявления. Достаточно одного поля.
-        `photo_urls` и `wants` заменяются целиком: чтобы добавить фотографию, пришлите старые
-        ссылки вместе с новой. Пустой список запрещён — у объявления всегда есть хотя бы одно фото.
+        `photo_urls` и `wants` заменяются целиком: чтобы добавить фотографию, загрузите её
+        через POST /uploads и пришлите старые ссылки вместе с новой. Пустой список запрещён —
+        у объявления всегда есть хотя бы одно фото.
       parameters:
       - description: UUID объявления
         example: 8db9f3e2-8a45-4a70-b3d1-167b4f97e121
