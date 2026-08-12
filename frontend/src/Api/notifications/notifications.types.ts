@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { OptionalPhotoUrlResponseSchema } from "../common.types";
+
 export const NotificationKindSchema = z.enum([
   "exchange_proposed",
   "text",
@@ -19,7 +21,7 @@ export const NotificationKindSchema = z.enum([
 export const NotificationActorSchema = z.object({
   id: z.string(),
   nickname: z.string(),
-  photo_url: z.string().nullable().optional(),
+  photo_url: OptionalPhotoUrlResponseSchema,
 });
 
 export const NotificationSchema = z.object({

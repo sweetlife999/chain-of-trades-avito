@@ -1,19 +1,18 @@
 import { z } from "zod";
 
+import { PhotoUrlInputSchema, PhotoUrlResponseSchema } from "../common.types";
+
 const BaseUserSchema = z.object({
   created_at: z.string(),
-  deals_broken: z.number(),
-  deals_completed: z.number(),
+  deals_broken: z.number().int().nonnegative(),
+  deals_completed: z.number().int().nonnegative(),
   description: z.string(),
   id: z.string(),
   nickname: z.string(),
-  // API отдаёт null у всех, кто не поставил аватар, и строгая строка роняла разбор
-  // всего ответа: страница профиля показывала «Пользователь не найден».
-  photo_url: z.string().nullable(),
-  // null означает «оценок ещё не было», и схлопывать его в 0 нельзя: на экране это
-  // превращало новичка в человека с нулевым рейтингом.
+  photo_url: PhotoUrlResponseSchema,
+  // По Swagger null означает, что оценок ещё нет. Это принципиально не 0.
   rating: z.number().nullable(),
-  ratings_count: z.number().int().nonnegative().default(0),
+  ratings_count: z.number().int().nonnegative(),
   updated_at: z.string(),
 });
 
@@ -30,19 +29,13 @@ export const BlockedUserSchema = z.object({
   blocked_at: z.string(),
   id: z.string(),
   nickname: z.string(),
-  // API отдаёт null у всех, кто не поставил аватар, и строгая строка роняла разбор
-  // всего ответа: страница профиля показывала «Пользователь не найден».
-  photo_url: z.string().nullable(),
+  photo_url: PhotoUrlResponseSchema,
 });
 
 export const BlockedUsersSchema = z.array(BlockedUserSchema);
 
 export type TBlockedUser = z.infer<typeof BlockedUserSchema>;
 export type TBlockedUsers = z.infer<typeof BlockedUsersSchema>;
-
-const getByteLength = (value: string) => {
-  return new TextEncoder().encode(value).length;
-};
 
 export const registerSchema = z.object({
   nickname: z
@@ -53,28 +46,18 @@ export const registerSchema = z.object({
 
   password: z
     .string()
-    .refine(
-      (value) => getByteLength(value) >= 8,
-      "Пароль должен содержать минимум 8 байт",
-    )
-    .refine(
-      (value) => getByteLength(value) <= 72,
-      "Пароль должен содержать максимум 72 байта",
-    ),
+    .min(8, "Пароль должен содержать минимум 8 символов")
+    .max(72, "Пароль должен содержать максимум 72 символа"),
 
   description: z.string().trim(),
 
-  photo_url: z
-    .string()
-    .trim()
-    .url("Введите корректную ссылку")
-    .or(z.literal("")),
+  photo_url: PhotoUrlInputSchema,
 });
 
 export const UpdateUserSchema = z.object({
   nickname: z.string().trim().min(3).max(32).optional(),
   description: z.string().trim().optional(),
-  photo_url: z.string().trim().optional(),
+  photo_url: PhotoUrlInputSchema.optional(),
 });
 
 export type TRegister = z.infer<typeof registerSchema>;

@@ -96,10 +96,10 @@ const RegisterComponent = () => {
 
         <div className={styles.register__fields}>
           <Input
-            label="Nickname"
+            label="Никнейм"
             required
             type="text"
-            placeholder="Введите nickname"
+            placeholder="Ваш никнейм"
             autoComplete="username"
             error={errors.nickname?.message}
             {...register("nickname")}

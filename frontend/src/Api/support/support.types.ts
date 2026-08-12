@@ -1,9 +1,11 @@
 import { z } from "zod";
 
+import { OptionalPhotoUrlResponseSchema } from "../common.types";
+
 export const SupportPersonSchema = z.object({
   id: z.string(),
   nickname: z.string(),
-  photo_url: z.string().nullable().optional(),
+  photo_url: OptionalPhotoUrlResponseSchema,
   is_admin: z.boolean(),
 });
 
@@ -43,5 +45,7 @@ export const AdminSupportPageSchema = z.object({
 
 export type TSupportThread = z.infer<typeof SupportThreadSchema>;
 export type TSupportMessage = z.infer<typeof SupportMessageSchema>;
-export type TSupportThreadMessages = z.infer<typeof SupportThreadMessagesSchema>;
+export type TSupportThreadMessages = z.infer<
+  typeof SupportThreadMessagesSchema
+>;
 export type TAdminSupportPage = z.infer<typeof AdminSupportPageSchema>;

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { OptionalPhotoUrlResponseSchema } from "../common.types";
+
 export const ExchangeStatusSchema = z.enum([
   "proposed",
   "confirmed",
@@ -12,7 +14,7 @@ export const ExchangeStatusSchema = z.enum([
 export const ExchangeUserSchema = z.object({
   id: z.string(),
   nickname: z.string(),
-  photo_url: z.string().nullable().optional(),
+  photo_url: OptionalPhotoUrlResponseSchema,
 });
 
 export const ExchangeItemSchema = z.object({
@@ -50,7 +52,7 @@ export const ExchangeParticipantSchema = z.object({
 export const ExchangeRatingSlotSchema = z.object({
   rated_user_id: z.string(),
   rate_until: z.string(),
-  score: z.number().nullable(),
+  score: z.number().int().min(1).max(5).nullable(),
   comment: z.string(),
 });
 

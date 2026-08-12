@@ -12,29 +12,40 @@ $star-empty: #d7dade;
   line-height: 1;
 
   &__stars {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+
+  &__star {
     position: relative;
-    display: inline-block;
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    line-height: 0;
+  }
+
+  &__starEmpty {
+    display: block;
     color: $star-empty;
   }
 
-  &__row {
-    display: inline-flex;
-    gap: 2px;
-    white-space: nowrap;
-  }
-
-  // Заливка накрывает пустой ряд и обрезается по ширине: 4.7 звезды видно как 4.7,
-  // а не как «почти пять».
-  &__row_filled {
+  &__starFill {
     position: absolute;
     top: 0;
+    bottom: 0;
     left: 0;
-    display: inline-flex;
-    gap: 2px;
+    display: block;
     overflow: hidden;
-    white-space: nowrap;
     color: $star-gold;
+    line-height: 0;
     pointer-events: none;
+
+    svg {
+      display: block;
+      max-width: none;
+    }
   }
 
   &__value {

@@ -4,13 +4,21 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import styles from "./Styles.module.scss";
-import { deleteItem, getItem } from "../../../Api/items/items";
+import {
+  deleteItem,
+  getItem,
+  getItemErrorMessage,
+  restoreItemToSearch,
+  withdrawItemFromSearch,
+} from "../../../Api/items/items";
 import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
 import { Button } from "../../UI/Button/Button";
 import { ConfirmationPopup } from "../../UI/ConfirmationPopup/ConfirmationPopup";
 import { PhotoGallery } from "../../UI/PhotoGallery/PhotoGallery";
 import { ItemPickupSection } from "../ItemPickupSection/ItemPickupSection";
 import { ItemStatusBadge } from "../ItemStatusBadge/ItemStatusBadge";
+
+type TSearchAction = "withdraw" | "restore";
 
 const getDeleteErrorMessage = (error: unknown) => {
   if (axios.isAxiosError<{ error?: string }>(error)) {
@@ -27,6 +35,8 @@ const ItemDetailsComponent = () => {
   const { user } = useAuthSelector();
   const [deletePopupOpen, setDeletePopupOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string>();
+  const [searchAction, setSearchAction] = useState<TSearchAction | null>(null);
+  const [searchError, setSearchError] = useState<string>();
 
   const { data: item, isPending, isError } = useQuery({
     queryKey: ["items", id],
@@ -51,7 +61,35 @@ const ItemDetailsComponent = () => {
     },
   });
 
+  const searchMutation = useMutation({
+    mutationFn: (action: TSearchAction) =>
+      action === "restore"
+        ? restoreItemToSearch(id)
+        : withdrawItemFromSearch(id),
+    onSuccess: async (updatedItem) => {
+      queryClient.setQueryData(["items", id], updatedItem);
+      setSearchError(undefined);
+      setSearchAction(null);
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["items"] }),
+        queryClient.invalidateQueries({ queryKey: ["posts"] }),
+        queryClient.invalidateQueries({ queryKey: ["exchanges"] }),
+      ]);
+    },
+    onError: (error) => {
+      setSearchError(
+        getItemErrorMessage(
+          error,
+          "Не удалось изменить участие объявления в поиске",
+        ),
+      );
+    },
+  });
+
   const openDeletePopup = () => {
+    setSearchAction(null);
+    setSearchError(undefined);
     setDeleteError(undefined);
     setDeletePopupOpen(true);
   };
@@ -60,6 +98,20 @@ const ItemDetailsComponent = () => {
     if (!deleteMutation.isPending) {
       setDeleteError(undefined);
       setDeletePopupOpen(false);
+    }
+  };
+
+  const openSearchPopup = (action: TSearchAction) => {
+    setDeletePopupOpen(false);
+    setDeleteError(undefined);
+    setSearchError(undefined);
+    setSearchAction(action);
+  };
+
+  const closeSearchPopup = () => {
+    if (!searchMutation.isPending) {
+      setSearchError(undefined);
+      setSearchAction(null);
     }
   };
 
@@ -104,6 +156,26 @@ const ItemDetailsComponent = () => {
 
             {isOwner && (
               <div className={styles.item__actions}>
+                {item.status === "available" && (
+                  <Button
+                    color="transparent"
+                    type="button"
+                    onClick={() => openSearchPopup("withdraw")}
+                  >
+                    Снять с поиска
+                  </Button>
+                )}
+
+                {item.status === "withdrawn" && (
+                  <Button
+                    color="green"
+                    type="button"
+                    onClick={() => openSearchPopup("restore")}
+                  >
+                    Вернуть в поиск
+                  </Button>
+                )}
+
                 <Button
                   color="light"
                   type="button"
@@ -122,6 +194,32 @@ const ItemDetailsComponent = () => {
       </article>
 
       <ItemPickupSection isOwner={isOwner} item={item} />
+
+      {searchAction && (
+        <ConfirmationPopup
+          title={
+            searchAction === "withdraw"
+              ? "Снять объявление с поиска?"
+              : "Вернуть объявление в поиск?"
+          }
+          description={
+            searchAction === "withdraw"
+              ? `Объявление «${item.title}» перестанет участвовать в подборе. Неподтверждённые предложения обмена с этой вещью будут отменены.`
+              : `Объявление «${item.title}» снова станет доступно для автоматического подбора обмена.`
+          }
+          confirmLabel={
+            searchAction === "withdraw" ? "Снять с поиска" : "Вернуть в поиск"
+          }
+          confirmColor={searchAction === "withdraw" ? "danger" : "green"}
+          pendingLabel={
+            searchAction === "withdraw" ? "Снимаем..." : "Возвращаем..."
+          }
+          isPending={searchMutation.isPending}
+          error={searchError}
+          onClose={closeSearchPopup}
+          onConfirm={() => searchMutation.mutate(searchAction)}
+        />
+      )}
 
       {deletePopupOpen && (
         <ConfirmationPopup

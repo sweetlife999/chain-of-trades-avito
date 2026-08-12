@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { OptionalPhotoUrlResponseSchema } from "../common.types";
 import {
   ExchangeMessagesSchema,
   ExchangeParticipantSchema,
@@ -77,18 +78,14 @@ export const AdminUserExchangesParamsSchema = z.object({
   offset: z.number().int().nonnegative().default(0),
 });
 
-export const AdminReportStatusSchema = z.enum([
-  "open",
-  "resolved",
-  "rejected",
-]);
+export const AdminReportStatusSchema = z.enum(["open", "resolved", "rejected"]);
 
 export const AdminReportReasonSchema = z.enum(["spam", "abuse", "other"]);
 
 export const AdminReportUserSchema = z.object({
   id: z.string(),
   nickname: z.string(),
-  photo_url: z.string().nullable().optional(),
+  photo_url: OptionalPhotoUrlResponseSchema,
 });
 
 export const AdminReportSchema = z.object({

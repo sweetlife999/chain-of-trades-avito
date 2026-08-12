@@ -7,16 +7,17 @@ import {
   RateExchangeRequestSchema,
   RatingsPageSchema,
   type TExchangeRating,
+  type TRateExchangeRequest,
   type TRatingsPage,
 } from "./ratings.types";
 
-// Кого оценивают, определяет сервер по самой цепочке, поэтому в теле только балл и текст.
+// Кого оценивают, определяет сервер по самой цепочке, поэтому ID пользователя
+// в запрос не передаём — только балл и необязательный комментарий.
 export const rateExchangePartner = async (
   exchangeId: string,
-  score: number,
-  comment: string,
+  request: TRateExchangeRequest,
 ): Promise<TExchangeRating> => {
-  const payload = RateExchangeRequestSchema.parse({ score, comment });
+  const payload = RateExchangeRequestSchema.parse(request);
   const { data } = await api.put(`/exchanges/${exchangeId}/rating`, payload);
 
   return ExchangeRatingSchema.parse(data);
@@ -24,8 +25,8 @@ export const rateExchangePartner = async (
 
 export const getUserRatings = async (
   userId: string,
-  limit: number,
-  offset: number,
+  limit = 20,
+  offset = 0,
 ): Promise<TRatingsPage> => {
   const { data } = await api.get(`/users/${userId}/ratings`, {
     params: { limit, offset },
