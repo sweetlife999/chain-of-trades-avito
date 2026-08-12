@@ -109,6 +109,7 @@ func TestCreateCleansInputAndHashesPassword(t *testing.T) {
 func TestCreateRejectsInvalidInput(t *testing.T) {
 	t.Parallel()
 
+	brokenPhotoURL := "photo.jpg"
 	tests := []struct {
 		name  string
 		input CreateInput
@@ -116,6 +117,10 @@ func TestCreateRejectsInvalidInput(t *testing.T) {
 		{name: "short nickname", input: CreateInput{Nickname: "ab", Password: "password123"}},
 		{name: "short password", input: CreateInput{Nickname: "Samir", Password: "short"}},
 		{name: "long password", input: CreateInput{Nickname: "Samir", Password: string(make([]byte, 73))}},
+		{
+			name:  "broken photo url",
+			input: CreateInput{Nickname: "Samir", Password: "password123", PhotoURL: &brokenPhotoURL},
+		},
 	}
 
 	for _, test := range tests {
@@ -128,6 +133,43 @@ func TestCreateRejectsInvalidInput(t *testing.T) {
 				t.Fatalf("Create() error = %v, want validation error", err)
 			}
 		})
+	}
+}
+
+// Аватарка едет прямо в <img src> чужого браузера, поэтому строка проверяется на обоих
+// путях. Пусто — это «без аватарки», а не ошибка: профиль без фотографии нормален.
+func TestUpdateValidatesPhotoURL(t *testing.T) {
+	t.Parallel()
+
+	accepted := []string{"", "/uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg", "https://example.com/1.jpg"}
+	rejected := []string{"photo.jpg", "//evil.com/1.jpg", "/uploads/../../etc/passwd", "javascript:alert(1)"}
+
+	for _, photoURL := range accepted {
+		repository := &fakeRepository{
+			update: func(context.Context, uuid.UUID, usermodel.Changes) (usermodel.User, error) {
+				return usermodel.User{}, nil
+			},
+		}
+
+		service := newWithCost(repository, bcrypt.MinCost)
+		if _, err := service.Update(context.Background(), uuid.New(), UpdateInput{PhotoURL: &photoURL}); err != nil {
+			t.Errorf("Update(%q) error = %v, want nil", photoURL, err)
+		}
+	}
+
+	for _, photoURL := range rejected {
+		repository := &fakeRepository{
+			update: func(context.Context, uuid.UUID, usermodel.Changes) (usermodel.User, error) {
+				t.Fatalf("Update(%q) не должен доходить до repository", photoURL)
+				return usermodel.User{}, nil
+			},
+		}
+
+		service := newWithCost(repository, bcrypt.MinCost)
+		_, err := service.Update(context.Background(), uuid.New(), UpdateInput{PhotoURL: &photoURL})
+		if !errors.Is(err, ErrValidation) {
+			t.Errorf("Update(%q) error = %v, want validation error", photoURL, err)
+		}
 	}
 }
 

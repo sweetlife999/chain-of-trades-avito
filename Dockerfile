@@ -21,6 +21,12 @@ FROM alpine:3.22
 
 COPY --from=build /out/api /out/migrate /usr/local/bin/
 
+# Каталог с владельцем создаётся здесь, а не на сервере: пустой том Docker наследует
+# владельца точки монтирования из образа. Без этой строки том создался бы root:root,
+# и api под nobody не смог бы записать в него ни одной фотографии — причём только на
+# чистой машине, где тома ещё нет.
+RUN mkdir -p /data/uploads && chown nobody /data/uploads
+
 # nobody уже есть в alpine, заводить своего пользователя незачем.
 USER nobody
 

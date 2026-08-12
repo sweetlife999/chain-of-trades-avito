@@ -13,9 +13,11 @@ type CreateUserRequest struct {
 	Description string  `json:"description"`
 }
 
+// Аватарка — ссылка, которую вернул POST /uploads; пустая строка убирает фотографию.
+// Внешние http(s)-адреса тоже принимаются: с ними живут профили, заведённые раньше.
 type UpdateUserRequest struct {
 	Nickname    *string `json:"nickname"`
-	PhotoURL    *string `json:"photo_url"`
+	PhotoURL    *string `json:"photo_url" example:"/uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg"`
 	Description *string `json:"description"`
 }
 

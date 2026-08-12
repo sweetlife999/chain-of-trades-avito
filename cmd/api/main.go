@@ -51,6 +51,8 @@ import (
 	supporthandler "github.com/sweetlife999/chain-of-trades-avito/internal/support/handler"
 	supportrepository "github.com/sweetlife999/chain-of-trades-avito/internal/support/repository"
 	supportservice "github.com/sweetlife999/chain-of-trades-avito/internal/support/service"
+	uploadhandler "github.com/sweetlife999/chain-of-trades-avito/internal/upload/handler"
+	uploadservice "github.com/sweetlife999/chain-of-trades-avito/internal/upload/service"
 	userhandler "github.com/sweetlife999/chain-of-trades-avito/internal/user/handler"
 	userrepository "github.com/sweetlife999/chain-of-trades-avito/internal/user/repository"
 	userservice "github.com/sweetlife999/chain-of-trades-avito/internal/user/service"
@@ -126,6 +128,12 @@ func main() {
 	supportRepository := supportrepository.New(queries)
 	support := supportservice.New(supportRepository)
 	adminSupport := supportservice.NewAdmin(supportRepository)
+	// Каталог создаётся здесь же: прав на запись не окажется — упадём на старте, а не на
+	// первой загрузке пользователя.
+	uploads, err := uploadservice.New(cfg.UploadsDirectory)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	tokens := authtoken.NewManager(cfg.JWTSecret, authTokenTTL)
 	authenticator := authmiddleware.New(tokens, users)
@@ -148,6 +156,9 @@ func main() {
 	// поэтому модуль живёт вне /admin: администратор в оценки не вмешивается.
 	ratinghandler.New(ratings).RegisterRoutes(router, authenticator.RequireAuthentication)
 	supporthandler.New(support).RegisterRoutes(router, authenticator.RequireAuthentication)
+	// Загрузка отделена от объявлений и профиля: сначала файл, потом ссылка на него в любом
+	// из них. Иначе multipart пришлось бы тащить в создание и в редактирование вещи разом.
+	uploadhandler.New(uploads).RegisterRoutes(router, authenticator.RequireAuthentication)
 
 	// Все следующие административные модули регистрируются только внутри этой группы.
 	// JWT сначала определяет пользователя, затем роль проверяется по актуальным данным БД.

@@ -61,14 +61,17 @@ Content-Type: application/json
   "title": "Велосипед",
   "description": "Почти новый, катался год",
   "photo_urls": [
-    "https://example.com/bike-1.jpg",
-    "https://example.com/bike-2.jpg"
+    "/uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg",
+    "/uploads/2f0b6c7a-1e11-4a0a-9d0f-6f1c1c531f0e.jpg"
   ],
   "wants": ["consoles", "phones"]
 }
 ```
 
 Обязательны `category`, `title`, `photo_urls` и `wants`; `description` можно не передавать.
+
+Фотографии загружаются заранее — по одной через `POST /uploads`, который возвращает путь
+(см. [uploads.md](uploads.md)). Внешние `http`/`https`-ссылки тоже принимаются.
 
 Владелец берётся из cookie, а не из тела запроса: создать объявление от чужого имени
 нельзя. Успешный ответ содержит созданное объявление и заголовок `Location: /items/{id}`.
@@ -92,8 +95,8 @@ GET /items/8db9f3e2-8a45-4a70-b3d1-167b4f97e121
   "title": "Велосипед",
   "description": "Почти новый, катался год",
   "photo_urls": [
-    "https://example.com/bike-1.jpg",
-    "https://example.com/bike-2.jpg"
+    "/uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg",
+    "/uploads/2f0b6c7a-1e11-4a0a-9d0f-6f1c1c531f0e.jpg"
   ],
   "wants": ["consoles", "phones"],
   "status": "available",
@@ -134,9 +137,9 @@ Content-Type: application/json
 {
   "title": "Велосипед городской",
   "photo_urls": [
-    "https://example.com/bike-1.jpg",
-    "https://example.com/bike-2.jpg",
-    "https://example.com/bike-3.jpg"
+    "/uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg",
+    "/uploads/2f0b6c7a-1e11-4a0a-9d0f-6f1c1c531f0e.jpg",
+    "/uploads/167b4f97-e121-4a70-b3d1-8db9f3e28a45.jpg"
   ]
 }
 ```
@@ -160,8 +163,9 @@ API вернёт `409 Conflict`.
 
 | Что нужно | Что передать |
 |---|---|
-| Добавить одну фотографию | старые ссылки + новую |
+| Добавить одну фотографию | старые ссылки + новую (сначала загрузить её) |
 | Добавить несколько сразу | старые ссылки + новые |
+| Поменять порядок | те же ссылки в другом порядке: первая — обложка |
 | Удалить одну из трёх | две оставшиеся |
 | Заменить все фотографии | только новые ссылки |
 | Удалить все фотографии | невозможно: `[]` → `400` |
@@ -215,8 +219,9 @@ PUT /items/8db9f3e2-8a45-4a70-b3d1-167b4f97e121/search
 
 - `title` после очистки — от 1 до 120 символов;
 - `category` — слаг из справочника `GET /categories`;
-- `photo_urls` — от 1 до 10 ссылок, каждая абсолютный `http`/`https`-адрес; относительные
-  пути и другие схемы отвергаются, пустые строки отбрасываются;
+- `photo_urls` — от 1 до 10 ссылок, каждая либо путь загруженного файла (`/uploads/<файл>`,
+  выдаёт `POST /uploads`, см. [uploads.md](uploads.md)), либо абсолютный `http`/`https`-адрес;
+  прочие относительные пути и другие схемы отвергаются, пустые строки отбрасываются;
 - `wants` — от 1 до 10 слагов; регистр приводится к нижнему, дубликаты отбрасываются;
 - ID в адресе должен быть корректным UUID;
 - неизвестные поля в JSON не принимаются;
@@ -272,7 +277,9 @@ sqlc — генерирует типобезопасный Go-код из querie
 
 ## Ограничения текущей версии
 
-- Фотографии хранятся ссылками; загрузки файлов нет;
+- фотографии хранятся ссылками: файлы загружаются отдельным запросом `POST /uploads`, а сюда
+  приезжает путь к ним (см. [uploads.md](uploads.md)). Внешние `http`/`https`-адреса тоже
+  принимаются — с ними живут объявления, созданные раньше;
 - список отдаётся целиком: фильтров, сортировки параметром и пагинации пока нет;
 - чужих и общих списков нет — только свои объявления и карточка по ID;
 - `status` через API не меняется — им управляет механика обменов;
@@ -295,9 +302,12 @@ curl -s -c cookies.txt -X POST http://localhost:8080/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"nickname":"Samir","password":"password123"}'
 
+curl -s -b cookies.txt -X POST http://localhost:8080/uploads -F "file=@bike.jpg"
+# {"url":"/uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg"}
+
 curl -i -b cookies.txt -X POST http://localhost:8080/items \
   -H 'Content-Type: application/json' \
-  -d '{"category":"bikes","title":"Велосипед","photo_urls":["https://example.com/1.jpg"],"wants":["consoles"]}'
+  -d '{"category":"bikes","title":"Велосипед","photo_urls":["/uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg"],"wants":["consoles"]}'
 
 curl -s -b cookies.txt http://localhost:8080/items   # свои объявления
 ```

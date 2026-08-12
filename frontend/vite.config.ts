@@ -26,6 +26,14 @@ export default defineConfig({
 
         rewrite: (path) => path.replace(/^\/api/, ""),
       },
+
+      // Загруженные фотографии. Без rewrite: в базе лежит путь /uploads/<файл>, и
+      // ровно его же ждёт Go — в проде этот путь проксирует Caddy тем же образом.
+      "/uploads": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
 });

@@ -2482,7 +2482,7 @@ const docTemplate = `{
                         "CookieAuth": []
                     }
                 ],
-                "description": "Требует cookie ` + "`" + `access_token` + "`" + `. Владелец берётся из токена, а не из тела запроса.\nНужна хотя бы одна фотография (ссылкой) и хотя бы одна желаемая категория —\nбез них объявление не участвует в подборе обменов. Список категорий: GET /categories.",
+                "description": "Требует cookie ` + "`" + `access_token` + "`" + `. Владелец берётся из токена, а не из тела запроса.\nНужна хотя бы одна фотография и хотя бы одна желаемая категория —\nбез них объявление не участвует в подборе обменов. Список категорий: GET /categories.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2651,7 +2651,7 @@ const docTemplate = `{
                         "CookieAuth": []
                     }
                 ],
-                "description": "Требует cookie ` + "`" + `access_token` + "`" + `, менять можно только свои объявления. Достаточно одного поля.\n` + "`" + `photo_urls` + "`" + ` и ` + "`" + `wants` + "`" + ` заменяются целиком: чтобы добавить фотографию, пришлите старые\nссылки вместе с новой. Пустой список запрещён — у объявления всегда есть хотя бы одно фото.",
+                "description": "Требует cookie ` + "`" + `access_token` + "`" + `, менять можно только свои объявления. Достаточно одного поля.\n` + "`" + `photo_urls` + "`" + ` и ` + "`" + `wants` + "`" + ` заменяются целиком: чтобы добавить фотографию, загрузите её\nчерез POST /uploads и пришлите старые ссылки вместе с новой. Пустой список запрещён —\nу объявления всегда есть хотя бы одно фото.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3634,6 +3634,67 @@ const docTemplate = `{
                 }
             }
         },
+        "/uploads": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Требует cookie ` + "`" + `access_token` + "`" + `. Принимает один файл в поле ` + "`" + `file` + "`" + ` формы\nmultipart/form-data: jpeg, png или webp размером до 5 МБ. Тип определяется по\nсодержимому файла, а имя присваивает сервер, поэтому расширение в запросе ни на\nчто не влияет.\n\nВозвращает ссылку, которую нужно передать в ` + "`" + `photo_urls` + "`" + ` объявления или в\n` + "`" + `photo_url` + "`" + ` профиля. Сама по себе загрузка ни к чему файл не привязывает.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "uploads"
+                ],
+                "summary": "Загрузить фотографию",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Файл изображения",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Загружено, ссылка в поле url",
+                        "schema": {
+                            "$ref": "#/definitions/dto.UploadResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Нет файла в запросе или это не картинка поддерживаемого формата",
+                        "schema": {
+                            "$ref": "#/definitions/dto.UploadError"
+                        }
+                    },
+                    "401": {
+                        "description": "Нет или истекла cookie access_token",
+                        "schema": {
+                            "$ref": "#/definitions/dto.UploadError"
+                        }
+                    },
+                    "413": {
+                        "description": "Файл больше 5 МБ",
+                        "schema": {
+                            "$ref": "#/definitions/dto.UploadError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/dto.UploadError"
+                        }
+                    }
+                }
+            }
+        },
         "/users": {
             "post": {
                 "description": "Регистрация: nickname 3–32 символа, пароль 8–72 байта. Пароль хранится bcrypt-хешем и в ответе не возвращается.",
@@ -4246,8 +4307,7 @@ const docTemplate = `{
                         "type": "string"
                     },
                     "example": [
-                        "https://example.com/bike-1.jpg",
-                        "https://example.com/bike-2.jpg"
+                        "/uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg"
                     ]
                 },
                 "title": {
@@ -4912,8 +4972,7 @@ const docTemplate = `{
                         "type": "string"
                     },
                     "example": [
-                        "https://example.com/bike-1.jpg",
-                        "https://example.com/bike-3.jpg"
+                        "/uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg"
                     ]
                 },
                 "title": {
@@ -4954,7 +5013,25 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "photo_url": {
+                    "type": "string",
+                    "example": "/uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg"
+                }
+            }
+        },
+        "dto.UploadError": {
+            "type": "object",
+            "properties": {
+                "error": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.UploadResponse": {
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "example": "/uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg"
                 }
             }
         },

@@ -154,8 +154,7 @@ definitions:
         type: string
       photo_urls:
         example:
-        - https://example.com/bike-1.jpg
-        - https://example.com/bike-2.jpg
+        - /uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg
         items:
           type: string
         type: array
@@ -591,8 +590,7 @@ definitions:
         type: string
       photo_urls:
         example:
-        - https://example.com/bike-1.jpg
-        - https://example.com/bike-3.jpg
+        - /uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg
         items:
           type: string
         type: array
@@ -622,6 +620,18 @@ definitions:
       nickname:
         type: string
       photo_url:
+        example: /uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg
+        type: string
+    type: object
+  dto.UploadError:
+    properties:
+      error:
+        type: string
+    type: object
+  dto.UploadResponse:
+    properties:
+      url:
+        example: /uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg
         type: string
     type: object
   dto.UserBlockResponse:
@@ -2520,7 +2530,7 @@ paths:
       - application/json
       description: |-
         Требует cookie `access_token`. Владелец берётся из токена, а не из тела запроса.
-        Нужна хотя бы одна фотография (ссылкой) и хотя бы одна желаемая категория —
+        Нужна хотя бы одна фотография и хотя бы одна желаемая категория —
         без них объявление не участвует в подборе обменов. Список категорий: GET /categories.
       parameters:
       - description: Данные объявления
@@ -2637,8 +2647,9 @@ paths:
       - application/json
       description: |-
         Требует cookie `access_token`, менять можно только свои объявления. Достаточно одного поля.
-        `photo_urls` и `wants` заменяются целиком: чтобы добавить фотографию, пришлите старые
-        ссылки вместе с новой. Пустой список запрещён — у объявления всегда есть хотя бы одно фото.
+        `photo_urls` и `wants` заменяются целиком: чтобы добавить фотографию, загрузите её
+        через POST /uploads и пришлите старые ссылки вместе с новой. Пустой список запрещён —
+        у объявления всегда есть хотя бы одно фото.
       parameters:
       - description: UUID объявления
         example: 8db9f3e2-8a45-4a70-b3d1-167b4f97e121
@@ -3291,6 +3302,52 @@ paths:
       summary: Написать в поддержку
       tags:
       - support
+  /uploads:
+    post:
+      consumes:
+      - multipart/form-data
+      description: |-
+        Требует cookie `access_token`. Принимает один файл в поле `file` формы
+        multipart/form-data: jpeg, png или webp размером до 5 МБ. Тип определяется по
+        содержимому файла, а имя присваивает сервер, поэтому расширение в запросе ни на
+        что не влияет.
+
+        Возвращает ссылку, которую нужно передать в `photo_urls` объявления или в
+        `photo_url` профиля. Сама по себе загрузка ни к чему файл не привязывает.
+      parameters:
+      - description: Файл изображения
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Загружено, ссылка в поле url
+          schema:
+            $ref: '#/definitions/dto.UploadResponse'
+        "400":
+          description: Нет файла в запросе или это не картинка поддерживаемого формата
+          schema:
+            $ref: '#/definitions/dto.UploadError'
+        "401":
+          description: Нет или истекла cookie access_token
+          schema:
+            $ref: '#/definitions/dto.UploadError'
+        "413":
+          description: Файл больше 5 МБ
+          schema:
+            $ref: '#/definitions/dto.UploadError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.UploadError'
+      security:
+      - CookieAuth: []
+      summary: Загрузить фотографию
+      tags:
+      - uploads
   /users:
     post:
       consumes:

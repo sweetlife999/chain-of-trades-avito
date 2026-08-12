@@ -1,7 +1,7 @@
 import { memo } from "react";
 import axios from "axios";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useFieldArray, useForm, useWatch } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
@@ -9,13 +9,12 @@ import styles from "./Styles.module.scss";
 import { createItem, getCategories } from "../../../../Api/items/items";
 import {
   createChainFormSchema,
-  photoUrlSchema,
   type TCreateChainForm,
 } from "./shemaCreateChain";
 import type { TCreateItemRequest } from "../../../../Api/items/items.types";
 import { Input } from "../../../UI/Input/Input";
 import { Button } from "../../../UI/Button/Button";
-import { PhotoGallery } from "../../../UI/PhotoGallery/PhotoGallery";
+import { PhotoUploader } from "../../../UI/PhotoUploader/PhotoUploader";
 
 const getRequestErrorMessage = (error: unknown) => {
   if (axios.isAxiosError<{ error?: string }>(error)) {
@@ -47,28 +46,10 @@ const CreateChainComponent = () => {
       title: "",
       category: "",
       description: "",
-      photo_urls: [{ url: "" }],
+      photo_urls: [],
       wants: [],
     },
   });
-
-  const {
-    fields: photoFields,
-    append: appendPhoto,
-    remove: removePhoto,
-  } = useFieldArray({
-    control,
-    name: "photo_urls",
-  });
-
-  const photoValues = useWatch({
-    control,
-    name: "photo_urls",
-  });
-
-  const previewUrls = (photoValues ?? [])
-    .map((photo) => photo.url.trim())
-    .filter((url) => photoUrlSchema.safeParse(url).success);
 
   const createItemMutation = useMutation({
     mutationFn: (request: TCreateItemRequest) => createItem(request),
@@ -94,7 +75,7 @@ const CreateChainComponent = () => {
       title: formData.title.trim(),
       category: formData.category,
       description: formData.description.trim(),
-      photo_urls: formData.photo_urls.map(({ url }) => url.trim()),
+      photo_urls: formData.photo_urls,
       wants: formData.wants,
     });
   };
@@ -123,63 +104,27 @@ const CreateChainComponent = () => {
         >
           <div className={styles.createChain__content}>
             <div className={styles.createChain__photosColumn}>
-              <PhotoGallery
-                urls={previewUrls}
-                alt="Предпросмотр товара"
-                empty={
-                  <div className={styles.createChain__photoPlaceholder}>
-                    <span className={styles.createChain__photoPlus}>+</span>
+              <span className={styles.createChain__label}>
+                Фотографии <b className={styles.createChain__required}>*</b>
+              </span>
 
-                    <strong className={styles.createChain__photoTitle}>
-                      Добавить фотографии
-                    </strong>
-
-                    <small className={styles.createChain__photoHint}>
-                      Вставьте ссылки, до 10 фотографий
-                    </small>
-                  </div>
-                }
+              <Controller
+                control={control}
+                name="photo_urls"
+                render={({ field }) => (
+                  <PhotoUploader
+                    urls={field.value}
+                    onChange={field.onChange}
+                    disabled={createItemMutation.isPending}
+                  />
+                )}
               />
 
-              <div className={styles.createChain__photoFields}>
-                {photoFields.map((field, index) => (
-                  <div
-                    className={styles.createChain__photoField}
-                    key={field.id}
-                  >
-                    <Input
-                      label={`Ссылка на фото ${index + 1}`}
-                      type="url"
-                      placeholder="https://example.com/photo.jpg"
-                      autoComplete="url"
-                      error={errors.photo_urls?.[index]?.url?.message}
-                      {...register(`photo_urls.${index}.url`)}
-                    />
-
-                    {photoFields.length > 1 && (
-                      <button
-                        className={styles.createChain__removePhoto}
-                        type="button"
-                        aria-label={`Удалить фотографию ${index + 1}`}
-                        onClick={() => removePhoto(index)}
-                      >
-                        ×
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              <Button
-                className={styles.createChain__addPhoto}
-                color="light"
-                size="s"
-                type="button"
-                disabled={photoFields.length >= 10}
-                onClick={() => appendPhoto({ url: "" })}
-              >
-                Добавить ещё фото
-              </Button>
+              {errors.photo_urls && (
+                <span className={styles.createChain__fieldError}>
+                  {errors.photo_urls.message}
+                </span>
+              )}
             </div>
 
             <div className={styles.createChain__fieldsColumn}>

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { PhotoReferenceSchema } from "../common.types";
+
 export const ItemStatusSchema = z.enum([
   "available",
   "reserved",
@@ -17,13 +19,7 @@ export const CategoriesArraySchema = z.array(CategorySchema);
 export const CreateItemRequestSchema = z.object({
   category: z.string().min(1),
   description: z.string(),
-  photo_urls: z
-    .array(
-      z
-        .url("Введите корректную ссылку")
-        .regex(/^https?:\/\//, "Должна быть ссылка с http или https"),
-    )
-    .min(1),
+  photo_urls: z.array(PhotoReferenceSchema).min(1),
   title: z.string().min(1),
   wants: z.array(z.string().min(1)).min(1),
 });
@@ -49,11 +45,10 @@ export const ItemSchema = z.object({
   title: z.string(),
   description: z.string(),
   category: z.string(),
-  photo_urls: z.array(
-    z
-      .url("Введите корректную ссылку")
-      .regex(/^https?:\/\//, "Должна быть ссылка с http или https"),
-  ),
+  // Это данные сервера, а не форма: он их уже проверил, и ссылку, которую сам же и выдал,
+  // мы обязаны показать. Строгая проверка формы уронила бы всю карточку вместо картинки —
+  // ровно так же, как раньше падал профиль без аватарки.
+  photo_urls: z.array(z.string()),
   pickup_point: ItemPickupPointSchema.nullable().optional().default(null),
   wants: z.array(z.string()),
   status: ItemStatusSchema,

@@ -1,7 +1,7 @@
 import { memo } from "react";
 import axios from "axios";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useFieldArray, useForm, useWatch } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
@@ -18,10 +18,9 @@ import type {
 import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
 import { Button } from "../../UI/Button/Button";
 import { Input } from "../../UI/Input/Input";
-import { PhotoGallery } from "../../UI/PhotoGallery/PhotoGallery";
+import { PhotoUploader } from "../../UI/PhotoUploader/PhotoUploader";
 import {
   createChainFormSchema,
-  photoUrlSchema,
   type TCreateChainForm,
 } from "../MyChainsProcess/CreateChain/shemaCreateChain";
 
@@ -67,28 +66,10 @@ const ItemEditForm = ({ item }: TFormProps) => {
       title: item.title,
       category: item.category,
       description: item.description,
-      photo_urls: item.photo_urls.map((url) => ({ url })),
+      photo_urls: item.photo_urls,
       wants: item.wants,
     },
   });
-
-  const {
-    fields: photoFields,
-    append: appendPhoto,
-    remove: removePhoto,
-  } = useFieldArray({
-    control,
-    name: "photo_urls",
-  });
-
-  const photoValues = useWatch({
-    control,
-    name: "photo_urls",
-  });
-
-  const previewUrls = (photoValues ?? [])
-    .map((photo) => photo.url.trim())
-    .filter((url) => photoUrlSchema.safeParse(url).success);
 
   const updateMutation = useMutation({
     mutationFn: (request: TUpdateItemRequest) => updateItem(item.id, request),
@@ -115,7 +96,7 @@ const ItemEditForm = ({ item }: TFormProps) => {
   const onSubmit = (formData: TCreateChainForm) => {
     const title = formData.title.trim();
     const description = formData.description.trim();
-    const photoUrls = formData.photo_urls.map(({ url }) => url.trim());
+    const photoUrls = formData.photo_urls;
 
     const request: TUpdateItemRequest = {};
     if (title !== item.title) {
@@ -164,57 +145,27 @@ const ItemEditForm = ({ item }: TFormProps) => {
       >
         <div className={styles.editItem__content}>
           <div className={styles.editItem__photosColumn}>
-            <PhotoGallery
-              urls={previewUrls}
-              alt="Предпросмотр товара"
-              empty={
-                <div className={styles.editItem__photoPlaceholder}>
-                  <span className={styles.editItem__photoPlus}>+</span>
-                  <strong className={styles.editItem__photoTitle}>
-                    Добавить фотографии
-                  </strong>
-                  <small className={styles.editItem__photoHint}>
-                    Вставьте ссылки, до 10 фотографий
-                  </small>
-                </div>
-              }
+            <span className={styles.editItem__label}>
+              Фотографии <b className={styles.editItem__required}>*</b>
+            </span>
+
+            <Controller
+              control={control}
+              name="photo_urls"
+              render={({ field }) => (
+                <PhotoUploader
+                  urls={field.value}
+                  onChange={field.onChange}
+                  disabled={updateMutation.isPending}
+                />
+              )}
             />
 
-            <div className={styles.editItem__photoFields}>
-              {photoFields.map((field, index) => (
-                <div className={styles.editItem__photoField} key={field.id}>
-                  <Input
-                    label={`Ссылка на фото ${index + 1}`}
-                    type="url"
-                    placeholder="https://example.com/photo.jpg"
-                    autoComplete="url"
-                    error={errors.photo_urls?.[index]?.url?.message}
-                    {...register(`photo_urls.${index}.url`)}
-                  />
-
-                  {photoFields.length > 1 && (
-                    <button
-                      className={styles.editItem__removePhoto}
-                      type="button"
-                      aria-label={`Удалить фотографию ${index + 1}`}
-                      onClick={() => removePhoto(index)}
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <Button
-              color="light"
-              size="s"
-              type="button"
-              disabled={photoFields.length >= 10}
-              onClick={() => appendPhoto({ url: "" })}
-            >
-              Добавить ещё фото
-            </Button>
+            {errors.photo_urls && (
+              <span className={styles.editItem__fieldError}>
+                {errors.photo_urls.message}
+              </span>
+            )}
           </div>
 
           <div className={styles.editItem__fieldsColumn}>

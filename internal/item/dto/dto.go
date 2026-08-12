@@ -6,11 +6,13 @@ import (
 	itemmodel "github.com/sweetlife999/chain-of-trades-avito/internal/item/model"
 )
 
+// Фотография — это ссылка, которую вернул POST /uploads. Внешние http(s)-адреса тоже
+// принимаются: с ними живут объявления, созданные до загрузки файлов.
 type CreateItemRequest struct {
 	Category    string   `json:"category"    example:"bikes"`
 	Title       string   `json:"title"       example:"Велосипед"`
 	Description string   `json:"description" example:"Почти новый, катался год"`
-	PhotoURLs   []string `json:"photo_urls"  example:"https://example.com/bike-1.jpg,https://example.com/bike-2.jpg"`
+	PhotoURLs   []string `json:"photo_urls"  example:"/uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg"`
 	Wants       []string `json:"wants"       example:"consoles,phones"`
 }
 
@@ -21,7 +23,7 @@ type UpdateItemRequest struct {
 	Category    *string  `json:"category"    example:"bikes"`
 	Title       *string  `json:"title"       example:"Велосипед городской"`
 	Description *string  `json:"description" example:"Добавил фото рамы"`
-	PhotoURLs   []string `json:"photo_urls"  example:"https://example.com/bike-1.jpg,https://example.com/bike-3.jpg"`
+	PhotoURLs   []string `json:"photo_urls"  example:"/uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg"`
 	Wants       []string `json:"wants"       example:"consoles"`
 }
 

@@ -23,6 +23,19 @@
     border-radius: $border-radius;
   }
 
+  // Подпись повторяет label из Input: поле то же самое, просто с другим управлением.
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  &__label {
+    color: #292929;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
   &__actions {
     display: flex;
     justify-content: space-between;
