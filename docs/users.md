@@ -33,13 +33,14 @@ Content-Type: application/json
 {
   "nickname": "Samir",
   "password": "password123",
-  "photo_url": "https://example.com/photo.jpg",
+  "photo_url": "/uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg",
   "description": "Меняю настольные игры"
 }
 ```
 
 Обязательные поля — `nickname` и `password`. `photo_url` и `description` можно не
-передавать.
+передавать. Фотография загружается отдельным запросом `POST /uploads`, который возвращает
+путь к файлу (см. [uploads.md](uploads.md)); внешние `http`/`https`-ссылки тоже принимаются.
 
 Перед сохранением пробелы по краям текстовых полей убираются. Пароль не записывается в
 БД открытым текстом: service превращает его в bcrypt-хеш, и только хеш передаётся в
@@ -60,7 +61,7 @@ GET /users/8db9f3e2-8a45-4a70-b3d1-167b4f97e121
 {
   "id": "8db9f3e2-8a45-4a70-b3d1-167b4f97e121",
   "nickname": "Samir",
-  "photo_url": "https://example.com/photo.jpg",
+  "photo_url": "/uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg",
   "description": "Меняю настольные игры",
   "deals_completed": 0,
   "deals_broken": 0,
@@ -106,6 +107,9 @@ Content-Type: application/json
 ## Проверка данных
 
 - nickname после очистки должен содержать от 3 до 32 символов;
+- `photo_url` — либо путь загруженного файла (`/uploads/<файл>`, выдаёт `POST /uploads`,
+  см. [uploads.md](uploads.md)), либо абсолютный `http`/`https`-адрес. Пустая строка
+  означает «без фотографии» и допустима: профиль без аватарки — нормальное состояние;
 - пароль должен занимать от 8 до 72 байт — верхняя граница связана с bcrypt;
 - nickname уникален без учёта регистра: `Samir` и `samir` считаются одинаковыми;
 - ID в адресе должен быть корректным UUID;

@@ -183,7 +183,8 @@ IMAGE_TAG=<sha предыдущего деплоя> docker compose \
   -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build
 ```
 
-Бэкапов БД пока нет: том `pgdata` — единственная копия данных.
+Бэкапов пока нет: тома `pgdata` и `uploads` — единственная копия данных и загруженных
+фотографий. Оба переживают деплой, потому что CD гасит стек через `down` без `-v`.
 
 ## Структура проекта
 
@@ -238,8 +239,8 @@ IMAGE_TAG=<sha предыдущего деплоя> docker compose \
 ## Документация
 
 - [схема базы данных](docs/db.md);
-- [пользователи](docs/users.md), [объявления](docs/items.md) и
-  [авторизация](docs/auth.md);
+- [пользователи](docs/users.md), [объявления](docs/items.md),
+  [загрузка фотографий](docs/uploads.md) и [авторизация](docs/auth.md);
 - [поиск циклов](docs/exchange-search.md), [жизненный цикл обмена](docs/exchanges.md),
   [восстановление поиска](docs/exchange-recovery.md),
   [переписка участников](docs/exchange-messages.md) и
