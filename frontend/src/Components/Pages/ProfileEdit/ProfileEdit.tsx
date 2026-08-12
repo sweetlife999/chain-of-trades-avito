@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { z } from "zod";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,6 +16,7 @@ import {
 import { setUserState } from "../../../Store/authSlice";
 import { Button } from "../../UI/Button/Button";
 import { Input } from "../../UI/Input/Input";
+import { PhotoUploader } from "../../UI/PhotoUploader/PhotoUploader";
 
 const profileEditSchema = z.object({
   nickname: z
@@ -37,6 +38,7 @@ const ProfileEditComponent = () => {
 
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors },
     setError,
@@ -105,12 +107,29 @@ const ProfileEditComponent = () => {
           {...register("nickname")}
         />
 
-        <Input
-          label="Ссылка на фотографию"
-          placeholder="https://example.com/photo.jpg"
-          error={errors.photo_url?.message}
-          {...register("photo_url")}
-        />
+        <div className={styles.edit__field}>
+          <span className={styles.edit__label}>Фотография профиля</span>
+
+          {/* Пустая строка — «без фотографии», ровно то, чем её кодирует API. */}
+          <Controller
+            control={control}
+            name="photo_url"
+            render={({ field }) => (
+              <PhotoUploader
+                max={1}
+                urls={field.value ? [field.value] : []}
+                onChange={(urls) => field.onChange(urls[0] ?? "")}
+                disabled={updateMutation.isPending}
+              />
+            )}
+          />
+
+          {errors.photo_url && (
+            <span className={styles.edit__error}>
+              {errors.photo_url.message}
+            </span>
+          )}
+        </div>
 
         <Input
           textarea
