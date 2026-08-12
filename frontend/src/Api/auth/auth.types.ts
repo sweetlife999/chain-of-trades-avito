@@ -7,13 +7,22 @@ const BaseUserSchema = z.object({
   description: z.string(),
   id: z.string(),
   nickname: z.string(),
+  // API отдаёт null у всех, кто не поставил аватар, и строгая строка роняла разбор
+  // всего ответа: страница профиля показывала «Пользователь не найден».
+
   photo_url: z
     .url("Введите корректную ссылку")
-    .regex(/^https?:\/\//, "Должна быть ссылка с http или https"),
+    .regex(/^https?:\/\//, "Должна быть ссылка с http или https")
+    .nullable(),
   rating: z
     .number()
     .nullable()
     .transform((value) => value ?? 0),
+
+  // null означает «оценок ещё не было», и схлопывать его в 0 нельзя: на экране это
+  // превращало новичка в человека с нулевым рейтингом.
+  ratings_count: z.number().int().nonnegative().default(0),
+
   updated_at: z.string(),
 });
 
@@ -30,9 +39,13 @@ export const BlockedUserSchema = z.object({
   blocked_at: z.string(),
   id: z.string(),
   nickname: z.string(),
+
+  // API отдаёт null у всех, кто не поставил аватар, и строгая строка роняла разбор
+  // всего ответа: страница профиля показывала «Пользователь не найден».
   photo_url: z
     .url("Введите корректную ссылку")
-    .regex(/^https?:\/\//, "Должна быть ссылка с http или https"),
+    .regex(/^https?:\/\//, "Должна быть ссылка с http или https")
+    .nullable(),
 });
 
 export const BlockedUsersSchema = z.array(BlockedUserSchema);

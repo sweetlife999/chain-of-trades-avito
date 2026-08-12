@@ -16,6 +16,7 @@
 - фоновый поиск до 10 вариантов обмена длиной от 2 до 5 участников;
 - ранжирование вариантов по рейтингу, надёжности и количеству участников;
 - подтверждение, отказ, передача через ПВЗ и завершение обмена всеми участниками;
+- оценка партнёра после завершённого обмена и анонимные отзывы в профиле;
 - защита одной вещи от участия в двух подтверждённых обменах;
 - автоматическое восстановление поиска после отмены или срыва обмена;
 - чат участников обмена, системные события и центр уведомлений;
@@ -146,7 +147,7 @@ cd frontend && npm ci && npm run dev   # Vite на :5173, /api уходит на
 
 ```bash
 gofmt -l . && go vet ./... && go test ./... -race
-make test-exchange-integration
+make test-exchange-integration test-ratings-integration
 make sqlc swagger && git status --short   # дерево должно остаться чистым
 ```
 
@@ -240,8 +241,9 @@ IMAGE_TAG=<sha предыдущего деплоя> docker compose \
 - [пользователи](docs/users.md), [объявления](docs/items.md) и
   [авторизация](docs/auth.md);
 - [поиск циклов](docs/exchange-search.md), [жизненный цикл обмена](docs/exchanges.md),
-  [восстановление поиска](docs/exchange-recovery.md) и
-  [переписка участников](docs/exchange-messages.md);
+  [восстановление поиска](docs/exchange-recovery.md),
+  [переписка участников](docs/exchange-messages.md) и
+  [оценка партнёра](docs/ratings.md);
 - [блокировки пользователей](docs/user-blocks.md) и [жалобы](docs/reports.md);
 - [пункты выдачи](docs/pickup-points.md),
   [отмена обмена администратором](docs/admin-exchange-cancellation.md),

@@ -14,7 +14,7 @@ import (
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (nickname, password_hash, photo_url, description)
 VALUES ($1, $2, $3, $4)
-RETURNING id, nickname, password_hash, photo_url, description, deals_completed, deals_broken, rating, created_at, updated_at, is_admin, is_blocked, blocked_at, blocked_by
+RETURNING id, nickname, password_hash, photo_url, description, deals_completed, deals_broken, rating, created_at, updated_at, is_admin, is_blocked, blocked_at, blocked_by, ratings_count
 `
 
 type CreateUserParams struct {
@@ -47,12 +47,13 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.IsBlocked,
 		&i.BlockedAt,
 		&i.BlockedBy,
+		&i.RatingsCount,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, nickname, password_hash, photo_url, description, deals_completed, deals_broken, rating, created_at, updated_at, is_admin, is_blocked, blocked_at, blocked_by FROM users WHERE id = $1
+SELECT id, nickname, password_hash, photo_url, description, deals_completed, deals_broken, rating, created_at, updated_at, is_admin, is_blocked, blocked_at, blocked_by, ratings_count FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error) {
@@ -73,12 +74,13 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 		&i.IsBlocked,
 		&i.BlockedAt,
 		&i.BlockedBy,
+		&i.RatingsCount,
 	)
 	return i, err
 }
 
 const getUserByNickname = `-- name: GetUserByNickname :one
-SELECT id, nickname, password_hash, photo_url, description, deals_completed, deals_broken, rating, created_at, updated_at, is_admin, is_blocked, blocked_at, blocked_by FROM users WHERE lower(nickname) = lower($1)
+SELECT id, nickname, password_hash, photo_url, description, deals_completed, deals_broken, rating, created_at, updated_at, is_admin, is_blocked, blocked_at, blocked_by, ratings_count FROM users WHERE lower(nickname) = lower($1)
 `
 
 // Логин: nickname уникален регистронезависимо, запрос обязан идти через lower(),
@@ -101,6 +103,7 @@ func (q *Queries) GetUserByNickname(ctx context.Context, nickname string) (User,
 		&i.IsBlocked,
 		&i.BlockedAt,
 		&i.BlockedBy,
+		&i.RatingsCount,
 	)
 	return i, err
 }
@@ -130,7 +133,7 @@ UPDATE users SET
     photo_url   = COALESCE($2, photo_url),
     description = COALESCE($3, description)
 WHERE id = $4
-RETURNING id, nickname, password_hash, photo_url, description, deals_completed, deals_broken, rating, created_at, updated_at, is_admin, is_blocked, blocked_at, blocked_by
+RETURNING id, nickname, password_hash, photo_url, description, deals_completed, deals_broken, rating, created_at, updated_at, is_admin, is_blocked, blocked_at, blocked_by, ratings_count
 `
 
 type UpdateUserProfileParams struct {
@@ -165,6 +168,7 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		&i.IsBlocked,
 		&i.BlockedAt,
 		&i.BlockedBy,
+		&i.RatingsCount,
 	)
 	return i, err
 }

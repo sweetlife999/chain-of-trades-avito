@@ -49,11 +49,21 @@ export const ExchangeParticipantSchema = z.object({
   user: ExchangeUserSchema,
 });
 
+// Кого оценивать и до какого момента, считает сервер: правило «оцениваешь того, от кого
+// пришла вещь» не должно жить ещё и здесь, а срок с чужих часов разъедется с серверным.
+export const ExchangeRatingSlotSchema = z.object({
+  rated_user_id: z.string(),
+  rate_until: z.string(),
+  score: z.number().nullable(),
+  comment: z.string(),
+});
+
 export const ExchangeSchema = z.object({
   closed_at: z.string().nullable().optional(),
   created_at: z.string(),
   id: z.string(),
   participants: z.array(ExchangeParticipantSchema),
+  rating: ExchangeRatingSlotSchema.nullable().optional().default(null),
   status: ExchangeStatusSchema,
   unread_count: z.number().int().nonnegative().default(0),
   updated_at: z.string(),
@@ -92,6 +102,7 @@ export const ExchangeMessageSchema = z.object({
 
 export const ExchangeMessagesSchema = z.array(ExchangeMessageSchema);
 
+export type TExchangeRatingSlot = z.infer<typeof ExchangeRatingSlotSchema>;
 export type TExchangeStatus = z.infer<typeof ExchangeStatusSchema>;
 export type TExchange = z.infer<typeof ExchangeSchema>;
 export type TExchangeParticipant = z.infer<typeof ExchangeParticipantSchema>;

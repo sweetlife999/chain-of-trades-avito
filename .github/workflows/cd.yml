@@ -77,6 +77,11 @@ jobs:
             echo "$GHCR_TOKEN" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
             compose="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
+            
+            # Очистить старые контейнеры перед деплоем, чтобы избежать конфликта портов
+            $compose down --remove-orphans || true
+            docker network prune -f || true
+            
             $compose pull
             # --no-build: на сервере не собирается ничего, только запускается.
             # migrate прогоняется сам, api ждёт его через service_completed_successfully.

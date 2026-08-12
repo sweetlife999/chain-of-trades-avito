@@ -439,4 +439,81 @@ BEGIN
     RAISE NOTICE 'ok 26: отмена хранит причину, сорванный состав — отдельное исключение';
 END $$;
 
+-- 27. Оценить можно только внутри своей цепочки: это держит композитный FK на
+-- chain_participants, а не проверка в сервисе. Цепочка своя — та, что выше, уже отменена
+-- кейсом 20, а оценивают только завершённые обмены.
+DO $$
+DECLARE rated_chain uuid;
+BEGIN
+    INSERT INTO chains (signature, composition_key, status, closed_at)
+    VALUES ('smoke:rated', 'smoke:rated-composition', 'completed', now())
+    RETURNING id INTO rated_chain;
+
+    INSERT INTO chain_participants (chain_id, user_id, gives_item_id, receives_item_id, position)
+    VALUES (rated_chain, '11111111-1111-1111-1111-111111111111',
+            'aaaaaaaa-0000-0000-0000-000000000000', 'bbbbbbbb-0000-0000-0000-000000000000', 0);
+
+    -- carol в этой цепочке не участвует
+    INSERT INTO chain_ratings (chain_id, rater_id, rated_id, score)
+    VALUES (rated_chain, '33333333-3333-3333-3333-333333333333',
+            '11111111-1111-1111-1111-111111111111', 5);
+
+    RAISE EXCEPTION 'оценка от постороннего прошла, а не должна была';
+EXCEPTION WHEN foreign_key_violation THEN
+    RAISE NOTICE 'ok 27: оценивать можно только внутри своей цепочки';
+END $$;
+
+-- 28. Средний балл и счётчик пересчитывает триггер: ни один запрос не пишет их сам.
+-- Проверяем и обратный ход — без оценок рейтинг снова NULL, а не 0.00.
+DO $$
+DECLARE
+    rated_chain uuid;
+    average numeric;
+    total   integer;
+BEGIN
+    INSERT INTO chains (signature, composition_key, status, closed_at)
+    VALUES ('smoke:average', 'smoke:average-composition', 'completed', now())
+    RETURNING id INTO rated_chain;
+
+    INSERT INTO chain_participants (chain_id, user_id, gives_item_id, receives_item_id, position) VALUES
+        (rated_chain, '11111111-1111-1111-1111-111111111111',
+         'aaaaaaaa-0000-0000-0000-000000000000', 'bbbbbbbb-0000-0000-0000-000000000000', 0),
+        (rated_chain, '22222222-2222-2222-2222-222222222222',
+         'bbbbbbbb-0000-0000-0000-000000000000', 'cccccccc-0000-0000-0000-000000000000', 1),
+        (rated_chain, '33333333-3333-3333-3333-333333333333',
+         'cccccccc-0000-0000-0000-000000000000', 'aaaaaaaa-0000-0000-0000-000000000000', 2);
+
+    INSERT INTO chain_ratings (chain_id, rater_id, rated_id, score) VALUES
+        (rated_chain, '22222222-2222-2222-2222-222222222222',
+         '11111111-1111-1111-1111-111111111111', 4),
+        (rated_chain, '33333333-3333-3333-3333-333333333333',
+         '11111111-1111-1111-1111-111111111111', 5);
+
+    SELECT rating, ratings_count INTO average, total
+    FROM users WHERE id = '11111111-1111-1111-1111-111111111111';
+    IF average <> 4.50 OR total <> 2 THEN
+        RAISE EXCEPTION 'ожидали 4.50 по двум оценкам, получили % по %', average, total;
+    END IF;
+
+    -- Правка оценки, а не вторая строка: upsert идёт по (chain_id, rater_id).
+    UPDATE chain_ratings SET score = 2
+    WHERE chain_id = rated_chain AND rater_id = '22222222-2222-2222-2222-222222222222';
+
+    SELECT rating, ratings_count INTO average, total
+    FROM users WHERE id = '11111111-1111-1111-1111-111111111111';
+    IF average <> 3.50 OR total <> 2 THEN
+        RAISE EXCEPTION 'после правки ожидали 3.50 по двум оценкам, получили % по %', average, total;
+    END IF;
+
+    DELETE FROM chain_ratings WHERE rated_id = '11111111-1111-1111-1111-111111111111';
+
+    SELECT rating, ratings_count INTO average, total
+    FROM users WHERE id = '11111111-1111-1111-1111-111111111111';
+    IF average IS NOT NULL OR total <> 0 THEN
+        RAISE EXCEPTION 'без оценок ожидали NULL и 0, получили % и %', average, total;
+    END IF;
+
+    RAISE NOTICE 'ok 28: средний балл и счётчик оценок пересчитывает триггер';
+END $$;
+
 ROLLBACK;

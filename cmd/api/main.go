@@ -42,6 +42,9 @@ import (
 	pickuppointhandler "github.com/sweetlife999/chain-of-trades-avito/internal/pickuppoint/handler"
 	pickuppointrepository "github.com/sweetlife999/chain-of-trades-avito/internal/pickuppoint/repository"
 	pickuppointservice "github.com/sweetlife999/chain-of-trades-avito/internal/pickuppoint/service"
+	ratinghandler "github.com/sweetlife999/chain-of-trades-avito/internal/rating/handler"
+	ratingrepository "github.com/sweetlife999/chain-of-trades-avito/internal/rating/repository"
+	ratingservice "github.com/sweetlife999/chain-of-trades-avito/internal/rating/service"
 	reporthandler "github.com/sweetlife999/chain-of-trades-avito/internal/report/handler"
 	reportrepository "github.com/sweetlife999/chain-of-trades-avito/internal/report/repository"
 	reportservice "github.com/sweetlife999/chain-of-trades-avito/internal/report/service"
@@ -119,6 +122,7 @@ func main() {
 	adminReports := reportservice.NewAdmin(reportsRepository, exchangesRepository)
 	adminAudit := adminauditservice.New(adminauditrepository.New(queries))
 	notifications := notificationservice.New(notificationrepository.New(queries))
+	ratings := ratingservice.New(ratingrepository.New(queries))
 	supportRepository := supportrepository.New(queries)
 	support := supportservice.New(supportRepository)
 	adminSupport := supportservice.NewAdmin(supportRepository)
@@ -140,6 +144,9 @@ func main() {
 	// Жалуется обычный участник обмена, поэтому маршрут живёт вне группы /admin.
 	reporthandler.New(reports).RegisterRoutes(router, authenticator.RequireAuthentication)
 	notificationhandler.New(notifications).RegisterRoutes(router, authenticator.RequireAuthentication)
+	// Оценку ставит участник завершённого обмена, а лента отзывов публична, как профиль,
+	// поэтому модуль живёт вне /admin: администратор в оценки не вмешивается.
+	ratinghandler.New(ratings).RegisterRoutes(router, authenticator.RequireAuthentication)
 	supporthandler.New(support).RegisterRoutes(router, authenticator.RequireAuthentication)
 
 	// Все следующие административные модули регистрируются только внутри этой группы.

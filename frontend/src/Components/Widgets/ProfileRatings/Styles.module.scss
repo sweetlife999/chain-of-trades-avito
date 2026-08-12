@@ -1,0 +1,70 @@
+.ratings {
+  display: grid;
+  justify-items: start;
+  gap: 16px;
+  padding: clamp(20px, 3vw, 28px);
+
+  background: #fff;
+  border: 1px solid #ececec;
+  border-radius: 16px;
+
+  &__title {
+    @include section-title;
+
+    margin: 0;
+  }
+
+  &__state {
+    margin: 0;
+    color: #727780;
+    font-size: 14px;
+
+    &_error {
+      color: #991b1b;
+    }
+  }
+
+  &__list {
+    display: grid;
+    gap: 14px;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__item {
+    display: grid;
+    gap: 8px;
+    padding: 14px 16px;
+
+    background: $background-input;
+    border-radius: 12px;
+  }
+
+  &__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+
+  &__author {
+    color: #444;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  &__date {
+    color: #777;
+    font-size: 12px;
+  }
+
+  &__comment {
+    margin: 0;
+    color: #202124;
+    font-size: 14px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+}

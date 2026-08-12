@@ -14,13 +14,16 @@ type User struct {
 	Description    string
 	DealsCompleted int32
 	DealsBroken    int32
-	Rating         *float64
-	IsAdmin        bool
-	IsBlocked      bool
-	BlockedAt      *time.Time
-	BlockedBy      *uuid.UUID
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	// nil — оценок ещё не было. Это не то же самое, что 0.00, поэтому счётчик рядом:
+	// без него «новичок» и «двенадцать единиц» выглядят на экране одинаково.
+	Rating       *float64
+	RatingsCount int32
+	IsAdmin      bool
+	IsBlocked    bool
+	BlockedAt    *time.Time
+	BlockedBy    *uuid.UUID
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }
 
 type NewUser struct {

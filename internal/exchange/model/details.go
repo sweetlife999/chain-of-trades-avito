@@ -12,9 +12,23 @@ type Details struct {
 	CancelReason *string
 	Participants []DetailsParticipant
 	UnreadCount  int64
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
-	ClosedAt     *time.Time
+	// nil, пока обмен не завершён или смотрит посторонний. Оценка — свойство «меня» в
+	// обмене, поэтому она одна на весь ответ, а не поле участника.
+	Rating    *DetailsRating
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	ClosedAt  *time.Time
+}
+
+// DetailsRating — кого текущий пользователь должен оценить, до какого момента и что он
+// уже поставил. Партнёра считает база: повторять это правило на клиенте значило бы
+// завести ему второй источник правды.
+type DetailsRating struct {
+	RatedUserID uuid.UUID
+	RateUntil   time.Time
+	// nil — оценка ещё не поставлена.
+	Score   *int32
+	Comment string
 }
 
 type DetailsParticipant struct {
