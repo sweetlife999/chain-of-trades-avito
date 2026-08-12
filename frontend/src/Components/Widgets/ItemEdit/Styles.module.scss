@@ -54,61 +54,6 @@
   }
 
 
-  &__photoPlaceholder {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 24px;
-    text-align: center;
-
-  }
-
-  &__photoPlus {
-    display: grid;
-    width: 54px;
-    aspect-ratio: 1;
-    place-items: center;
-    color: #0095f6;
-    background: #e9f5ff;
-    border-radius: 50%;
-    font-size: 28px;
-  }
-
-  &__photoTitle { line-height: 1.35; }
-  &__photoHint { color: #6f6f6f; line-height: 1.4; }
-
-  &__photoFields {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  &__photoField {
-    display: flex;
-    align-items: flex-end;
-    gap: 10px;
-  }
-
-  &__removePhoto {
-    width: 42px;
-    height: 48px;
-    flex-shrink: 0;
-    border: 1px solid #e4bcbc;
-    border-radius: $border-radius;
-    background: #fff7f7;
-    color: #a03131;
-    font-size: 24px;
-    transition: color .2s ease, background-color .2s ease, transform .15s ease;
-
-    &:hover { color: #7f1d1d; background: #fee2e2; }
-    &:active { transform: scale(.96); }
-    &:focus-visible { outline: 3px solid rgba(#a03131, .18); }
-  }
-
   &__field,
   &__wants {
     display: flex;
