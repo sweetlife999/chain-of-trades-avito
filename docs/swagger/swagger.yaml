@@ -624,6 +624,17 @@ definitions:
       photo_url:
         type: string
     type: object
+  dto.UploadError:
+    properties:
+      error:
+        type: string
+    type: object
+  dto.UploadResponse:
+    properties:
+      url:
+        example: /uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg
+        type: string
+    type: object
   dto.UserBlockResponse:
     properties:
       blocked_at:
@@ -3291,6 +3302,52 @@ paths:
       summary: Написать в поддержку
       tags:
       - support
+  /uploads:
+    post:
+      consumes:
+      - multipart/form-data
+      description: |-
+        Требует cookie `access_token`. Принимает один файл в поле `file` формы
+        multipart/form-data: jpeg, png или webp размером до 5 МБ. Тип определяется по
+        содержимому файла, а имя присваивает сервер, поэтому расширение в запросе ни на
+        что не влияет.
+
+        Возвращает ссылку, которую нужно передать в `photo_urls` объявления или в
+        `photo_url` профиля. Сама по себе загрузка ни к чему файл не привязывает.
+      parameters:
+      - description: Файл изображения
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Загружено, ссылка в поле url
+          schema:
+            $ref: '#/definitions/dto.UploadResponse'
+        "400":
+          description: Нет файла в запросе или это не картинка поддерживаемого формата
+          schema:
+            $ref: '#/definitions/dto.UploadError'
+        "401":
+          description: Нет или истекла cookie access_token
+          schema:
+            $ref: '#/definitions/dto.UploadError'
+        "413":
+          description: Файл больше 5 МБ
+          schema:
+            $ref: '#/definitions/dto.UploadError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.UploadError'
+      security:
+      - CookieAuth: []
+      summary: Загрузить фотографию
+      tags:
+      - uploads
   /users:
     post:
       consumes:

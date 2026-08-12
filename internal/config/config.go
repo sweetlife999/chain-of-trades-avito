@@ -7,13 +7,19 @@ import (
 	"strconv"
 )
 
-const defaultHTTPAddress = ":8080"
+const (
+	defaultHTTPAddress = ":8080"
+	// Каталог рядом с процессом: в разработке это ./uploads в корне репозитория, в
+	// контейнере — том, который задаёт docker-compose.
+	defaultUploadsDirectory = "./uploads"
+)
 
 type Config struct {
-	HTTPAddress  string
-	DatabaseURL  string
-	JWTSecret    string
-	CookieSecure bool
+	HTTPAddress      string
+	DatabaseURL      string
+	JWTSecret        string
+	CookieSecure     bool
+	UploadsDirectory string
 }
 
 func Load() (Config, error) {
@@ -41,10 +47,16 @@ func Load() (Config, error) {
 		cookieSecure = parsed
 	}
 
+	uploadsDirectory := os.Getenv("UPLOADS_DIR")
+	if uploadsDirectory == "" {
+		uploadsDirectory = defaultUploadsDirectory
+	}
+
 	return Config{
-		HTTPAddress:  httpAddress,
-		DatabaseURL:  databaseURL,
-		JWTSecret:    jwtSecret,
-		CookieSecure: cookieSecure,
+		HTTPAddress:      httpAddress,
+		DatabaseURL:      databaseURL,
+		JWTSecret:        jwtSecret,
+		CookieSecure:     cookieSecure,
+		UploadsDirectory: uploadsDirectory,
 	}, nil
 }
