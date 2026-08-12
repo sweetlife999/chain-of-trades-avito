@@ -50,25 +50,26 @@ const ExchangeRatingComponent = ({
     () => new Date(rating.rate_until).getTime(),
     [rating.rate_until],
   );
-  const [windowClosed, setWindowClosed] = useState(
-    () => !Number.isFinite(deadlineTimestamp) || deadlineTimestamp <= Date.now(),
-  );
+  const [now, setNow] = useState(() => Date.now());
+  const windowClosed =
+    !Number.isFinite(deadlineTimestamp) || deadlineTimestamp <= now;
 
   // Форма должна исчезнуть ровно в момент rate_until, который прислал сервер.
+  // В effect не синхронизируем React-state напрямую: только ставим внешний таймер.
   useEffect(() => {
     if (!Number.isFinite(deadlineTimestamp)) {
-      setWindowClosed(true);
       return;
     }
 
     const remaining = deadlineTimestamp - Date.now();
     if (remaining <= 0) {
-      setWindowClosed(true);
       return;
     }
 
-    setWindowClosed(false);
-    const timerId = window.setTimeout(() => setWindowClosed(true), remaining);
+    const timerId = window.setTimeout(
+      () => setNow(Date.now()),
+      remaining + 50,
+    );
 
     return () => window.clearTimeout(timerId);
   }, [deadlineTimestamp]);

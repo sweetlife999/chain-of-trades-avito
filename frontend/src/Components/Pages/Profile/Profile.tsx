@@ -220,7 +220,11 @@ const ProfileComponent = () => {
         </div>
       </section>
 
-      <ProfileRatings ratingsCount={user.ratings_count} userId={user.id} />
+      <ProfileRatings
+        key={user.id}
+        ratingsCount={user.ratings_count}
+        userId={user.id}
+      />
 
       {!isOwnProfile && currentUser?.is_admin && (
         <AdminUserExchanges

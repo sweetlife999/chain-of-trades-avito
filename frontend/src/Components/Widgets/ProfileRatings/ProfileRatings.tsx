@@ -156,24 +156,11 @@ const ProfileRatingsComponent = ({
   );
   const [savedExchangeId, setSavedExchangeId] = useState<string | null>(null);
   const totalPages = Math.max(1, Math.ceil(ratingsCount / pageSize));
-  const offset = page * pageSize;
-
-  useEffect(() => {
-    setPage(0);
-    setEditingExchangeId(null);
-    setSavedExchangeId(null);
-  }, [userId]);
-
-  // Если после обновления профиля оценок стало меньше, не оставляем пользователя
-  // на странице, которой больше не существует.
-  useEffect(() => {
-    if (page >= totalPages) {
-      setPage(totalPages - 1);
-    }
-  }, [page, totalPages]);
+  const currentPage = Math.min(page, totalPages - 1);
+  const offset = currentPage * pageSize;
 
   const ratingsQuery = useQuery({
-    queryKey: ["ratings", userId, page],
+    queryKey: ["ratings", userId, currentPage],
     queryFn: () => getUserRatings(userId, pageSize, offset),
     enabled: ratingsCount > 0,
     retry: false,
@@ -351,25 +338,25 @@ const ProfileRatingsComponent = ({
           <div className={styles.ratings__paginationControls}>
             <Button
               color="transparent"
-              disabled={page === 0 || ratingsQuery.isFetching}
+              disabled={currentPage === 0 || ratingsQuery.isFetching}
               size="s"
               type="button"
-              onClick={() => setPage((current) => Math.max(0, current - 1))}
+              onClick={() => setPage(Math.max(0, currentPage - 1))}
             >
               Назад
             </Button>
 
             <span className={styles.ratings__paginationCurrent}>
-              {page + 1} / {totalPages}
+              {currentPage + 1} / {totalPages}
             </span>
 
             <Button
               color="transparent"
-              disabled={page >= totalPages - 1 || ratingsQuery.isFetching}
+              disabled={currentPage >= totalPages - 1 || ratingsQuery.isFetching}
               size="s"
               type="button"
               onClick={() =>
-                setPage((current) => Math.min(totalPages - 1, current + 1))
+                setPage(Math.min(totalPages - 1, currentPage + 1))
               }
             >
               Вперёд
