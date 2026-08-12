@@ -2,7 +2,7 @@
 export
 
 
-.PHONY: lint run up db down reset migrate-up migrate-down migrate-status sqlc smoke swagger test-ratings-integration test-exchange-integration test-user-blocks-integration test-exchange-recovery-integration test-exchange-refusal-integration test-exchange-messages-integration test-item-search-visibility-integration test-delivery-integration test-reports-integration test-admin-audit-integration test-notifications-integration
+.PHONY: lint run up db llm down reset migrate-up migrate-down migrate-status sqlc smoke swagger test-ratings-integration test-exchange-integration test-user-blocks-integration test-exchange-recovery-integration test-exchange-refusal-integration test-exchange-messages-integration test-item-search-visibility-integration test-delivery-integration test-reports-integration test-admin-audit-integration test-notifications-integration
 
 # Линтер. Требует golangci-lint v2 той же версии, что пиннится в CI:
 # go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
@@ -20,6 +20,12 @@ up:
 # Только БД с миграциями — для разработки, дальше make run и npm run dev
 db:
 	docker compose up -d postgres migrate
+
+# Только модель: поднимает Ollama и докачивает веса. Отдельно от db, потому что
+# большинству задач модель не нужна, а первый запуск тянет сотни мегабайт.
+# Проверить, чем кончилось скачивание: docker compose logs ollama-pull
+llm:
+	docker compose up -d ollama ollama-pull
 
 down:
 	docker compose down
