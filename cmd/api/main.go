@@ -36,6 +36,7 @@ import (
 	itemhandler "github.com/sweetlife999/chain-of-trades-avito/internal/item/handler"
 	itemrepository "github.com/sweetlife999/chain-of-trades-avito/internal/item/repository"
 	itemservice "github.com/sweetlife999/chain-of-trades-avito/internal/item/service"
+	"github.com/sweetlife999/chain-of-trades-avito/internal/llm"
 	notificationhandler "github.com/sweetlife999/chain-of-trades-avito/internal/notification/handler"
 	notificationrepository "github.com/sweetlife999/chain-of-trades-avito/internal/notification/repository"
 	notificationservice "github.com/sweetlife999/chain-of-trades-avito/internal/notification/service"
@@ -63,6 +64,7 @@ const (
 	searchQueueCapacity   = 256
 	serverShutdownTimeout = 10 * time.Second
 	workerShutdownTimeout = 35 * time.Second
+	llmProbeTimeout       = 3 * time.Second
 )
 
 // @title       Цепочка обмена — API
@@ -134,6 +136,10 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// Модель — не зависимость API, а инструмент отдельных фич, поэтому её состояние
+	// только пишется в лог и никогда не мешает старту.
+	logLLMState(cfg.OllamaURL, cfg.OllamaModel)
 
 	tokens := authtoken.NewManager(cfg.JWTSecret, authTokenTTL)
 	authenticator := authmiddleware.New(tokens, users)
@@ -227,6 +233,30 @@ func main() {
 	if serverErr != nil {
 		log.Printf("HTTP server stopped with error: %v", serverErr)
 	}
+}
+
+// logLLMState сообщает, доступна ли локальная модель, и ничем больше на запуск не
+// влияет. Проверка спрашивает у Ollama список моделей и не запускает инференс: греть
+// веса ради строчки в логе значило бы занять единственное ядро сервера ровно в тот
+// момент, когда API поднимается.
+//
+// «Недоступна» сразу после деплоя — нормальный ответ, а не сбой: Ollama в это время
+// может ещё скачивать модель, и лог честно фиксирует состояние на момент старта.
+func logLLMState(baseURL string, model string) {
+	if baseURL == "" {
+		log.Print("llm: OLLAMA_URL is empty, model-backed features are disabled")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), llmProbeTimeout)
+	defer cancel()
+
+	if err := llm.New(baseURL, model).Available(ctx); err != nil {
+		log.Printf("llm: model %s is not ready at startup: %v", model, err)
+		return
+	}
+
+	log.Printf("llm: model %s is ready on %s", model, baseURL)
 }
 
 // @Summary     Проверка живости сервиса
