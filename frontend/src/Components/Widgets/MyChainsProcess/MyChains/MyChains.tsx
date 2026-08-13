@@ -5,9 +5,7 @@ import clsx from "clsx";
 
 import styles from "./Styles.module.scss";
 import { getExchanges } from "../../../../Api/exchanges/exchanges";
-import type {
-  TExchange,
-} from "../../../../Api/exchanges/exchanges.types";
+import type { TExchange } from "../../../../Api/exchanges/exchanges.types";
 import {
   exchangeStatusPresentation,
   type TExchangeStatusTab,
@@ -156,20 +154,20 @@ const MyChainsComponent = () => {
       </div>
 
       <div className={styles.chains__filters}>
-            {tabs.map(({ value, label }) => (
-              <button
-                className={clsx(
-                  styles.chains__filter,
-                  tab === value && styles.chains__filter_active,
-                )}
-                key={value}
-                type="button"
-                onClick={() => setTab(value)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+        {tabs.map(({ value, label }) => (
+          <button
+            className={clsx(
+              styles.chains__filter,
+              tab === value && styles.chains__filter_active,
+            )}
+            key={value}
+            type="button"
+            onClick={() => setTab(value)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       {isPending && <p className={styles.chains__message}>Загрузка...</p>}
       {isError && (
