@@ -6,15 +6,31 @@ import {
   CreateItemRequestSchema,
   ItemsArraySchema,
   ItemSchema,
+  ItemAISuggestionJobSchema,
   SetPickupPointRequestSchema,
   UpdateItemRequestSchema,
   type TCategories,
   type TCreateItemRequest,
   type TGetItems,
   type TItem,
+  type TItemAISuggestionJob,
   type TSetPickupPointRequest,
   type TUpdateItemRequest,
 } from "./items.types";
+
+export const createItemAISuggestion = async (
+  input: string,
+): Promise<TItemAISuggestionJob> => {
+  const { data } = await api.post("/items/ai-suggestions", { input });
+  return ItemAISuggestionJobSchema.parse(data);
+};
+
+export const getItemAISuggestion = async (
+  id: string,
+): Promise<TItemAISuggestionJob> => {
+  const { data } = await api.get(`/items/ai-suggestions/${id}`);
+  return ItemAISuggestionJobSchema.parse(data);
+};
 
 export const getItems = async (): Promise<TGetItems> => {
   const { data } = await api.get("/items");

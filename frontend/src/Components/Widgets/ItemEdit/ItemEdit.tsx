@@ -19,6 +19,7 @@ import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
 import { Button } from "../../UI/Button/Button";
 import { Input } from "../../UI/Input/Input";
 import { PhotoUploader } from "../../UI/PhotoUploader/PhotoUploader";
+import { ItemAIAssistant } from "../../UI/ItemAIAssistant/ItemAIAssistant";
 import {
   createChainFormSchema,
   type TCreateChainForm,
@@ -59,6 +60,7 @@ const ItemEditForm = ({ item }: TFormProps) => {
     control,
     handleSubmit,
     setError,
+    setValue,
     formState: { errors },
   } = useForm<TCreateChainForm>({
     resolver: zodResolver(createChainFormSchema),
@@ -180,6 +182,24 @@ const ItemEditForm = ({ item }: TFormProps) => {
           </div>
 
           <div className={styles.editItem__fieldsColumn}>
+            <ItemAIAssistant
+              disabled={updateMutation.isPending}
+              onApply={(suggestion) => {
+                setValue("title", suggestion.title, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                });
+                setValue("description", suggestion.description, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                });
+                setValue("category", suggestion.category_slug, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                });
+              }}
+            />
+
             <Input
               label="Название"
               required

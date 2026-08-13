@@ -66,6 +66,22 @@ export const ItemSchema = z.object({
 
 export const ItemsArraySchema = z.array(ItemSchema);
 
+export const ItemAISuggestionSchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  category_slug: z.string(),
+  category_name: z.string(),
+});
+
+export const ItemAISuggestionJobSchema = z.object({
+  id: z.string(),
+  status: z.enum(["pending", "processing", "completed", "failed"]),
+  suggestion: ItemAISuggestionSchema.optional(),
+  error: z.string().optional(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+
 export type TItemStatus = z.infer<typeof ItemStatusSchema>;
 export type TCategory = z.infer<typeof CategorySchema>;
 export type TSearchFilters = z.infer<typeof SearchFiltersSchema>;
@@ -78,3 +94,5 @@ export type TSetPickupPointRequest = z.infer<
 export type TItemPickupPoint = z.infer<typeof ItemPickupPointSchema>;
 export type TItem = z.infer<typeof ItemSchema>;
 export type TGetItems = z.infer<typeof ItemsArraySchema>;
+export type TItemAISuggestion = z.infer<typeof ItemAISuggestionSchema>;
+export type TItemAISuggestionJob = z.infer<typeof ItemAISuggestionJobSchema>;
