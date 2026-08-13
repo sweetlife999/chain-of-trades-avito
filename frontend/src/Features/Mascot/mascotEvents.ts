@@ -105,6 +105,14 @@ export const mascotReactions: Record<MascotEvent, MascotReaction> = {
     anchor: "latest-review",
     movement: "scan",
   },
+  LEVEL_UP: {
+    mood: "celebrate",
+    mode: "dialog",
+    message: "Новый уровень! Уми стал ещё круче благодаря вашим обменам.",
+    durationMs: 6200,
+    anchor: null,
+    movement: "run",
+  },
   BLOCKED_USER_HOVERED: {
     mood: "angry",
     mode: "attention",

@@ -24,6 +24,8 @@ export type MascotMovement =
   | "scan"
   | "kick";
 
+export type MascotLevel = 1 | 2 | 3 | 4 | 5;
+
 export type MascotAnchor =
   | "form-submit"
   | "items-empty"
@@ -50,6 +52,7 @@ export type MascotEvent =
   | "NOTIFICATIONS_PREVIEW_OPENED"
   | "NOTIFICATIONS_OPENED"
   | "NEW_REVIEW"
+  | "LEVEL_UP"
   | "BLOCKED_USER_HOVERED"
   | "ERROR";
 

@@ -27,6 +27,7 @@ import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
 import { getAvatarGradient } from "../../Utils/getAvatarGradient";
 import { AdminGlobalBlockButton } from "../../Widgets/Admin/AdminGlobalBlockButton/AdminGlobalBlockButton";
 import { AdminUserExchanges } from "../../Widgets/Admin/AdminUserExchanges/AdminUserExchanges";
+import type { MascotLevel } from "../../../Features/Mascot/mascot.types";
 import { ProfileRatings } from "../../Widgets/ProfileRatings/ProfileRatings";
 import { useMascot } from "../../../Hooks/useMascot";
 import { Mascot } from "../../UI/Mascot/Mascot";
@@ -227,6 +228,7 @@ const ProfileComponent = () => {
     blockMutation.isError || unblockMutation.isError
       ? "Не удалось изменить блокировку. Повторите попытку."
       : undefined;
+  const experience = user.experience;
 
   const confirmBlockAction = () => {
     if (!blockAction) {
@@ -382,6 +384,53 @@ const ProfileComponent = () => {
             <span className={styles.profile__statisticLabel}>Сорвано обменов</span>
           </div>
         </div>
+
+        <section className={styles.profile__experience}>
+          <div className={styles.profile__experienceMascot}>
+            <Mascot
+              level={experience.level as MascotLevel}
+              message={null}
+              placement="inline"
+              size="small"
+            />
+          </div>
+
+          <div className={styles.profile__experienceContent}>
+            <div className={styles.profile__experienceHeader}>
+              <div>
+                <span className={styles.profile__experienceEyebrow}>
+                  Развитие Уми
+                </span>
+                <h2 className={styles.profile__experienceTitle}>
+                  Уровень {experience.level} из {experience.max_level}
+                </h2>
+              </div>
+              <strong className={styles.profile__experienceTotal}>
+                {experience.total_xp} XP
+              </strong>
+            </div>
+
+            <div
+              aria-label={`Прогресс уровня: ${experience.progress_percent}%`}
+              aria-valuemax={100}
+              aria-valuemin={0}
+              aria-valuenow={experience.progress_percent}
+              className={styles.profile__experienceTrack}
+              role="progressbar"
+            >
+              <span
+                className={styles.profile__experienceProgress}
+                style={{ width: `${experience.progress_percent}%` }}
+              />
+            </div>
+
+            <p className={styles.profile__experienceDescription}>
+              {experience.is_max_level
+                ? "Максимальный уровень достигнут — продолжайте завершать обмены и накапливать опыт."
+                : `До следующего уровня: ${experience.deals_to_next_level} ${experience.deals_to_next_level === 1 ? "завершённый обмен" : "завершённых обмена"}.`}
+            </p>
+          </div>
+        </section>
       </section>
 
       <ProfileRatings

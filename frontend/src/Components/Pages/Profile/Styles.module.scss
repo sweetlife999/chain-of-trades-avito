@@ -136,6 +136,87 @@
     color: #d93025;
   }
 
+  &__experience {
+    grid-column: 1 / -1;
+
+    display: flex;
+    align-items: center;
+    gap: 20px;
+
+    padding: 18px 22px;
+
+    overflow: hidden;
+    border: 1px solid #bce7d3;
+    border-radius: $border-radius;
+    background: linear-gradient(120deg, #effcf6 0%, #f6f4ff 100%);
+  }
+
+  &__experienceMascot {
+    width: 76px;
+    height: 82px;
+    flex: 0 0 76px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    > div { transform: scale(.8); }
+  }
+
+  &__experienceContent {
+    min-width: 0;
+    flex: 1;
+  }
+
+  &__experienceHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  &__experienceEyebrow {
+    color: #087848;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  &__experienceTitle {
+    margin: 2px 0 0;
+    color: #173327;
+    font-size: 20px;
+  }
+
+  &__experienceTotal {
+    color: #493197;
+    font-size: 16px;
+    white-space: nowrap;
+  }
+
+  &__experienceTrack {
+    height: 10px;
+    margin-top: 13px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgb(53 93 74 / 14%);
+  }
+
+  &__experienceProgress {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #00a86b, #7657d5);
+    transition: width .5s ease;
+  }
+
+  &__experienceDescription {
+    margin: 8px 0 0;
+    color: #5e6d65;
+    font-size: 13px;
+  }
+
   &__blocked {
     padding: 26px 32px;
 
@@ -409,8 +490,19 @@
     min-width: 190px;
   }
 
-  &__statistics {
+    &__statistics {
       flex-direction: column;
+    }
+
+    &__experience {
+      align-items: flex-start;
+      padding: 16px;
+    }
+
+    &__experienceHeader {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 4px;
     }
 
     &__statistic {

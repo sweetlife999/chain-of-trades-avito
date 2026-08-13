@@ -16,6 +16,7 @@ import { shouldShowMascotGuide } from "../../../Features/Mascot/mascotVisibility
 import { useMascot } from "../../../Hooks/useMascot";
 import { Mascot } from "../Mascot/Mascot";
 import type { RootState } from "../../../Store/store";
+import type { MascotLevel } from "../../../Features/Mascot/mascot.types";
 
 const viewportGap = 12;
 const contentGap = 8;
@@ -271,6 +272,9 @@ const MascotGuideComponent = () => {
   const tutorialActive = useSelector(
     (state: RootState) => state.tutorial.active,
   );
+  const mascotLevel = useSelector(
+    (state: RootState) => state.auth.user?.experience.level ?? 1,
+  ) as MascotLevel;
   const [position, setPosition] = useState<TPosition>({
     x: viewportGap,
     y: viewportGap,
@@ -476,7 +480,7 @@ const MascotGuideComponent = () => {
       ref={guideRef}
       style={guideStyle}
     >
-      <Mascot placement="floating" size="small" />
+      <Mascot level={mascotLevel} placement="floating" size="small" />
     </aside>
   );
 };

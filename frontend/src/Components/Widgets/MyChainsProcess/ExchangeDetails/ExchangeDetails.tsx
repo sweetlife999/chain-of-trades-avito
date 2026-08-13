@@ -199,7 +199,12 @@ const ExchangeDetailsComponent = () => {
 
   const completeMutation = useMutation({
     mutationFn: () => completeExchange(id),
-    onSuccess: refreshExchange,
+    onSuccess: async () => {
+      await Promise.all([
+        refreshExchange(),
+        queryClient.invalidateQueries({ queryKey: ["auth", "me"] }),
+      ]);
+    },
   });
 
   if (isPending) {
