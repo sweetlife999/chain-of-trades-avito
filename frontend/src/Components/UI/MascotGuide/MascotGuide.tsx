@@ -8,12 +8,14 @@ import {
   type CSSProperties,
 } from "react";
 import clsx from "clsx";
+import { useSelector } from "react-redux";
 import { useLocation } from "react-router-dom";
 
 import styles from "./Styles.module.scss";
 import { shouldShowMascotGuide } from "../../../Features/Mascot/mascotVisibility";
 import { useMascot } from "../../../Hooks/useMascot";
 import { Mascot } from "../Mascot/Mascot";
+import type { RootState } from "../../../Store/store";
 
 const viewportGap = 12;
 const contentGap = 8;
@@ -259,14 +261,19 @@ const MascotGuideComponent = () => {
   const guideRef = useRef<HTMLElement>(null);
   const previousPathRef = useRef(pathname);
   const [roamStep, setRoamStep] = useState(0);
-  const [kickTargetIndex, setKickTargetIndex] = useState(0);
+  const tutorialActive = useSelector(
+    (state: RootState) => state.tutorial.active,
+  );
   const [position, setPosition] = useState<TPosition>({
     x: viewportGap,
     y: viewportGap,
     animate: false,
     visible: false,
   });
-  const enabled = shouldShowMascotGuide(pathname);
+  const renderedLocally =
+    anchor === "notifications-preview" || movement === "kick";
+  const enabled =
+    shouldShowMascotGuide(pathname) && !tutorialActive && !renderedLocally;
 
   useLayoutEffect(() => {
     const previousPath = previousPathRef.current;
@@ -297,21 +304,11 @@ const MascotGuideComponent = () => {
       return;
     }
 
-    const kickTargets =
-      movement === "kick"
-        ? Array.from(
-            document.querySelectorAll<HTMLElement>(
-              "[data-mascot-kick-target]",
-            ),
-          )
-        : [];
-    const target =
-      kickTargets[kickTargetIndex % Math.max(kickTargets.length, 1)] ??
-      (anchor
-        ? document.querySelector<HTMLElement>(
-            `[data-mascot-anchor="${anchor}"]`,
-          )
-        : null);
+    const target = anchor
+      ? document.querySelector<HTMLElement>(
+          `[data-mascot-anchor="${anchor}"]`,
+        )
+      : null;
     const preferred = getPreferredPoint(
       target,
       guideWidth,
@@ -368,7 +365,7 @@ const MascotGuideComponent = () => {
         visible: true,
       };
     });
-  }, [anchor, enabled, kickTargetIndex, movement, roamStep]);
+  }, [anchor, enabled, movement, roamStep]);
 
   useLayoutEffect(() => {
     updatePosition();
@@ -380,9 +377,7 @@ const MascotGuideComponent = () => {
     }
 
     const interval =
-      movement === "kick"
-        ? 1600
-        : movement === "scan"
+      movement === "scan"
           ? 2400
           : movement === "wander"
             ? 3400
@@ -395,11 +390,7 @@ const MascotGuideComponent = () => {
     }
 
     const timerId = window.setInterval(() => {
-      if (movement === "kick") {
-        setKickTargetIndex((index) => index + 1);
-      } else {
-        setRoamStep((step) => step + 1);
-      }
+      setRoamStep((step) => step + 1);
     }, interval);
 
     return () => window.clearInterval(timerId);

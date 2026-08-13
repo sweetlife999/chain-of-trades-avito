@@ -5,27 +5,44 @@ import { useDispatch } from "react-redux";
 import styles from "./Styles.module.scss";
 import { useMascot } from "../../../Hooks/useMascot";
 import { mascotSettled } from "../../../Features/Mascot/mascotSlice";
+import type {
+  MascotMode,
+  MascotMood,
+  MascotMovement,
+} from "../../../Features/Mascot/mascot.types";
 import type { AuthDispatch } from "../../../Store/store";
 
-type MascotSize = "small" | "medium" | "large";
+type MascotSize = "tiny" | "small" | "medium" | "large";
 type MascotPlacement = "landing" | "chat" | "inline" | "floating";
 
 type TProps = {
+  bubbleAction?: {
+    label: string;
+    meta?: string;
+    onClick: () => void;
+  };
   size?: MascotSize;
   placement?: MascotPlacement;
   className?: string;
   showBubble?: boolean;
   message?: string | null;
   label?: string;
+  mode?: MascotMode;
+  mood?: MascotMood;
+  movement?: MascotMovement;
 };
 
 const MascotComponent = ({
+  bubbleAction,
   size = "medium",
   placement = "inline",
   className,
   showBubble = true,
   message,
   label = "Уми — помощник по обмену",
+  mode: modeOverride,
+  mood: moodOverride,
+  movement: movementOverride,
 }: TProps) => {
   const dispatch = useDispatch<AuthDispatch>();
   const {
@@ -36,9 +53,14 @@ const MascotComponent = ({
     durationMs,
     revision,
   } = useMascot();
+  const visibleMode = modeOverride ?? mode;
+  const visibleMood = moodOverride ?? mood;
+  const visibleMovement = movementOverride ?? movement;
   const visibleMessage = message === undefined ? stateMessage : message;
   const bubbleVisible =
-    showBubble && Boolean(visibleMessage) && (message !== undefined || mode !== "ambient");
+    showBubble &&
+    Boolean(visibleMessage) &&
+    (message !== undefined || visibleMode !== "ambient");
 
   useEffect(() => {
     if (!durationMs) {
@@ -59,21 +81,48 @@ const MascotComponent = ({
         styles.mascot,
         styles[`mascot_size_${size}`],
         styles[`mascot_placement_${placement}`],
-        styles[`mascot_mood_${mood}`],
-        styles[`mascot_movement_${movement}`],
+        styles[`mascot_mood_${visibleMood}`],
+        styles[`mascot_movement_${visibleMovement}`],
         className,
       )}
-      data-mascot-mood={mood}
-      data-mascot-movement={movement}
+      data-mascot-mood={visibleMood}
+      data-mascot-movement={visibleMovement}
     >
       {bubbleVisible && (
-        <div className={clsx(styles.mascot__bubble, styles[`mascot__bubble_${mode}`])}>
+        <div
+          className={clsx(
+            styles.mascot__bubble,
+            styles[`mascot__bubble_${visibleMode}`],
+          )}
+          data-mascot-bubble
+        >
           <strong className={styles.mascot__bubbleName}>Уми</strong>
-          <span>{visibleMessage}</span>
+          <span className={styles.mascot__bubbleText}>{visibleMessage}</span>
+          {bubbleAction && (
+            <span className={styles.mascot__bubbleFooter}>
+              {bubbleAction.meta && (
+                <small className={styles.mascot__bubbleMeta}>
+                  {bubbleAction.meta}
+                </small>
+              )}
+              <button
+                className={styles.mascot__bubbleAction}
+                type="button"
+                onClick={bubbleAction.onClick}
+              >
+                {bubbleAction.label}
+              </button>
+            </span>
+          )}
         </div>
       )}
 
-      <div className={styles.mascot__stage} role="img" aria-label={label}>
+      <div
+        aria-label={label}
+        className={styles.mascot__stage}
+        data-mascot-stage
+        role="img"
+      >
         <span className={styles.mascot__shadow} aria-hidden="true" />
         <span className={styles.mascot__confetti} aria-hidden="true">
           <i /><i /><i /><i /><i /><i />

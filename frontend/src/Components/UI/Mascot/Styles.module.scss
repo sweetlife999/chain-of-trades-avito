@@ -13,6 +13,7 @@
   gap: 14px;
   min-width: 0;
 
+  &_size_tiny { --mascot-size: 72px; }
   &_size_small { --mascot-size: 96px; }
   &_size_medium { --mascot-size: 154px; }
   &_size_large { --mascot-size: min(31vw, 300px); }
@@ -102,6 +103,45 @@
     background: var(--mascot-green);
     border-radius: 8px;
     font-size: 13px;
+  }
+
+  &__bubbleText {
+    overflow-wrap: anywhere;
+  }
+
+  &__bubbleFooter {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 11px;
+  }
+
+  &__bubbleMeta {
+    color: #6d7d74;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  &__bubbleAction {
+    min-height: 32px;
+    margin-left: auto;
+    padding: 6px 13px;
+    color: #fff;
+    border: 0;
+    border-radius: 9px;
+    background: var(--mascot-green-dark);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    pointer-events: auto;
+
+    &:hover { background: #05683d; }
+
+    &:focus-visible {
+      outline: 3px solid rgb(0 168 107 / 24%);
+      outline-offset: 2px;
+    }
   }
 
   &__antenna path,
@@ -307,7 +347,7 @@
 @keyframes readSweep { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(7deg); } }
 @keyframes readEyes { from { transform: translateX(-5px); } to { transform: translateX(5px); } }
 @keyframes angryShake { from { transform: rotate(-5deg); } to { transform: rotate(5deg); } }
-@keyframes kick { 0%, 45%, 100% { transform: rotate(0); } 62% { transform: rotate(-42deg) translate(8px, -7px); } }
+@keyframes kick { 0%, 45%, 100% { transform: rotate(0); } 62% { transform: rotate(42deg) translate(-8px, -7px); } }
 
 @media (max-width: 680px) {
   .mascot {

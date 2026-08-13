@@ -11,6 +11,7 @@ type TButton = {
   disabled?: boolean;
   className?: string;
   mascotAnchor?: string;
+  tutorialTarget?: string;
 };
 
 const ButtonComponent = ({
@@ -23,6 +24,7 @@ const ButtonComponent = ({
   disabled,
   className,
   mascotAnchor,
+  tutorialTarget,
 }: TButton): JSX.Element => {
   const buttonClassName = [
     styles.button,
@@ -41,6 +43,7 @@ const ButtonComponent = ({
       type={type}
       disabled={disabled}
       data-mascot-anchor={mascotAnchor}
+      data-tutorial-target={tutorialTarget}
     >
       {children}
     </button>

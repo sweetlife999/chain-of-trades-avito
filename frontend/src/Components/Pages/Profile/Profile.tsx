@@ -20,6 +20,7 @@ import { AdminGlobalBlockButton } from "../../Widgets/Admin/AdminGlobalBlockButt
 import { AdminUserExchanges } from "../../Widgets/Admin/AdminUserExchanges/AdminUserExchanges";
 import { ProfileRatings } from "../../Widgets/ProfileRatings/ProfileRatings";
 import { useMascot } from "../../../Hooks/useMascot";
+import { Mascot } from "../../UI/Mascot/Mascot";
 
 type TBlockAction = {
   type: "block" | "unblock";
@@ -39,8 +40,11 @@ const ProfileComponent = () => {
   const queryClient = useQueryClient();
   const { id } = useParams();
   const { user: currentUser } = useAuthSelector();
-  const { reactTo } = useMascot();
+  const { reactTo, reset } = useMascot();
   const [blockAction, setBlockAction] = useState<TBlockAction | null>(null);
+  const [activeBlockedUserId, setActiveBlockedUserId] = useState<string | null>(
+    null,
+  );
   const isOwnProfile = !id || id === currentUser?.id;
   const profileUserId = id ?? currentUser?.id;
 
@@ -65,6 +69,8 @@ const ProfileComponent = () => {
       queryClient.invalidateQueries({ queryKey: ["users", "blocks"] }),
       queryClient.invalidateQueries({ queryKey: ["exchanges"] }),
     ]);
+    setActiveBlockedUserId(null);
+    reset();
     setBlockAction(null);
   };
 
@@ -80,29 +86,6 @@ const ProfileComponent = () => {
 
   const user = profileQuery.data ?? (isOwnProfile ? currentUser : undefined);
   const blockedUsers = blockedUsersQuery.data ?? [];
-  const blockedUserIds = blockedUsers.map(({ id: userId }) => userId).join(":");
-
-  useEffect(() => {
-    if (
-      !isOwnProfile ||
-      !blockedUsersQuery.isSuccess ||
-      blockedUserIds.length === 0
-    ) {
-      return;
-    }
-
-    const timerId = window.setTimeout(
-      () => reactTo("BLOCKED_USERS_VIEWED"),
-      4300,
-    );
-
-    return () => window.clearTimeout(timerId);
-  }, [
-    blockedUserIds,
-    blockedUsersQuery.isSuccess,
-    isOwnProfile,
-    reactTo,
-  ]);
 
   useEffect(() => {
     if (profileQuery.isError || blockedUsersQuery.isError) {
@@ -145,6 +128,24 @@ const ProfileComponent = () => {
     }
 
     unblockMutation.mutate(blockAction.userId);
+  };
+
+  const activateBlockedUser = (userId: string) => {
+    if (activeBlockedUserId === userId) {
+      return;
+    }
+
+    setActiveBlockedUserId(userId);
+    reactTo("BLOCKED_USER_HOVERED");
+  };
+
+  const deactivateBlockedUser = (userId: string) => {
+    if (activeBlockedUserId !== userId) {
+      return;
+    }
+
+    setActiveBlockedUserId(null);
+    reset();
   };
 
   return (
@@ -310,19 +311,33 @@ const ProfileComponent = () => {
           {!blockedUsersQuery.isPending &&
             !blockedUsersQuery.isError &&
             blockedUsers.length > 0 && (
-              <div
-                className={styles.profile__blockedList}
-                data-mascot-anchor="blocked-users"
-              >
+              <div className={styles.profile__blockedList}>
                 {blockedUsers.map((blockedUser) => (
                   <div
                     className={styles.profile__blockedUser}
-                    data-mascot-kick-target
                     key={blockedUser.id}
+                    onBlur={(event) => {
+                      if (
+                        event.relatedTarget instanceof Node &&
+                        event.currentTarget.contains(event.relatedTarget)
+                      ) {
+                        return;
+                      }
+                      deactivateBlockedUser(blockedUser.id);
+                    }}
+                    onFocus={() => activateBlockedUser(blockedUser.id)}
+                    onMouseEnter={() => activateBlockedUser(blockedUser.id)}
+                    onMouseLeave={(event) => {
+                      if (event.currentTarget.contains(document.activeElement)) {
+                        return;
+                      }
+                      deactivateBlockedUser(blockedUser.id);
+                    }}
                   >
                     <Link
                       className={styles.profile__blockedIdentity}
                       to={`/profile/${blockedUser.id}`}
+                      onClick={() => deactivateBlockedUser(blockedUser.id)}
                     >
                       <span
                         className={styles.profile__blockedAvatar}
@@ -349,18 +364,36 @@ const ProfileComponent = () => {
                       </span>
                     </Link>
 
+                    {activeBlockedUserId === blockedUser.id && (
+                      <div
+                        aria-live="polite"
+                        className={styles.profile__blockedAssistant}
+                      >
+                        <Mascot
+                          className={styles.profile__blockedAssistantMascot}
+                          message="Плохой! Плохой!"
+                          mode="attention"
+                          mood="angry"
+                          movement="kick"
+                          placement="chat"
+                          size="tiny"
+                        />
+                      </div>
+                    )}
+
                     <Button
                       className={styles.profile__blockedAction}
                       color="transparent"
                       disabled={blockMutationPending}
                       type="button"
-                      onClick={() =>
+                      onClick={() => {
+                        deactivateBlockedUser(blockedUser.id);
                         setBlockAction({
                           type: "unblock",
                           userId: blockedUser.id,
                           nickname: blockedUser.nickname,
-                        })
-                      }
+                        });
+                      }}
                     >
                       Разблокировать
                     </Button>

@@ -30,6 +30,7 @@ export type MascotAnchor =
   | "exchanges-empty"
   | "chains-list"
   | "notifications-trigger"
+  | "notifications-preview"
   | "notifications-panel"
   | "notifications-list"
   | "latest-review"
@@ -59,9 +60,10 @@ export type MascotEvent =
   | "EMPTY_CHAINS"
   | "CHAIN_AVAILABLE"
   | "NEW_NOTIFICATION"
+  | "NOTIFICATIONS_PREVIEW_OPENED"
   | "NOTIFICATIONS_OPENED"
   | "NEW_REVIEW"
-  | "BLOCKED_USERS_VIEWED"
+  | "BLOCKED_USER_HOVERED"
   | "ERROR";
 
 export type MascotReaction = {

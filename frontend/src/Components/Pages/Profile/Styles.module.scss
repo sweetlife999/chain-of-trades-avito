@@ -214,6 +214,31 @@
     }
   }
 
+  &__blockedAssistant {
+    min-width: 250px;
+    flex: 0 1 330px;
+  }
+
+  &__blockedAssistantMascot {
+    width: 100%;
+    align-items: center;
+    flex-direction: row-reverse;
+    justify-content: flex-start;
+    gap: 8px;
+
+    > [data-mascot-bubble] {
+      width: auto;
+      min-width: 0;
+      flex: 1 1 auto;
+      padding: 9px 11px;
+      font-size: 13px;
+    }
+
+    > [data-mascot-stage] {
+      flex: 0 0 auto;
+    }
+  }
+
   &__blockedAvatar {
     width: 44px;
     height: 44px;
@@ -358,6 +383,12 @@
     &__blockedUser {
       align-items: stretch;
       flex-direction: column;
+    }
+
+    &__blockedAssistant {
+      width: 100%;
+      min-width: 0;
+      flex-basis: auto;
     }
 
     &__blockedAction {

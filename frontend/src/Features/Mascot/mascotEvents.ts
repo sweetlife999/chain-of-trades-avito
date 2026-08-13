@@ -185,6 +185,14 @@ export const mascotReactions: Record<MascotEvent, MascotReaction> = {
     anchor: "notifications-trigger",
     movement: "run",
   },
+  NOTIFICATIONS_PREVIEW_OPENED: {
+    mood: "reading",
+    mode: "attention",
+    message: "Смотрю, что нового…",
+    durationMs: null,
+    anchor: "notifications-preview",
+    movement: "scan",
+  },
   NOTIFICATIONS_OPENED: {
     mood: "reading",
     mode: "attention",
@@ -201,12 +209,12 @@ export const mascotReactions: Record<MascotEvent, MascotReaction> = {
     anchor: "latest-review",
     movement: "scan",
   },
-  BLOCKED_USERS_VIEWED: {
+  BLOCKED_USER_HOVERED: {
     mood: "angry",
     mode: "attention",
-    message: "Этим пользователям здесь не место.",
-    durationMs: 4800,
-    anchor: "blocked-users",
+    message: "Плохой! Плохой!",
+    durationMs: null,
+    anchor: null,
     movement: "kick",
   },
   ERROR: {

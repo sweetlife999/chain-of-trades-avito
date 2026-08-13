@@ -12,6 +12,7 @@ import {
 import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
 import { useMascot } from "../../../Hooks/useMascot";
 import { shouldShowMascotGuide } from "../../../Features/Mascot/mascotVisibility";
+import { Mascot } from "../../UI/Mascot/Mascot";
 import {
   formatNotificationTime,
   getNotificationDescription,
@@ -24,10 +25,11 @@ const previewLimit = 6;
 const NotificationsComponent = () => {
   const { pathname } = useLocation();
   const { isAdmin, isAuth } = useAuthSelector();
-  const { reactTo } = useMascot();
+  const { reactTo, reset } = useMascot();
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const wasOpenRef = useRef(false);
   const previousNotificationIdsRef = useRef<Set<string> | null>(null);
 
   const notificationsQuery = useQuery({
@@ -70,16 +72,30 @@ const NotificationsComponent = () => {
 
     previousNotificationIdsRef.current = currentIds;
 
-    if (hasNewNotification && shouldShowMascotGuide(pathname)) {
+    if (
+      hasNewNotification &&
+      !isOpen &&
+      shouldShowMascotGuide(pathname)
+    ) {
       reactTo("NEW_NOTIFICATION");
     }
-  }, [notificationIds, notificationsQuery.isSuccess, pathname, reactTo]);
+  }, [
+    isOpen,
+    notificationIds,
+    notificationsQuery.isSuccess,
+    pathname,
+    reactTo,
+  ]);
 
   useEffect(() => {
     if (isOpen && shouldShowMascotGuide(pathname)) {
-      reactTo("NOTIFICATIONS_OPENED");
+      reactTo("NOTIFICATIONS_PREVIEW_OPENED");
+    } else if (wasOpenRef.current) {
+      reset();
     }
-  }, [isOpen, pathname, reactTo]);
+
+    wasOpenRef.current = isOpen;
+  }, [isOpen, pathname, reactTo, reset]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -127,6 +143,7 @@ const NotificationsComponent = () => {
         }
         className={styles.notifications__trigger}
         data-mascot-anchor="notifications-trigger"
+        data-tutorial-target="notifications"
         type="button"
         onClick={() => setIsOpen((open) => !open)}
       >
@@ -145,7 +162,7 @@ const NotificationsComponent = () => {
         <div
           aria-label="Непрочитанные уведомления"
           className={styles.notifications__panel}
-          data-mascot-anchor="notifications-panel"
+          data-mascot-anchor="notifications-preview"
           role="dialog"
         >
           <div className={styles.notifications__header}>
@@ -168,6 +185,23 @@ const NotificationsComponent = () => {
               </button>
             )}
           </div>
+
+          {shouldShowMascotGuide(pathname) && (
+            <div
+              className={styles.notifications__assistant}
+              data-mascot-protected
+            >
+              <Mascot
+                className={styles.notifications__assistantMascot}
+                message="Смотрю, что нового…"
+                mode="attention"
+                mood="reading"
+                movement="scan"
+                placement="chat"
+                size="tiny"
+              />
+            </div>
+          )}
 
           {notificationsQuery.isPending && (
             <p className={styles.notifications__state}>Загрузка...</p>

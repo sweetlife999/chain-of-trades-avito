@@ -19,6 +19,8 @@ import {
 import { useAuthDispatch } from "../../../Hooks/useAuthDispatch";
 import { setUserState } from "../../../Store/authSlice";
 import { useMascot } from "../../../Hooks/useMascot";
+import { saveTutorialProgress } from "../../../Features/Tutorial/tutorial";
+import { tutorialStarted } from "../../../Features/Tutorial/tutorialSlice";
 
 const RegisterComponent = () => {
   const navigate = useNavigate();
@@ -54,7 +56,9 @@ const RegisterComponent = () => {
       authenticationSucceededRef.current = true;
       reactTo("FORM_SUCCESS");
       dispatch(setUserState(data));
-      navigate(destination, { replace: true });
+      saveTutorialProgress(data.id, 0);
+      dispatch(tutorialStarted({ userId: data.id }));
+      navigate("/feed", { replace: true });
     },
 
     onError: () => {
