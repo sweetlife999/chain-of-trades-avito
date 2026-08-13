@@ -6,6 +6,7 @@ import styles from "./Styles.module.scss";
 import { useMascot } from "../../../Hooks/useMascot";
 import { mascotSettled } from "../../../Features/Mascot/mascotSlice";
 import type {
+  MascotLevel,
   MascotMode,
   MascotMood,
   MascotMovement,
@@ -30,6 +31,17 @@ type TProps = {
   mode?: MascotMode;
   mood?: MascotMood;
   movement?: MascotMovement;
+  level?: MascotLevel;
+};
+
+const normalizeLevel = (level: number | undefined): MascotLevel => {
+  if (!level || level <= 1) {
+    return 1;
+  }
+  if (level >= 5) {
+    return 5;
+  }
+  return Math.floor(level) as MascotLevel;
 };
 
 const defaultMouth = "M105 111 Q120 121 135 111";
@@ -55,6 +67,7 @@ const MascotComponent = ({
   mode: modeOverride,
   mood: moodOverride,
   movement: movementOverride,
+  level,
 }: TProps) => {
   const dispatch = useDispatch<AuthDispatch>();
   const {
@@ -68,6 +81,7 @@ const MascotComponent = ({
   const visibleMode = modeOverride ?? mode;
   const visibleMood = moodOverride ?? mood;
   const visibleMovement = movementOverride ?? movement;
+  const visibleLevel = normalizeLevel(level);
   const eyeY = visibleMood === "angry" ? 76 : 83;
   const visibleMessage = message === undefined ? stateMessage : message;
   const bubbleVisible =
@@ -98,10 +112,12 @@ const MascotComponent = ({
         styles[`mascot_placement_${placement}`],
         styles[`mascot_mood_${visibleMood}`],
         styles[`mascot_movement_${visibleMovement}`],
+        styles[`mascot_level_${visibleLevel}`],
         className,
       )}
       data-mascot-mood={visibleMood}
       data-mascot-movement={visibleMovement}
+      data-mascot-level={visibleLevel}
     >
       {bubbleVisible && (
         <div
@@ -192,6 +208,35 @@ const MascotComponent = ({
             <circle className={styles.mascot__cheek} cx="82" cy="111" r="4" />
             <circle className={styles.mascot__cheek} cx="158" cy="111" r="4" />
           </g>
+
+          {visibleLevel >= 2 && (
+            <g className={styles.mascot__levelBadge}>
+              <circle cx="159" cy="152" r="15" />
+              <text x="159" y="158" textAnchor="middle">{visibleLevel}</text>
+            </g>
+          )}
+
+          {visibleLevel >= 3 && (
+            <g className={styles.mascot__headphones}>
+              <path d="M57 91 C57 39 183 39 183 91" />
+              <rect x="43" y="82" width="18" height="38" rx="9" />
+              <rect x="179" y="82" width="18" height="38" rx="9" />
+            </g>
+          )}
+
+          {visibleLevel >= 4 && (
+            <g className={styles.mascot__shoulderLights}>
+              <circle cx="62" cy="142" r="7" />
+              <circle cx="178" cy="142" r="7" />
+            </g>
+          )}
+
+          {visibleLevel >= 5 && (
+            <g className={styles.mascot__crown}>
+              <path d="M82 53 L91 29 L108 45 L120 20 L132 45 L149 29 L158 53 Z" />
+              <circle cx="120" cy="34" r="4" />
+            </g>
+          )}
 
           <g className={styles.mascot__thinkingDots}>
             <circle cx="194" cy="58" r="5" />

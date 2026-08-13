@@ -4475,6 +4475,9 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
+                "experience": {
+                    "$ref": "#/definitions/dto.ExperienceResponse"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -4708,6 +4711,35 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.ExperienceResponse": {
+            "type": "object",
+            "properties": {
+                "current_level_xp": {
+                    "type": "integer"
+                },
+                "deals_to_next_level": {
+                    "type": "integer"
+                },
+                "is_max_level": {
+                    "type": "boolean"
+                },
+                "level": {
+                    "type": "integer"
+                },
+                "max_level": {
+                    "type": "integer"
+                },
+                "next_level_xp": {
+                    "type": "integer"
+                },
+                "progress_percent": {
+                    "type": "integer"
+                },
+                "total_xp": {
                     "type": "integer"
                 }
             }
@@ -5344,6 +5376,9 @@ const docTemplate = `{
                 },
                 "description": {
                     "type": "string"
+                },
+                "experience": {
+                    "$ref": "#/definitions/dto.ExperienceResponse"
                 },
                 "id": {
                     "type": "string"

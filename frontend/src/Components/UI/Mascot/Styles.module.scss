@@ -219,6 +219,74 @@
   }
   &__thinkingDots { opacity: 0; fill: var(--mascot-green); }
 
+  &__levelBadge {
+    circle {
+      fill: #fff4bd;
+      stroke: #c98e17;
+      stroke-width: 3;
+    }
+
+    text {
+      fill: #8c5c05;
+      font-family: Arial, sans-serif;
+      font-size: 17px;
+      font-weight: 900;
+    }
+  }
+
+  &__headphones {
+    path {
+      fill: none;
+      stroke: #2f5dff;
+      stroke-linecap: round;
+      stroke-width: 8;
+    }
+
+    rect {
+      fill: #7693ff;
+      stroke: #1f3ca6;
+      stroke-width: 3;
+    }
+  }
+
+  &__shoulderLights {
+    fill: #72d9ff;
+    stroke: #197eab;
+    stroke-width: 3;
+    filter: drop-shadow(0 0 5px #72d9ff);
+  }
+
+  &__crown {
+    fill: #ffd75b;
+    stroke: #b87a00;
+    stroke-linejoin: round;
+    stroke-width: 3;
+    filter: drop-shadow(0 3px 4px rgb(160 96 0 / 30%));
+
+    circle { fill: #ff6969; }
+  }
+
+  &_level_2 {
+    --mascot-green-light: #94ebff;
+  }
+
+  &_level_3 {
+    --mascot-green: #169b79;
+    --mascot-green-dark: #06634e;
+  }
+
+  &_level_4 {
+    --mascot-green: #247fbb;
+    --mascot-green-dark: #174d82;
+    --mascot-green-light: #8bdcff;
+  }
+
+  &_level_5 {
+    --mascot-green: #7657d5;
+    --mascot-green-dark: #493197;
+    --mascot-green-light: #cabaff;
+  }
+
   &__confetti {
     position: absolute;
     z-index: 3;

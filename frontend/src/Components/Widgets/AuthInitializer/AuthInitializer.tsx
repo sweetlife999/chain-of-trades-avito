@@ -1,5 +1,5 @@
 import axios from "axios";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { getMe } from "../../../Api/auth/auth";
@@ -7,6 +7,7 @@ import { useAuthDispatch } from "../../../Hooks/useAuthDispatch";
 import { logoutState, setUserState } from "../../../Store/authSlice";
 import { Button } from "../../UI/Button/Button";
 import { Loader } from "../../UI/Loader/Loader";
+import { useMascot } from "../../../Hooks/useMascot";
 
 type AuthInitializerProps = {
   children: ReactNode;
@@ -14,16 +15,19 @@ type AuthInitializerProps = {
 
 export const AuthInitializer = ({ children }: AuthInitializerProps) => {
   const dispatch = useAuthDispatch();
+  const { reactTo } = useMascot();
+  const previousLevelRef = useRef<number | null>(null);
 
   const {
     data: user,
     error,
     isPending,
-    isFetching,
     refetch,
   } = useQuery({
     queryKey: ["auth", "me"],
     queryFn: getMe,
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
     retry: (failureCount, requestError) => {
       if (
         axios.isAxiosError(requestError) &&
@@ -43,16 +47,23 @@ export const AuthInitializer = ({ children }: AuthInitializerProps) => {
 
   useEffect(() => {
     if (user) {
+      const previousLevel = previousLevelRef.current;
+      previousLevelRef.current = user.experience.level;
       dispatch(setUserState(user));
+
+      if (previousLevel !== null && user.experience.level > previousLevel) {
+        reactTo("LEVEL_UP");
+      }
       return;
     }
 
     if (status === 401) {
+      previousLevelRef.current = null;
       dispatch(logoutState());
     }
-  }, [dispatch, status, user]);
+  }, [dispatch, reactTo, status, user]);
 
-  if (isPending || isFetching) {
+  if (isPending) {
     return (
       <Loader
         fullScreen

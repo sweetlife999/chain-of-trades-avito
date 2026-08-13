@@ -2,11 +2,23 @@ import { z } from "zod";
 
 import { PhotoUrlInputSchema, PhotoUrlResponseSchema } from "../common.types";
 
+export const ExperienceSchema = z.object({
+  current_level_xp: z.number().int().nonnegative(),
+  deals_to_next_level: z.number().int().nonnegative(),
+  is_max_level: z.boolean(),
+  level: z.number().int().min(1),
+  max_level: z.number().int().min(1),
+  next_level_xp: z.number().int().nonnegative(),
+  progress_percent: z.number().int().min(0).max(100),
+  total_xp: z.number().int().nonnegative(),
+});
+
 const BaseUserSchema = z.object({
   created_at: z.string(),
   deals_broken: z.number().int().nonnegative(),
   deals_completed: z.number().int().nonnegative(),
   description: z.string(),
+  experience: ExperienceSchema,
   id: z.string(),
   nickname: z.string(),
   photo_url: PhotoUrlResponseSchema,
