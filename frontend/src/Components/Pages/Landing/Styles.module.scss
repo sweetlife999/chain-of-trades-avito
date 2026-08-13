@@ -223,6 +223,38 @@
   animation-delay: 1.7s;
 }
 
+/* — маскот в секциях — */
+
+.sectionMascot {
+  display: flex;
+  justify-content: center;
+  margin: 0 0 30px;
+
+  // Анимации ждут появления секции: пока IntersectionObserver не повесил
+  // .visible, маскот стоит на первом кадре, а не машет за краем экрана.
+  * {
+    animation-play-state: paused;
+  }
+}
+
+.visible .sectionMascot * {
+  animation-play-state: running;
+}
+
+.ctaMascot {
+  justify-content: flex-start;
+  margin-bottom: 26px;
+}
+
+// Зелёный корпус на зелёном фоне CTA не читается, поэтому маскот там белый.
+// Класс удвоен намеренно: свои переменные .mascot объявляет на себе же,
+// и правило с одним классом проиграет ему при равной специфичности.
+.ctaMascotSkin.ctaMascotSkin {
+  --mascot-green: #fff;
+  --mascot-green-dark: #00733c;
+  --mascot-green-light: #d7fce9;
+}
+
 /* — как это работает — */
 
 .steps {

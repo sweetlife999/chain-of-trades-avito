@@ -221,6 +221,14 @@ const LandingComponent = () => {
         <section className={styles.section} id="how">
           <h2 className={styles.kicker}>Как это работает</h2>
 
+          <div className={styles.sectionMascot}>
+            <Mascot
+              size="small"
+              mood="hint"
+              message="Шесть шагов — и вещь у нового владельца."
+            />
+          </div>
+
           <div className={styles.steps}>
             {steps.map(([number, title, text]) => (
               <div className={styles.step} key={number}>
@@ -234,6 +242,14 @@ const LandingComponent = () => {
 
         <section className={styles.section} id="benefits">
           <h2 className={styles.kicker}>Преимущества обмена цепочкой</h2>
+
+          <div className={styles.sectionMascot}>
+            <Mascot
+              size="small"
+              mood="happy"
+              message="Цепочка находит то, что обмен один на один не найдёт."
+            />
+          </div>
 
           <div className={styles.benefits}>
             {benefits.map(({ icon, title, text }) => (
@@ -249,6 +265,14 @@ const LandingComponent = () => {
         <section className={styles.section} id="faq">
           <h2 className={styles.kicker}>FAQ</h2>
 
+          <div className={styles.sectionMascot}>
+            <Mascot
+              size="small"
+              mood="thinking"
+              message="Здесь спрашивают чаще всего."
+            />
+          </div>
+
           <div className={styles.faq}>
             {faq.map(([question, answer]) => (
               <div className={styles.faqItem} key={question}>
@@ -262,6 +286,14 @@ const LandingComponent = () => {
 
       <section className={`${styles.section} ${styles.cta}`}>
         <div className={styles.ctaInner}>
+          <div className={`${styles.sectionMascot} ${styles.ctaMascot}`}>
+            <Mascot
+              className={styles.ctaMascotSkin}
+              size="small"
+              mood="celebrate"
+              message="Жду вас в первой цепочке!"
+            />
+          </div>
           <h2 className={styles.ctaTitle}>Готовы обменяться?</h2>
           <div className={styles.ctaActions}>
             <button
