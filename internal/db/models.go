@@ -606,6 +606,7 @@ type SupportThread struct {
 	CreatedAt       pgtype.Timestamptz
 	UpdatedAt       pgtype.Timestamptz
 	ClosedAt        pgtype.Timestamptz
+	EscalatedAt     pgtype.Timestamptz
 }
 
 type User struct {

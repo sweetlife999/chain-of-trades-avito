@@ -2,7 +2,7 @@
 export
 
 
-.PHONY: lint run up db llm down reset migrate-up migrate-down migrate-status sqlc smoke swagger test-ratings-integration test-exchange-integration test-user-blocks-integration test-exchange-recovery-integration test-exchange-refusal-integration test-exchange-messages-integration test-item-search-visibility-integration test-delivery-integration test-reports-integration test-admin-audit-integration test-notifications-integration
+.PHONY: lint run up db llm down reset migrate-up migrate-down migrate-status sqlc smoke swagger test-ratings-integration test-exchange-integration test-user-blocks-integration test-exchange-recovery-integration test-exchange-refusal-integration test-exchange-messages-integration test-item-search-visibility-integration test-delivery-integration test-reports-integration test-admin-audit-integration test-notifications-integration test-support-bot-llm test-support-admin-integration
 
 # Линтер. Требует golangci-lint v2 той же версии, что пиннится в CI:
 # go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
@@ -120,3 +120,19 @@ test-notifications-integration:
 test-ratings-integration:
 	go test -tags=integration ./internal/rating/handler \
 		-run TestRatingsIntegration -count=1
+
+# Точность роутера поддержки на замороженном наборе обращений. Требует живую Ollama
+# (OLLAMA_URL) и нужна при любой правке промпта в internal/support/service/bot.go:
+# 0.5B гиперчувствительна к формулировке, поэтому промпт меряется, а не обсуждается.
+# Без OLLAMA_URL тест скипается.
+test-support-bot-llm:
+	OLLAMA_URL=$${OLLAMA_URL:-http://localhost:11434} \
+	go test -tags=integration ./internal/support/service \
+		-run TestSupportBotAccuracy -count=1 -v
+
+# Живой сценарий очереди модерации поддержки: превью берётся из сообщения автора
+# обращения, в том числе когда автор — сам администратор. Тест написан по факту падения:
+# на таком обращении список отдавал 500 целиком.
+test-support-admin-integration:
+	go test -tags=integration ./internal/support/repository \
+		-run TestAdminSupportQueueIntegration -count=1 -v
