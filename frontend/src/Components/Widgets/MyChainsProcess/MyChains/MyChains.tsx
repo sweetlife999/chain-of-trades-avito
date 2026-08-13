@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import clsx from "clsx";
 
 import styles from "./Styles.module.scss";
@@ -12,7 +12,6 @@ import {
 } from "../../../../Features/Exchange/exchangeStatus";
 import { useAuthSelector } from "../../../../Hooks/useAuthDispatch";
 import { ExchangeProgress } from "../ExchangeProgress/ExchangeProgress";
-import { Button } from "../../../UI/Button/Button";
 import { useMascot } from "../../../../Hooks/useMascot";
 
 const tabs: { value: TExchangeStatusTab; label: string }[] = [
@@ -35,8 +34,7 @@ const getTitle = (exchange: TExchange, userId?: string) => {
 };
 
 const MyChainsComponent = () => {
-  const navigate = useNavigate();
-  const { isAuth, user } = useAuthSelector();
+  const { user } = useAuthSelector();
   const [tab, setTab] = useState<TExchangeStatusTab>("active");
   const { anchor, mood, movement, reactTo, reset } = useMascot();
 
