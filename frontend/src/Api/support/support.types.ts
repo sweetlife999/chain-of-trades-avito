@@ -21,6 +21,9 @@ export const SupportThreadSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
   closed_at: z.string().nullable(),
+  // Непустое — автоответ не решил вопрос: пользователь написал повторно либо бот не
+  // справился с первого сообщения. nullish, а не nullable: у старых ответов API поля нет.
+  escalated_at: z.string().nullish(),
 });
 
 export const SupportMessageSchema = z.object({

@@ -5,6 +5,7 @@ import { useDispatch } from "react-redux";
 import styles from "./Styles.module.scss";
 import { useMascot } from "../../../Hooks/useMascot";
 import { mascotSettled } from "../../../Features/Mascot/mascotSlice";
+import type { MascotMood } from "../../../Features/Mascot/mascot.types";
 import type { AuthDispatch } from "../../../Store/store";
 
 type MascotSize = "small" | "medium" | "large";
@@ -15,6 +16,7 @@ type TProps = {
   placement?: MascotPlacement;
   className?: string;
   showBubble?: boolean;
+  mood?: MascotMood;
   message?: string | null;
   label?: string;
 };
@@ -24,17 +26,21 @@ const MascotComponent = ({
   placement = "inline",
   className,
   showBubble = true,
+  mood,
   message,
   label = "У — помощник по обмену",
 }: TProps) => {
   const dispatch = useDispatch<AuthDispatch>();
-  const { mood, mode, message: stateMessage, durationMs, revision } = useMascot();
+  const { mood: stateMood, mode, message: stateMessage, durationMs, revision } = useMascot();
+  const visibleMood = mood ?? stateMood;
   const visibleMessage = message === undefined ? stateMessage : message;
   const bubbleVisible =
     showBubble && Boolean(visibleMessage) && (message !== undefined || mode !== "ambient");
 
+  // Экземпляр с заданным mood ничего не берёт из стора и таймер сброса не ставит:
+  // иначе пять маскотов лендинга завели бы пять таймеров на один и тот же сброс.
   useEffect(() => {
-    if (!durationMs) {
+    if (!durationMs || mood) {
       return;
     }
 
@@ -44,7 +50,7 @@ const MascotComponent = ({
     );
 
     return () => window.clearTimeout(timeout);
-  }, [dispatch, durationMs, revision]);
+  }, [dispatch, durationMs, mood, revision]);
 
   return (
     <div
@@ -52,10 +58,10 @@ const MascotComponent = ({
         styles.mascot,
         styles[`mascot_size_${size}`],
         styles[`mascot_placement_${placement}`],
-        styles[`mascot_mood_${mood}`],
+        styles[`mascot_mood_${visibleMood}`],
         className,
       )}
-      data-mascot-mood={mood}
+      data-mascot-mood={visibleMood}
     >
       {bubbleVisible && (
         <div className={clsx(styles.mascot__bubble, styles[`mascot__bubble_${mode}`])}>

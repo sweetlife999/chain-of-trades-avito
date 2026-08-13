@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&display=swap");
+// Шрифт Archivo подключён в index.html.
 
 // #root ограничен 95vw и центрирован — лендингу нужна вся ширина
 :global(#root):has(.landing) {
@@ -145,6 +145,7 @@
 .kicker {
   display: block;
   text-align: center;
+  font-weight: 400;
   font-size: 13px;
   line-height: 14px;
   letter-spacing: 0.08em;
@@ -220,6 +221,38 @@
 
 .heroText.heroReveal {
   animation-delay: 1.7s;
+}
+
+/* — маскот в секциях — */
+
+.sectionMascot {
+  display: flex;
+  justify-content: center;
+  margin: 0 0 30px;
+
+  // Анимации ждут появления секции: пока IntersectionObserver не повесил
+  // .visible, маскот стоит на первом кадре, а не машет за краем экрана.
+  * {
+    animation-play-state: paused;
+  }
+}
+
+.visible .sectionMascot * {
+  animation-play-state: running;
+}
+
+.ctaMascot {
+  justify-content: flex-start;
+  margin-bottom: 26px;
+}
+
+// Зелёный корпус на зелёном фоне CTA не читается, поэтому маскот там белый.
+// Класс удвоен намеренно: свои переменные .mascot объявляет на себе же,
+// и правило с одним классом проиграет ему при равной специфичности.
+.ctaMascotSkin.ctaMascotSkin {
+  --mascot-green: #fff;
+  --mascot-green-dark: #00733c;
+  --mascot-green-light: #d7fce9;
 }
 
 /* — как это работает — */
@@ -432,7 +465,7 @@
   align-items: center;
   gap: 20px;
   margin-top: 32px;
-  animation-delay: 2.25s !important;
+  animation-delay: 2.25s;
 }
 
 .heroButton { padding: 14px 20px; }
@@ -451,7 +484,7 @@
   display: grid;
   place-items: center;
   min-height: 420px;
-  animation-delay: 2.05s !important;
+  animation-delay: 2.05s;
 }
 
 .heroMascotGlow {

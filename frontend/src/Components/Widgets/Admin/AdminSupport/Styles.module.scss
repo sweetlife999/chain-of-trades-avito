@@ -16,6 +16,9 @@
   &__thread strong { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   &__thread b { min-width: 21px; height: 21px; border-radius: 11px; color: #fff; background: #08783f; text-align: center; font-size: 12px; }
   &__thread small, &__thread > span:not(:first-child) { font-size: 12px; }
+  // Пометка «обращение ждёт человека»: автоответ либо не помог, либо не смог ответить.
+  &__needshuman { margin-left: 10px; }
+  &__escalated { margin-left: 6px; padding: 1px 7px; border-radius: 9px; color: #8a4b00; background: #ffe9c9; font-style: normal; font-size: 11px; white-space: nowrap; }
   &__chat { display: flex; flex-direction: column; min-width: 0; background: #f4f7f5; }
   &__chatHeader { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 15px 18px; border-bottom: 1px solid #dfe5e2; background: #fff; }
   &__chatHeader h3 { margin: 0 0 5px; }
