@@ -100,8 +100,12 @@ const LandingComponent = () => {
   const rootRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
 
+  // Задержка совпадает с animation-delay у .heroMascot: без неё приветствие
+  // (взмах рукой, подскок) проигрывалось, пока маскот ещё opacity: 0.
   useEffect(() => {
-    reactTo("APP_OPENED");
+    const hello = window.setTimeout(() => reactTo("APP_OPENED"), 2100);
+
+    return () => window.clearTimeout(hello);
   }, [reactTo]);
 
   useEffect(() => {
@@ -215,13 +219,13 @@ const LandingComponent = () => {
         </section>
 
         <section className={styles.section} id="how">
-          <span className={styles.kicker}>Как это работает</span>
+          <h2 className={styles.kicker}>Как это работает</h2>
 
           <div className={styles.steps}>
             {steps.map(([number, title, text]) => (
               <div className={styles.step} key={number}>
                 <span className={styles.stepNumber}>{number}</span>
-                <h2 className={styles.stepTitle}>{title}</h2>
+                <h3 className={styles.stepTitle}>{title}</h3>
                 <p className={styles.stepText}>{text}</p>
               </div>
             ))}
@@ -229,7 +233,7 @@ const LandingComponent = () => {
         </section>
 
         <section className={styles.section} id="benefits">
-          <span className={styles.kicker}>Преимущества обмена цепочкой</span>
+          <h2 className={styles.kicker}>Преимущества обмена цепочкой</h2>
 
           <div className={styles.benefits}>
             {benefits.map(({ icon, title, text }) => (
@@ -243,7 +247,7 @@ const LandingComponent = () => {
         </section>
 
         <section className={styles.section} id="faq">
-          <span className={styles.kicker}>FAQ</span>
+          <h2 className={styles.kicker}>FAQ</h2>
 
           <div className={styles.faq}>
             {faq.map(([question, answer]) => (
@@ -258,7 +262,7 @@ const LandingComponent = () => {
 
       <section className={`${styles.section} ${styles.cta}`}>
         <div className={styles.ctaInner}>
-          <h3 className={styles.ctaTitle}>Готовы обменяться?</h3>
+          <h2 className={styles.ctaTitle}>Готовы обменяться?</h2>
           <div className={styles.ctaActions}>
             <button
               className={`${styles.btn} ${styles.btnInverse}`}

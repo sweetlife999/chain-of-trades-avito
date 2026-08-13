@@ -20,6 +20,16 @@
   &_placement_landing {
     flex-direction: column;
     align-items: center;
+
+    // Бабл живёт по таймеру: в потоке его появление и исчезновение двигало
+    // маскота с подписью внутри отцентрованного героя. Вне потока — не двигает.
+    .mascot__bubble {
+      position: absolute;
+      right: 0;
+      bottom: 100%;
+      left: 0;
+      margin: 0 auto 10px;
+    }
   }
 
   &_placement_chat {
