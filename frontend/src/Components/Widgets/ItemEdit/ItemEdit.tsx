@@ -68,6 +68,7 @@ const ItemEditForm = ({ item }: TFormProps) => {
       description: item.description,
       photo_urls: item.photo_urls,
       wants: item.wants,
+      search_filters: item.search_filters,
     },
   });
 
@@ -113,6 +114,16 @@ const ItemEditForm = ({ item }: TFormProps) => {
     }
     if (!sameUnordered(formData.wants, item.wants)) {
       request.wants = formData.wants;
+    }
+    if (
+      formData.search_filters.max_chain_length !==
+        item.search_filters.max_chain_length ||
+      formData.search_filters.min_participant_rating !==
+        item.search_filters.min_participant_rating ||
+      formData.search_filters.prefer_reliable_participants !==
+        item.search_filters.prefer_reliable_participants
+    ) {
+      request.search_filters = formData.search_filters;
     }
 
     // Пустое тело API не примет, да и слать нечего — просто возвращаемся к карточке.
@@ -251,6 +262,64 @@ const ItemEditForm = ({ item }: TFormProps) => {
                   {errors.wants.message}
                 </span>
               )}
+            </fieldset>
+
+            <fieldset className={styles.editItem__wants}>
+              <legend className={styles.editItem__label}>
+                Настройки поиска
+              </legend>
+
+              <label className={styles.editItem__field}>
+                <span className={styles.editItem__label}>
+                  Максимальная длина цепочки
+                </span>
+                <select
+                  className={styles.editItem__select}
+                  disabled={updateMutation.isPending}
+                  {...register("search_filters.max_chain_length", {
+                    valueAsNumber: true,
+                  })}
+                >
+                  <option value={2}>2 участника</option>
+                  <option value={3}>До 3 участников</option>
+                  <option value={4}>До 4 участников</option>
+                  <option value={5}>До 5 участников</option>
+                </select>
+              </label>
+
+              <label className={styles.editItem__field}>
+                <span className={styles.editItem__label}>
+                  Минимальный рейтинг участников
+                </span>
+                <select
+                  className={styles.editItem__select}
+                  disabled={updateMutation.isPending}
+                  {...register("search_filters.min_participant_rating", {
+                    valueAsNumber: true,
+                  })}
+                >
+                  <option value={0}>Не учитывать рейтинг</option>
+                  <option value={3}>От 3.0</option>
+                  <option value={3.5}>От 3.5</option>
+                  <option value={4}>От 4.0</option>
+                  <option value={4.5}>От 4.5</option>
+                  <option value={5}>Только 5.0</option>
+                </select>
+              </label>
+
+              <label className={styles.editItem__category}>
+                <input
+                  className={styles.editItem__categoryInput}
+                  disabled={updateMutation.isPending}
+                  type="checkbox"
+                  {...register(
+                    "search_filters.prefer_reliable_participants",
+                  )}
+                />
+                <span className={styles.editItem__categoryLabel}>
+                  Сначала показывать обмены с надёжными участниками
+                </span>
+              </label>
             </fieldset>
           </div>
         </div>

@@ -14,7 +14,10 @@ import (
 const findExchangeNeighbors = `-- name: FindExchangeNeighbors :many
 SELECT
     candidate.id,
-    candidate.owner_id
+    candidate.owner_id,
+    candidate.max_chain_length,
+    candidate.min_participant_rating,
+    candidate.prefer_reliable_participants
 FROM items AS current_item
 JOIN item_wants AS wanted
     ON wanted.item_id = current_item.id
@@ -35,8 +38,11 @@ ORDER BY candidate.created_at, candidate.id
 `
 
 type FindExchangeNeighborsRow struct {
-	ID      pgtype.UUID
-	OwnerID pgtype.UUID
+	ID                         pgtype.UUID
+	OwnerID                    pgtype.UUID
+	MaxChainLength             int32
+	MinParticipantRating       float64
+	PreferReliableParticipants bool
 }
 
 // Рёбра графа не храним: для объявления A соседями считаются доступные объявления B,
@@ -52,7 +58,13 @@ func (q *Queries) FindExchangeNeighbors(ctx context.Context, itemID pgtype.UUID)
 	var items []FindExchangeNeighborsRow
 	for rows.Next() {
 		var i FindExchangeNeighborsRow
-		if err := rows.Scan(&i.ID, &i.OwnerID); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.OwnerID,
+			&i.MaxChainLength,
+			&i.MinParticipantRating,
+			&i.PreferReliableParticipants,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -89,6 +101,51 @@ func (q *Queries) HasUserBlockConflict(ctx context.Context, arg HasUserBlockConf
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
+}
+
+const listExchangeSearchItemFilters = `-- name: ListExchangeSearchItemFilters :many
+SELECT
+    id,
+    max_chain_length,
+    min_participant_rating,
+    prefer_reliable_participants
+FROM items
+WHERE id = ANY($1::uuid[])
+`
+
+type ListExchangeSearchItemFiltersRow struct {
+	ID                         pgtype.UUID
+	MaxChainLength             int32
+	MinParticipantRating       float64
+	PreferReliableParticipants bool
+}
+
+// Настройки читаются пачкой для всех вещей найденных циклов. Проверка выполняется
+// после DFS: так учитываются требования каждого участника, а не только объявления,
+// с которого конкретный worker начал обход.
+func (q *Queries) ListExchangeSearchItemFilters(ctx context.Context, itemIds []pgtype.UUID) ([]ListExchangeSearchItemFiltersRow, error) {
+	rows, err := q.db.Query(ctx, listExchangeSearchItemFilters, itemIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListExchangeSearchItemFiltersRow
+	for rows.Next() {
+		var i ListExchangeSearchItemFiltersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.MaxChainLength,
+			&i.MinParticipantRating,
+			&i.PreferReliableParticipants,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listExchangeSearchUserStats = `-- name: ListExchangeSearchUserStats :many

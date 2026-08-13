@@ -79,12 +79,13 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	item, err := h.service.Create(r.Context(), itemservice.CreateInput{
-		OwnerID:     ownerID,
-		Category:    request.Category,
-		Title:       request.Title,
-		Description: request.Description,
-		PhotoURLs:   request.PhotoURLs,
-		Wants:       request.Wants,
+		OwnerID:       ownerID,
+		Category:      request.Category,
+		Title:         request.Title,
+		Description:   request.Description,
+		PhotoURLs:     request.PhotoURLs,
+		Wants:         request.Wants,
+		SearchFilters: searchFiltersFromRequest(request.SearchFilters),
 	})
 	if err != nil {
 		handleServiceError(w, err)
@@ -182,11 +183,12 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	item, err := h.service.Update(r.Context(), id, userID, itemservice.UpdateInput{
-		Category:    request.Category,
-		Title:       request.Title,
-		Description: request.Description,
-		PhotoURLs:   request.PhotoURLs,
-		Wants:       request.Wants,
+		Category:      request.Category,
+		Title:         request.Title,
+		Description:   request.Description,
+		PhotoURLs:     request.PhotoURLs,
+		Wants:         request.Wants,
+		SearchFilters: searchFiltersFromRequest(request.SearchFilters),
 	})
 	if err != nil {
 		handleServiceError(w, err)
@@ -194,6 +196,18 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, itemdto.FromModel(item))
+}
+
+func searchFiltersFromRequest(request *itemdto.SearchFiltersRequest) *itemmodel.SearchFilters {
+	if request == nil {
+		return nil
+	}
+
+	return &itemmodel.SearchFilters{
+		MaxChainLength:             request.MaxChainLength,
+		MinParticipantRating:       request.MinParticipantRating,
+		PreferReliableParticipants: request.PreferReliableParticipants,
+	}
 }
 
 // @Summary     Удалить своё объявление

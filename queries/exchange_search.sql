@@ -5,7 +5,10 @@
 -- name: FindExchangeNeighbors :many
 SELECT
     candidate.id,
-    candidate.owner_id
+    candidate.owner_id,
+    candidate.max_chain_length,
+    candidate.min_participant_rating,
+    candidate.prefer_reliable_participants
 FROM items AS current_item
 JOIN item_wants AS wanted
     ON wanted.item_id = current_item.id
@@ -50,3 +53,15 @@ SELECT
     COALESCE(rating::double precision, 3.0)::double precision AS rating
 FROM users
 WHERE id = ANY(sqlc.arg(user_ids)::uuid[]);
+
+-- Настройки читаются пачкой для всех вещей найденных циклов. Проверка выполняется
+-- после DFS: так учитываются требования каждого участника, а не только объявления,
+-- с которого конкретный worker начал обход.
+-- name: ListExchangeSearchItemFilters :many
+SELECT
+    id,
+    max_chain_length,
+    min_participant_rating,
+    prefer_reliable_participants
+FROM items
+WHERE id = ANY(sqlc.arg(item_ids)::uuid[]);

@@ -23,6 +23,7 @@ type neighborQueries interface {
 	FindExchangeNeighbors(context.Context, pgtype.UUID) ([]db.FindExchangeNeighborsRow, error)
 	HasUserBlockConflict(context.Context, db.HasUserBlockConflictParams) (bool, error)
 	ListExchangeSearchUserStats(context.Context, []pgtype.UUID) ([]db.ListExchangeSearchUserStatsRow, error)
+	ListExchangeSearchItemFilters(context.Context, []pgtype.UUID) ([]db.ListExchangeSearchItemFiltersRow, error)
 }
 
 type Repository struct {
@@ -66,8 +67,11 @@ func (r *Repository) FindNeighbors(ctx context.Context, itemID uuid.UUID) ([]exc
 	neighbors := make([]exchangemodel.Node, 0, len(rows))
 	for _, row := range rows {
 		neighbors = append(neighbors, exchangemodel.Node{
-			ItemID:  uuid.UUID(row.ID.Bytes),
-			OwnerID: uuid.UUID(row.OwnerID.Bytes),
+			ItemID:                     uuid.UUID(row.ID.Bytes),
+			OwnerID:                    uuid.UUID(row.OwnerID.Bytes),
+			MaxChainLength:             row.MaxChainLength,
+			MinParticipantRating:       row.MinParticipantRating,
+			PreferReliableParticipants: row.PreferReliableParticipants,
 		})
 	}
 
@@ -121,6 +125,31 @@ func (r *Repository) GetSearchUserStats(
 	}
 
 	return stats, nil
+}
+
+func (r *Repository) GetSearchItemFilters(
+	ctx context.Context,
+	itemIDs []uuid.UUID,
+) (map[uuid.UUID]exchangemodel.SearchItemFilters, error) {
+	queryIDs := make([]pgtype.UUID, len(itemIDs))
+	for index, id := range itemIDs {
+		queryIDs[index] = pgUUID(id)
+	}
+	rows, err := r.queries.ListExchangeSearchItemFilters(ctx, queryIDs)
+	if err != nil {
+		return nil, fmt.Errorf("list exchange search item filters: %w", err)
+	}
+	filters := make(map[uuid.UUID]exchangemodel.SearchItemFilters, len(rows))
+	for _, row := range rows {
+		itemID := uuid.UUID(row.ID.Bytes)
+		filters[itemID] = exchangemodel.SearchItemFilters{
+			ItemID:                     itemID,
+			MaxChainLength:             row.MaxChainLength,
+			MinParticipantRating:       row.MinParticipantRating,
+			PreferReliableParticipants: row.PreferReliableParticipants,
+		}
+	}
+	return filters, nil
 }
 
 func (r *Repository) SaveExchange(

@@ -158,6 +158,8 @@ definitions:
         items:
           type: string
         type: array
+      search_filters:
+        $ref: '#/definitions/dto.SearchFiltersRequest'
       title:
         example: Велосипед
         type: string
@@ -308,6 +310,8 @@ definitions:
         - $ref: '#/definitions/dto.ItemPickupPoint'
         description: null — вещь дома у владельца.
         x-nullable: true
+      search_filters:
+        $ref: '#/definitions/dto.SearchFiltersResponse'
       status:
         type: string
       title:
@@ -540,6 +544,31 @@ definitions:
       status:
         type: string
     type: object
+  dto.SearchFiltersRequest:
+    properties:
+      max_chain_length:
+        example: 3
+        maximum: 5
+        minimum: 2
+        type: integer
+      min_participant_rating:
+        example: 4
+        maximum: 5
+        minimum: 0
+        type: number
+      prefer_reliable_participants:
+        example: true
+        type: boolean
+    type: object
+  dto.SearchFiltersResponse:
+    properties:
+      max_chain_length:
+        type: integer
+      min_participant_rating:
+        type: number
+      prefer_reliable_participants:
+        type: boolean
+    type: object
   dto.SetPickupPointRequest:
     properties:
       pickup_point_id:
@@ -594,6 +623,8 @@ definitions:
         items:
           type: string
         type: array
+      search_filters:
+        $ref: '#/definitions/dto.SearchFiltersRequest'
       title:
         example: Велосипед городской
         type: string

@@ -7,18 +7,25 @@ import (
 )
 
 type Item struct {
-	ID          uuid.UUID
-	OwnerID     uuid.UUID
-	Category    string
-	Title       string
-	Description string
-	PhotoURLs   []string
-	Wants       []string
-	Status      string
+	ID            uuid.UUID
+	OwnerID       uuid.UUID
+	Category      string
+	Title         string
+	Description   string
+	PhotoURLs     []string
+	Wants         []string
+	SearchFilters SearchFilters
+	Status        string
 	// nil — вещь дома у владельца.
 	PickupPoint *PickupPoint
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+}
+
+type SearchFilters struct {
+	MaxChainLength             int32
+	MinParticipantRating       float64
+	PreferReliableParticipants bool
 }
 
 // PickupPoint — пункт, в котором лежит вещь. Отдельный тип, а не pickuppoint/model:
@@ -30,22 +37,24 @@ type PickupPoint struct {
 }
 
 type NewItem struct {
-	OwnerID     uuid.UUID
-	Category    string
-	Title       string
-	Description string
-	PhotoURLs   []string
-	Wants       []string
+	OwnerID       uuid.UUID
+	Category      string
+	Title         string
+	Description   string
+	PhotoURLs     []string
+	Wants         []string
+	SearchFilters SearchFilters
 }
 
 // Указатель или nil-срез означают «поле не меняем»: для списков это одно и то же,
 // потому что пустой список запрещён и в API, и CHECK-ом в БД.
 type Changes struct {
-	Category    *string
-	Title       *string
-	Description *string
-	PhotoURLs   []string
-	Wants       []string
+	Category      *string
+	Title         *string
+	Description   *string
+	PhotoURLs     []string
+	Wants         []string
+	SearchFilters *SearchFilters
 }
 
 type Category struct {

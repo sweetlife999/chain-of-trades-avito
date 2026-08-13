@@ -28,6 +28,13 @@ type SearchUserStats struct {
 	Rating         float64
 }
 
+type SearchItemFilters struct {
+	ItemID                     uuid.UUID
+	MaxChainLength             int32
+	MinParticipantRating       float64
+	PreferReliableParticipants bool
+}
+
 type Participant struct {
 	UserID         uuid.UUID
 	GivesItemID    uuid.UUID
