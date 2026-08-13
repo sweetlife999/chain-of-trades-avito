@@ -935,6 +935,52 @@ definitions:
       error:
         type: string
     type: object
+  handler.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  handler.JobResponse:
+    properties:
+      created_at:
+        type: string
+      error:
+        type: string
+      id:
+        type: string
+      status:
+        enum:
+        - pending
+        - processing
+        - completed
+        - failed
+        type: string
+      suggestion:
+        $ref: '#/definitions/handler.SuggestionResponse'
+      updated_at:
+        type: string
+    type: object
+  handler.SubmitRequest:
+    properties:
+      input:
+        example: старый пленочный фотоаппарат, рабочий, есть чехол
+        type: string
+    type: object
+  handler.SuggestionResponse:
+    properties:
+      category_name:
+        example: Электроника
+        type: string
+      category_slug:
+        example: electronics
+        type: string
+      description:
+        example: Рабочий плёночный фотоаппарат. В комплекте чехол.
+        type: string
+      title:
+        example: Плёночный фотоаппарат с чехлом
+        type: string
+    type: object
   handler.caseResponse:
     properties:
       category:
@@ -3179,6 +3225,82 @@ paths:
       security:
       - CookieAuth: []
       summary: Вернуть объявление в поиск
+      tags:
+      - items
+  /items/ai-suggestions:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Принимает рассказ пользователя, ставит генерацию в фоновую очередь и сразу возвращает ID задачи.
+        Результат не применяется автоматически: пользователь должен проверить и принять подсказку на фронте.
+      parameters:
+      - description: Описание вещи своими словами
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.SubmitRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/handler.JobResponse'
+        "400":
+          description: Текст короче 10 или длиннее 1200 символов
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Нет или истекла cookie access_token
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "429":
+          description: Очередь модели заполнена
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Запустить ИИ-помощника объявления
+      tags:
+      - items
+  /items/ai-suggestions/{id}:
+    get:
+      description: Задача доступна только создавшему её пользователю и хранится 30
+        минут.
+      parameters:
+      - description: UUID задачи
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.JobResponse'
+        "400":
+          description: Некорректный UUID
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Нет или истекла cookie access_token
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Чужая задача
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Задача не найдена или истекла
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Получить результат ИИ-помощника
       tags:
       - items
   /notifications:
