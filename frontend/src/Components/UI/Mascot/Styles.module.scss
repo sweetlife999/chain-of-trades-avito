@@ -27,6 +27,18 @@
     justify-content: flex-start;
   }
 
+  &_placement_floating {
+    width: min(280px, calc(100vw - 24px));
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+
+    .mascot__bubble {
+      width: min(280px, calc(100vw - 24px));
+      border-radius: 16px 16px 5px;
+    }
+  }
+
   &__stage {
     position: relative;
     width: var(--mascot-size);
@@ -65,12 +77,13 @@
     width: min(330px, 72vw);
     padding: 13px 15px;
     color: #20362b;
-    background: rgb(255 255 255 / 96%);
+    background: #fff;
     border: 1px solid #cceadd;
     border-radius: 16px 16px 16px 5px;
     box-shadow: 0 12px 34px rgb(31 75 53 / 12%);
-    font-size: 13px;
+    font-size: 14px;
     line-height: 1.45;
+    text-rendering: optimizeLegibility;
     animation: bubbleIn .32s cubic-bezier(.2, .8, .2, 1) both;
 
     &_attention {
@@ -215,11 +228,59 @@
     .mascot__eye { transform: scaleY(.72); }
     .mascot__robot { animation: concernedSway 1.8s ease-in-out infinite alternate; }
   }
+
+  &_mood_pointing {
+    .mascot__head { animation: pointLook 1.1s ease-in-out infinite alternate; }
+    .mascot__rightArm { animation: pointDown .72s ease-in-out infinite alternate; }
+    .mascot__antennaGlow { opacity: .55; animation: antennaPulse .9s ease-in-out infinite alternate; }
+  }
+
+  &_mood_excited {
+    .mascot__robot { animation: excitedBounce .48s ease-in-out infinite alternate; }
+    .mascot__mouth { d: path("M99 106 Q120 130 141 106"); }
+    .mascot__leftArm { animation: excitedArm .48s ease-in-out infinite alternate; }
+    .mascot__rightArm { animation: excitedArmRight .48s ease-in-out infinite alternate; }
+  }
+
+  &_mood_sad {
+    .mascot__head { animation: sadHead 1.8s ease-in-out infinite alternate; }
+    .mascot__mouth { d: path("M104 121 Q120 108 136 121"); }
+    .mascot__eye { transform: scaleY(.58); }
+    .mascot__leftArm { transform: rotate(-8deg) translateY(5px); }
+    .mascot__rightArm { transform: rotate(8deg) translateY(5px); }
+    .mascot__rightLeg { animation: errorFoot .55s ease-in-out 3 alternate; }
+  }
+
+  &_mood_bored {
+    .mascot__head { animation: boredLook 3.2s ease-in-out infinite; }
+    .mascot__eye { animation: boredBlink 3.2s ease-in-out infinite; }
+    .mascot__mouth { d: path("M108 116 Q120 114 132 116"); }
+  }
+
+  &_mood_reading {
+    .mascot__head { animation: readSweep 2.2s ease-in-out infinite; }
+    .mascot__eyes { animation: readEyes 1.1s steps(2, end) infinite; }
+    .mascot__mouth { d: path("M108 114 Q120 118 132 114"); }
+  }
+
+  &_mood_angry {
+    .mascot__head { animation: angryShake .32s ease-in-out 5 alternate; }
+    .mascot__eye { transform: scaleY(.52) rotate(5deg); }
+    .mascot__mouth { d: path("M105 118 Q120 111 135 118"); }
+  }
+
+  &_movement_scan {
+    .mascot__head { animation: readSweep 1.7s ease-in-out infinite; }
+  }
+
+  &_movement_kick {
+    .mascot__rightLeg { animation: kick .72s cubic-bezier(.2,.8,.2,1) infinite; }
+  }
 }
 
 @keyframes mascotFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
 @keyframes shadowFloat { 0%, 100% { transform: scale(1); opacity: .7; } 50% { transform: scale(.88); opacity: .45; } }
-@keyframes bubbleIn { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes bubbleIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes wave { 0%, 100% { transform: rotate(0deg); } 45% { transform: rotate(-55deg) translate(2px, -8px); } }
 @keyframes helloBounce { 0% { transform: translateY(14px) scale(.94); } 55% { transform: translateY(-9px) scale(1.02); } 100% { transform: none; } }
 @keyframes listenTilt { from { transform: rotate(-4deg); } to { transform: rotate(6deg); } }
@@ -234,6 +295,19 @@
 @keyframes armsUpRight { from { transform: rotate(0); } to { transform: rotate(-35deg) translate(5px, -10px); } }
 @keyframes confettiPop { 0% { transform: translateY(-8px) scale(.8); opacity: 0; } 35% { opacity: 1; } 100% { transform: translateY(24px) scale(1.05); opacity: 0; } }
 @keyframes concernedSway { from { transform: rotate(-1.3deg) translateY(2px); } to { transform: rotate(1.3deg) translateY(5px); } }
+@keyframes pointLook { from { transform: rotate(-2deg); } to { transform: rotate(5deg) translateY(2px); } }
+@keyframes pointDown { from { transform: rotate(-10deg); } to { transform: rotate(24deg) translate(4px, 8px); } }
+@keyframes excitedBounce { from { transform: translateY(0) rotate(-1deg); } to { transform: translateY(-12px) rotate(1deg); } }
+@keyframes excitedArm { from { transform: rotate(8deg); } to { transform: rotate(34deg) translate(-4px, -7px); } }
+@keyframes excitedArmRight { from { transform: rotate(-8deg); } to { transform: rotate(-34deg) translate(4px, -7px); } }
+@keyframes sadHead { from { transform: rotate(-3deg) translateY(5px); } to { transform: rotate(2deg) translateY(8px); } }
+@keyframes boredLook { 0%, 25%, 100% { transform: rotate(-5deg); } 45%, 75% { transform: rotate(7deg); } }
+@keyframes boredBlink { 0%, 35%, 43%, 100% { transform: scaleY(.62); } 39% { transform: scaleY(.08); } }
+@keyframes errorFoot { from { transform: rotate(0); } to { transform: rotate(-11deg) translateY(-4px); } }
+@keyframes readSweep { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(7deg); } }
+@keyframes readEyes { from { transform: translateX(-5px); } to { transform: translateX(5px); } }
+@keyframes angryShake { from { transform: rotate(-5deg); } to { transform: rotate(5deg); } }
+@keyframes kick { 0%, 45%, 100% { transform: rotate(0); } 62% { transform: rotate(-42deg) translate(8px, -7px); } }
 
 @media (max-width: 680px) {
   .mascot {

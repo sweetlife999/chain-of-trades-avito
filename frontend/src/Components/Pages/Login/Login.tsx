@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import styles from "./Styles.module.scss";
 import { Button } from "../../UI/Button/Button";
@@ -12,11 +12,14 @@ import { useAuthDispatch } from "../../../Hooks/useAuthDispatch";
 import { setUserState } from "../../../Store/authSlice";
 import { Input } from "../../UI/Input/Input";
 import type { TAuthenticatedUser } from "../../../Api/auth/auth.types";
+import { useMascot } from "../../../Hooks/useMascot";
 
 const LoginComponent = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useAuthDispatch();
+  const { reactTo, reset } = useMascot();
+  const authenticationSucceededRef = useRef(false);
   const locationState = location.state as {
     closeTo?: string;
     from?: string;
@@ -36,11 +39,14 @@ const LoginComponent = () => {
     mutationFn: (data: FormState) => login(data),
 
     onSuccess: (data: TAuthenticatedUser) => {
+      authenticationSucceededRef.current = true;
+      reactTo("FORM_SUCCESS");
       dispatch(setUserState(data));
       navigate(destination, { replace: true });
     },
 
     onError: () => {
+      reactTo("FORM_ERROR");
       setError("root", {
         type: "server",
         message: "Неверный nickname или пароль",
@@ -49,8 +55,19 @@ const LoginComponent = () => {
   });
 
   const onSubmit = (data: FormState) => {
+    reactTo("FORM_SUBMIT");
     loginMutation.mutate(data);
   };
+
+  useEffect(() => {
+    reactTo("AUTH_FORM_READY");
+
+    return () => {
+      if (!authenticationSucceededRef.current) {
+        reset();
+      }
+    };
+  }, [reactTo, reset]);
 
   const closeForm = () => {
     if (locationState?.closeTo) {
@@ -65,7 +82,7 @@ const LoginComponent = () => {
     <Popup>
       <form
         className={styles.login}
-        onSubmit={handleSubmit(onSubmit)}
+        onSubmit={handleSubmit(onSubmit, () => reactTo("FORM_ERROR"))}
         noValidate
       >
         <div className={styles.login__header}>
@@ -114,6 +131,7 @@ const LoginComponent = () => {
             className={styles.login__button}
             color="light"
             disabled={loginMutation.isPending}
+            mascotAnchor="form-submit"
             type="submit"
           >
             {loginMutation.isPending ? "Входим..." : "Войти"}

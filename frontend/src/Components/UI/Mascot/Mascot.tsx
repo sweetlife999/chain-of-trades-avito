@@ -8,7 +8,7 @@ import { mascotSettled } from "../../../Features/Mascot/mascotSlice";
 import type { AuthDispatch } from "../../../Store/store";
 
 type MascotSize = "small" | "medium" | "large";
-type MascotPlacement = "landing" | "chat" | "inline";
+type MascotPlacement = "landing" | "chat" | "inline" | "floating";
 
 type TProps = {
   size?: MascotSize;
@@ -28,7 +28,14 @@ const MascotComponent = ({
   label = "Уми — помощник по обмену",
 }: TProps) => {
   const dispatch = useDispatch<AuthDispatch>();
-  const { mood, mode, message: stateMessage, durationMs, revision } = useMascot();
+  const {
+    mood,
+    mode,
+    movement,
+    message: stateMessage,
+    durationMs,
+    revision,
+  } = useMascot();
   const visibleMessage = message === undefined ? stateMessage : message;
   const bubbleVisible =
     showBubble && Boolean(visibleMessage) && (message !== undefined || mode !== "ambient");
@@ -53,9 +60,11 @@ const MascotComponent = ({
         styles[`mascot_size_${size}`],
         styles[`mascot_placement_${placement}`],
         styles[`mascot_mood_${mood}`],
+        styles[`mascot_movement_${movement}`],
         className,
       )}
       data-mascot-mood={mood}
+      data-mascot-movement={movement}
     >
       {bubbleVisible && (
         <div className={clsx(styles.mascot__bubble, styles[`mascot__bubble_${mode}`])}>

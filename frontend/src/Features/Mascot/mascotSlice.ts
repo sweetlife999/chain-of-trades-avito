@@ -1,13 +1,21 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
 import { mascotReactions } from "./mascotEvents";
-import type { MascotEvent, MascotMode, MascotMood } from "./mascot.types";
+import type {
+  MascotAnchor,
+  MascotEvent,
+  MascotMode,
+  MascotMood,
+  MascotMovement,
+} from "./mascot.types";
 
 type MascotState = {
   mood: MascotMood;
   mode: MascotMode;
   message: string | null;
   durationMs: number | null;
+  anchor: MascotAnchor | null;
+  movement: MascotMovement;
   revision: number;
 };
 
@@ -16,6 +24,8 @@ const initialState: MascotState = {
   mode: "ambient",
   message: null,
   durationMs: null,
+  anchor: null,
+  movement: "roam",
   revision: 0,
 };
 
@@ -29,6 +39,8 @@ const mascotSlice = createSlice({
       state.mode = reaction.mode;
       state.message = reaction.message;
       state.durationMs = reaction.durationMs;
+      state.anchor = reaction.anchor;
+      state.movement = reaction.movement;
       state.revision += 1;
     },
     mascotSettled: (state, action: PayloadAction<number>) => {
@@ -40,12 +52,16 @@ const mascotSlice = createSlice({
       state.mode = "ambient";
       state.message = null;
       state.durationMs = null;
+      state.anchor = null;
+      state.movement = "roam";
     },
     mascotReset: (state) => {
       state.mood = "idle";
       state.mode = "ambient";
       state.message = null;
       state.durationMs = null;
+      state.anchor = null;
+      state.movement = "roam";
       state.revision += 1;
     },
   },

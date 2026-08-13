@@ -4,11 +4,36 @@ export type MascotMood =
   | "listening"
   | "thinking"
   | "hint"
+  | "pointing"
   | "happy"
+  | "excited"
   | "celebrate"
-  | "concerned";
+  | "concerned"
+  | "sad"
+  | "bored"
+  | "reading"
+  | "angry";
 
 export type MascotMode = "ambient" | "attention" | "dialog";
+
+export type MascotMovement =
+  | "roam"
+  | "approach"
+  | "wander"
+  | "run"
+  | "scan"
+  | "kick";
+
+export type MascotAnchor =
+  | "form-submit"
+  | "items-empty"
+  | "exchanges-empty"
+  | "chains-list"
+  | "notifications-trigger"
+  | "notifications-panel"
+  | "notifications-list"
+  | "latest-review"
+  | "blocked-users";
 
 export type MascotEvent =
   | "CHAT_OPENED"
@@ -25,6 +50,18 @@ export type MascotEvent =
   | "EXCHANGE_DELIVERING"
   | "EXCHANGE_DELIVERED"
   | "EXCHANGE_COMPLETED"
+  | "AUTH_FORM_READY"
+  | "FORM_SUBMIT"
+  | "FORM_SUCCESS"
+  | "FORM_ERROR"
+  | "EMPTY_ITEMS"
+  | "EMPTY_EXCHANGES"
+  | "EMPTY_CHAINS"
+  | "CHAIN_AVAILABLE"
+  | "NEW_NOTIFICATION"
+  | "NOTIFICATIONS_OPENED"
+  | "NEW_REVIEW"
+  | "BLOCKED_USERS_VIEWED"
   | "ERROR";
 
 export type MascotReaction = {
@@ -32,4 +69,6 @@ export type MascotReaction = {
   mode: MascotMode;
   message: string | null;
   durationMs: number | null;
+  anchor: MascotAnchor | null;
+  movement: MascotMovement;
 };

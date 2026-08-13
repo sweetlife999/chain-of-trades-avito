@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { CalendarDays, CircleCheck, CircleX } from "lucide-react";
@@ -19,6 +19,7 @@ import { getAvatarGradient } from "../../Utils/getAvatarGradient";
 import { AdminGlobalBlockButton } from "../../Widgets/Admin/AdminGlobalBlockButton/AdminGlobalBlockButton";
 import { AdminUserExchanges } from "../../Widgets/Admin/AdminUserExchanges/AdminUserExchanges";
 import { ProfileRatings } from "../../Widgets/ProfileRatings/ProfileRatings";
+import { useMascot } from "../../../Hooks/useMascot";
 
 type TBlockAction = {
   type: "block" | "unblock";
@@ -38,13 +39,17 @@ const ProfileComponent = () => {
   const queryClient = useQueryClient();
   const { id } = useParams();
   const { user: currentUser } = useAuthSelector();
+  const { reactTo } = useMascot();
   const [blockAction, setBlockAction] = useState<TBlockAction | null>(null);
   const isOwnProfile = !id || id === currentUser?.id;
+  const profileUserId = id ?? currentUser?.id;
 
   const profileQuery = useQuery({
-    queryKey: ["users", id],
-    queryFn: () => getUserById(id ?? ""),
-    enabled: Boolean(id && id !== currentUser?.id),
+    queryKey: ["users", profileUserId],
+    queryFn: () => getUserById(profileUserId ?? ""),
+    enabled: Boolean(profileUserId),
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: false,
     retry: false,
   });
 
@@ -73,7 +78,41 @@ const ProfileComponent = () => {
     onSuccess: refreshAfterBlockChange,
   });
 
-  const user = isOwnProfile ? currentUser : profileQuery.data;
+  const user = profileQuery.data ?? (isOwnProfile ? currentUser : undefined);
+  const blockedUsers = blockedUsersQuery.data ?? [];
+  const blockedUserIds = blockedUsers.map(({ id: userId }) => userId).join(":");
+
+  useEffect(() => {
+    if (
+      !isOwnProfile ||
+      !blockedUsersQuery.isSuccess ||
+      blockedUserIds.length === 0
+    ) {
+      return;
+    }
+
+    const timerId = window.setTimeout(
+      () => reactTo("BLOCKED_USERS_VIEWED"),
+      4300,
+    );
+
+    return () => window.clearTimeout(timerId);
+  }, [
+    blockedUserIds,
+    blockedUsersQuery.isSuccess,
+    isOwnProfile,
+    reactTo,
+  ]);
+
+  useEffect(() => {
+    if (profileQuery.isError || blockedUsersQuery.isError) {
+      reactTo("ERROR");
+    }
+  }, [
+    blockedUsersQuery.isError,
+    profileQuery.isError,
+    reactTo,
+  ]);
 
   if (!isOwnProfile && profileQuery.isPending) {
     return <p className={styles.profile__empty}>Загрузка профиля...</p>;
@@ -88,7 +127,6 @@ const ProfileComponent = () => {
   }
 
   const createdAt = formatDate(user.created_at);
-  const blockedUsers = blockedUsersQuery.data ?? [];
   const isBlocked = blockedUsers.some((blockedUser) => blockedUser.id === user.id);
   const blockMutationPending = blockMutation.isPending || unblockMutation.isPending;
   const blockMutationError =
@@ -272,9 +310,16 @@ const ProfileComponent = () => {
           {!blockedUsersQuery.isPending &&
             !blockedUsersQuery.isError &&
             blockedUsers.length > 0 && (
-              <div className={styles.profile__blockedList}>
+              <div
+                className={styles.profile__blockedList}
+                data-mascot-anchor="blocked-users"
+              >
                 {blockedUsers.map((blockedUser) => (
-                  <div className={styles.profile__blockedUser} key={blockedUser.id}>
+                  <div
+                    className={styles.profile__blockedUser}
+                    data-mascot-kick-target
+                    key={blockedUser.id}
+                  >
                     <Link
                       className={styles.profile__blockedIdentity}
                       to={`/profile/${blockedUser.id}`}

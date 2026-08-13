@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import clsx from "clsx";
@@ -12,6 +12,7 @@ import type {
 import { useAuthSelector } from "../../../../Hooks/useAuthDispatch";
 import { ExchangeProgress } from "../ExchangeProgress/ExchangeProgress";
 import { Button } from "../../../UI/Button/Button";
+import { useMascot } from "../../../../Hooks/useMascot";
 
 type TTab = "active" | "completed" | "cancelled";
 
@@ -48,6 +49,11 @@ const MyChainsComponent = () => {
   const { isAuth } = useAuthSelector();
   const [tab, setTab] = useState<TTab>("active");
   const { user } = useAuthSelector();
+  const { reactTo } = useMascot();
+  const previousExchangeIdsRef = useRef<{
+    userId: string | null;
+    idsByTab: Map<TTab, Set<string>>;
+  }>({ userId: null, idsByTab: new Map() });
   const {
     data = [],
     isPending,
@@ -55,14 +61,64 @@ const MyChainsComponent = () => {
   } = useQuery({
     queryKey: ["exchanges"],
     queryFn: getExchanges,
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: false,
   });
 
-  const exchanges = data.filter(
-    (exchange) =>
-      exchange.participants.some(
-        (participant) => participant.user.id === user?.id,
-      ) && statusData[exchange.status].tab === tab,
+  const exchanges = useMemo(
+    () =>
+      data.filter(
+        (exchange) =>
+          exchange.participants.some(
+            (participant) => participant.user.id === user?.id,
+          ) && statusData[exchange.status].tab === tab,
+      ),
+    [data, tab, user?.id],
   );
+  const exchangeIds = exchanges.map(({ id }) => id).join(":");
+
+  useEffect(() => {
+    if (isPending || isError || !user?.id) {
+      return;
+    }
+
+    const tracker = previousExchangeIdsRef.current;
+    const currentIds = new Set(exchanges.map(({ id }) => id));
+
+    if (tracker.userId !== user.id) {
+      tracker.userId = user.id;
+      tracker.idsByTab = new Map([[tab, currentIds]]);
+      if (exchanges.length === 0) {
+        reactTo("EMPTY_CHAINS");
+      }
+      return;
+    }
+
+    const previousIds = tracker.idsByTab.get(tab);
+    tracker.idsByTab.set(tab, currentIds);
+
+    if (!previousIds) {
+      if (exchanges.length === 0) {
+        reactTo("EMPTY_CHAINS");
+      }
+      return;
+    }
+
+    if (exchanges.some(({ id }) => !previousIds.has(id))) {
+      reactTo("CHAIN_AVAILABLE");
+      return;
+    }
+
+    if (exchanges.length === 0) {
+      reactTo("EMPTY_CHAINS");
+    }
+  }, [exchangeIds, exchanges, isError, isPending, reactTo, tab, user?.id]);
+
+  useEffect(() => {
+    if (isError) {
+      reactTo("ERROR");
+    }
+  }, [isError, reactTo]);
 
   return (
     <section className={styles.chains}>
@@ -111,7 +167,7 @@ const MyChainsComponent = () => {
       )}
 
       {!isPending && !isError && (
-        <div className={styles.chains__list}>
+        <div className={styles.chains__list} data-mascot-anchor="chains-list">
           {exchanges.length ? (
             exchanges.map((exchange) => (
               <Link

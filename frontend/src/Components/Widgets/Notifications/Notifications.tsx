@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, CheckCheck } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 import styles from "./Styles.module.scss";
 import {
@@ -10,6 +10,8 @@ import {
   markNotificationRead,
 } from "../../../Api/notifications/notifications";
 import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
+import { useMascot } from "../../../Hooks/useMascot";
+import { shouldShowMascotGuide } from "../../../Features/Mascot/mascotVisibility";
 import {
   formatNotificationTime,
   getNotificationDescription,
@@ -20,10 +22,13 @@ import {
 const previewLimit = 6;
 
 const NotificationsComponent = () => {
+  const { pathname } = useLocation();
   const { isAdmin, isAuth } = useAuthSelector();
+  const { reactTo } = useMascot();
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const previousNotificationIdsRef = useRef<Set<string> | null>(null);
 
   const notificationsQuery = useQuery({
     queryKey: ["notifications", "preview"],
@@ -50,6 +55,31 @@ const NotificationsComponent = () => {
   const notifications = notificationsQuery.data?.notifications ?? [];
   const unreadCount = notificationsQuery.data?.unread_count ?? 0;
   const badge = unreadCount > 99 ? "99+" : String(unreadCount);
+  const notificationIds = notifications.map(({ id }) => id).join("|");
+
+  useEffect(() => {
+    if (!notificationsQuery.isSuccess) {
+      return;
+    }
+
+    const currentIds = new Set(notificationIds.split("|").filter(Boolean));
+    const previousIds = previousNotificationIdsRef.current;
+    const hasNewNotification =
+      previousIds !== null &&
+      [...currentIds].some((notificationId) => !previousIds.has(notificationId));
+
+    previousNotificationIdsRef.current = currentIds;
+
+    if (hasNewNotification && shouldShowMascotGuide(pathname)) {
+      reactTo("NEW_NOTIFICATION");
+    }
+  }, [notificationIds, notificationsQuery.isSuccess, pathname, reactTo]);
+
+  useEffect(() => {
+    if (isOpen && shouldShowMascotGuide(pathname)) {
+      reactTo("NOTIFICATIONS_OPENED");
+    }
+  }, [isOpen, pathname, reactTo]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -96,6 +126,7 @@ const NotificationsComponent = () => {
             : "Уведомления"
         }
         className={styles.notifications__trigger}
+        data-mascot-anchor="notifications-trigger"
         type="button"
         onClick={() => setIsOpen((open) => !open)}
       >
@@ -114,6 +145,7 @@ const NotificationsComponent = () => {
         <div
           aria-label="Непрочитанные уведомления"
           className={styles.notifications__panel}
+          data-mascot-anchor="notifications-panel"
           role="dialog"
         >
           <div className={styles.notifications__header}>
