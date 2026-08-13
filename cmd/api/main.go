@@ -113,10 +113,10 @@ func main() {
 	}
 	exchanges := exchangeservice.New(exchangesRepository, searchQueue)
 	searchWorker := exchangesearch.NewWorker(searchQueue, exchanges)
-	searchWorkerCtx, stopSearchWorker := context.WithCancel(context.Background())
+	workerCtx, stopWorker := context.WithCancel(context.Background())
 	searchWorkerDone := make(chan struct{})
 	go func() {
-		searchWorker.Run(searchWorkerCtx)
+		searchWorker.Run(workerCtx)
 		close(searchWorkerDone)
 	}()
 	exchangesHandler := exchangehandler.New(exchanges)
@@ -131,7 +131,15 @@ func main() {
 	notifications := notificationservice.New(notificationrepository.New(queries))
 	ratings := ratingservice.New(ratingrepository.New(queries))
 	supportRepository := supportrepository.New(queries)
-	support := supportservice.New(supportRepository)
+	// Модель — не зависимость API, а инструмент одной фичи: пустой OLLAMA_URL отдаёт
+	// нулевого бота, и поддержка работает как раньше, только без автоответов.
+	supportBot := newSupportBot(cfg, supportRepository)
+	supportBotDone := make(chan struct{})
+	go func() {
+		supportBot.Run(workerCtx)
+		close(supportBotDone)
+	}()
+	support := supportservice.New(supportRepository, supportBot)
 	adminSupport := supportservice.NewAdmin(supportRepository)
 	// Каталог создаётся здесь же: прав на запись не окажется — упадём на старте, а не на
 	// первой загрузке пользователя.
@@ -140,9 +148,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Модель — не зависимость API: без неё антискам продолжает работать на строгих
-	// правилах, а накопленные задания не задерживают отправку сообщений.
-	logLLMState(cfg.OllamaURL, cfg.OllamaModel)
+	// Без модели антискам продолжает работать на строгих правилах, а накопленные
+	// задания не задерживают отправку сообщений. Готовность Ollama уже проверена
+	// при создании бота поддержки выше.
 	var antiscamModel antiscamservice.Generator
 	if cfg.OllamaURL != "" {
 		antiscamModel = llm.New(cfg.OllamaURL, cfg.OllamaModel)
@@ -159,7 +167,6 @@ func main() {
 		antiscamWorker.Run(antiscamWorkerCtx)
 		close(antiscamWorkerDone)
 	}()
-
 	tokens := authtoken.NewManager(cfg.JWTSecret, authTokenTTL)
 	authenticator := authmiddleware.New(tokens, users)
 	adminAuthorizer := authmiddleware.NewAdminAuthorizer(users)
@@ -239,16 +246,12 @@ func main() {
 	}
 	cancelShutdown()
 
-	// Новые HTTP-задачи уже не появятся. Закрытие канала даёт worker дочитать буфер.
+	// Новые HTTP-задачи уже не появятся. Закрытие очередей даёт воркерам дочитать буфер.
 	searchQueue.Close()
-	select {
-	case <-searchWorkerDone:
-	case <-time.After(workerShutdownTimeout):
-		log.Print("search worker drain timed out, forcing shutdown")
-		stopSearchWorker()
-		<-searchWorkerDone
-	}
-	stopSearchWorker()
+	supportBot.Close()
+	drainWorker("search", searchWorkerDone, stopWorker)
+	drainWorker("support bot", supportBotDone, stopWorker)
+	stopWorker()
 
 	// PostgreSQL хранит оставшиеся задания антискама, поэтому при остановке достаточно
 	// завершить текущий вызов: после запуска job снова подберётся по lease.
@@ -264,28 +267,59 @@ func main() {
 	}
 }
 
-// logLLMState сообщает, доступна ли локальная модель, и ничем больше на запуск не
-// влияет. Проверка спрашивает у Ollama список моделей и не запускает инференс: греть
-// веса ради строчки в логе значило бы занять единственное ядро сервера ровно в тот
-// момент, когда API поднимается.
+// newSupportBot собирает автоответчик поддержки и попутно пишет в лог состояние модели.
+// Проверка спрашивает у Ollama список моделей и не запускает инференс: греть веса ради
+// строчки в логе значило бы занять единственное ядро сервера ровно в тот момент, когда
+// API поднимается.
 //
-// «Недоступна» сразу после деплоя — нормальный ответ, а не сбой: Ollama в это время
-// может ещё скачивать модель, и лог честно фиксирует состояние на момент старта.
-func logLLMState(baseURL string, model string) {
-	if baseURL == "" {
+// Недоступная модель бота не отменяет: «недоступна» сразу после деплоя — нормальный
+// ответ, Ollama в это время может ещё качать веса, а обращения появятся позже. Пустой
+// OLLAMA_URL — это выключенная фича, и тогда возвращается nil: методы Bot на нём
+// безопасны, поддержка работает без автоответов.
+func newSupportBot(cfg config.Config, repository *supportrepository.Repository) *supportservice.Bot {
+	if cfg.OllamaURL == "" {
 		log.Print("llm: OLLAMA_URL is empty, model-backed features are disabled")
-		return
+		return nil
 	}
+
+	client := llm.New(cfg.OllamaURL, cfg.OllamaModel)
 
 	ctx, cancel := context.WithTimeout(context.Background(), llmProbeTimeout)
 	defer cancel()
 
-	if err := llm.New(baseURL, model).Available(ctx); err != nil {
-		log.Printf("llm: model %s is not ready at startup: %v", model, err)
-		return
+	if err := client.Available(ctx); err != nil {
+		log.Printf("llm: model %s is not ready at startup: %v", cfg.OllamaModel, err)
+	} else {
+		log.Printf("llm: model %s is ready on %s", cfg.OllamaModel, cfg.OllamaURL)
 	}
 
-	log.Printf("llm: model %s is ready on %s", model, baseURL)
+	// Ник служебного пользователя в коде и в миграции 00024 обязаны совпадать: ответ бота
+	// находит автора джойном по нику. Разъехавшись, они не дают ошибки — вставка просто
+	// возвращает ноль строк, и бот молчит на каждом обращении, а в логе это неотличимо от
+	// «обращение уже не ждёт ответа». Поэтому сверяем один раз на старте и говорим прямо.
+	switch exists, err := repository.BotUserExists(ctx, supportservice.BotNickname); {
+	case err != nil:
+		log.Printf("support bot: cannot check user %q, replies may be silent: %v",
+			supportservice.BotNickname, err)
+	case !exists:
+		log.Printf("support bot is disabled: user %q is missing, apply migrations (00024)",
+			supportservice.BotNickname)
+		return nil
+	}
+
+	return supportservice.NewBot(repository, client)
+}
+
+// drainWorker ждёт, пока фоновый воркер дочитает очередь, и снимает его силой, если он
+// на это не уложился.
+func drainWorker(name string, done <-chan struct{}, stop context.CancelFunc) {
+	select {
+	case <-done:
+	case <-time.After(workerShutdownTimeout):
+		log.Printf("%s worker drain timed out, forcing shutdown", name)
+		stop()
+		<-done
+	}
 }
 
 // @Summary     Проверка живости сервиса

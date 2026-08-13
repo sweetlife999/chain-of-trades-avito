@@ -563,6 +563,11 @@ definitions:
         type: string
       created_at:
         type: string
+      escalated_at:
+        description: |-
+          Непустое — автоответ не решил вопрос и обращение ждёт человека. В очереди
+          модерации по этому полю рисуется пометка.
+        type: string
       id:
         type: string
       last_message:
@@ -1861,6 +1866,12 @@ paths:
         in: query
         name: status
         type: string
+      - default: false
+        description: 'Только ждущие модератора: эскалированные и те, на которые никто
+          не ответил'
+        in: query
+        name: needs_human
+        type: boolean
       - default: 20
         description: Размер страницы (1-100)
         in: query

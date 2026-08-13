@@ -1363,6 +1363,13 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Только ждущие модератора: эскалированные и те, на которые никто не ответил",
+                        "name": "needs_human",
+                        "in": "query"
+                    },
+                    {
                         "type": "integer",
                         "default": 20,
                         "description": "Размер страницы (1-100)",
@@ -5147,6 +5154,10 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "created_at": {
+                    "type": "string"
+                },
+                "escalated_at": {
+                    "description": "Непустое — автоответ не решил вопрос и обращение ждёт человека. В очереди\nмодерации по этому полю рисуется пометка.",
                     "type": "string"
                 },
                 "id": {
