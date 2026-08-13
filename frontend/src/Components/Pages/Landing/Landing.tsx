@@ -179,7 +179,7 @@ const LandingComponent = () => {
             <div className={styles.heroCopy}>
               <span className={`${styles.heroEyebrow} ${styles.heroReveal}`}>
                 <span className={styles.heroEyebrowDot} />
-                У — ваш проводник по обмену
+                Уми — ваш проводник по обмену
               </span>
               <h1 className={styles.heroTitle}>
                 <span className={`${styles.heroLine} ${styles.heroReveal}`}>
