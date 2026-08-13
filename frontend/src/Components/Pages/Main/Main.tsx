@@ -18,17 +18,6 @@ const MainComponent = () => {
           <h1 className={styles.main__title}>Обмены</h1>
           <p className={styles.main__subtitle}>Найдите подходящую цепочку обмена</p>
         </div>
-        <Button
-          className={styles.main__action}
-          size="l"
-          onClick={() =>
-            isAuth
-              ? navigate("/exchanges/create")
-              : navigate("/login", { state: { from: "/exchanges/create" } })
-          }
-        >
-          Добавить вещь
-        </Button>
       </div>
 
       {isAuth ? (

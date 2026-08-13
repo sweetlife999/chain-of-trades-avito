@@ -149,18 +149,6 @@ const MyChainsComponent = () => {
             Следите за подтверждением, передачей в ПВЗ и доставкой вещей.
           </p>
         </div>
-        <Button
-          className={styles.chains__create}
-          onClick={() =>
-            isAuth
-              ? navigate("/exchanges/create")
-              : navigate("/login", {
-                  state: { from: "/exchanges/create" },
-                })
-          }
-        >
-          Создать вещь
-        </Button>
       </div>
 
       <div className={styles.chains__filters}>

@@ -66,11 +66,6 @@ const MyItemsComponent = () => {
             </p>
           )}
         </div>
-        {isAuth && (
-          <Link className={styles.items__create} to="/exchanges/create">
-            Добавить вещь
-          </Link>
-        )}
       </div>
 
       {!isAuth ? (
