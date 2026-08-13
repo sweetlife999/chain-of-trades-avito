@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import clsx from "clsx";
@@ -9,6 +9,7 @@ import type { TItemStatus } from "../../../Api/items/items.types";
 import { ItemCard } from "../ItemCard/ItemCard";
 import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
 import { AuthRequiredState } from "../../UI/AuthRequiredState/AuthRequiredState";
+import { useMascot } from "../../../Hooks/useMascot";
 
 type TFilter = "all" | TItemStatus;
 
@@ -23,12 +24,36 @@ const filters: { value: TFilter; label: string }[] = [
 const MyItemsComponent = () => {
   const [filter, setFilter] = useState<TFilter>("all");
   const { isAuth } = useAuthSelector();
-  const { data = [], isPending, isError } = useQuery({
+  const { anchor, reactTo, reset } = useMascot();
+  const { data = [], isPending, isError, isSuccess } = useQuery({
     queryKey: ["items"],
     queryFn: getItems,
     enabled: isAuth,
   });
   const items = filter === "all" ? data : data.filter(({ status }) => status === filter);
+
+  useEffect(() => {
+    if (!isSuccess) {
+      return;
+    }
+
+    if (items.length === 0) {
+      if (anchor !== "items-empty") {
+        reactTo("EMPTY_ITEMS");
+      }
+      return;
+    }
+
+    if (anchor === "items-empty") {
+      reset();
+    }
+  }, [anchor, isSuccess, items.length, reactTo, reset]);
+
+  useEffect(() => {
+    if (isError) {
+      reactTo("ERROR");
+    }
+  }, [isError, reactTo]);
 
   return (
     <section className={styles.items}>
@@ -86,6 +111,7 @@ const MyItemsComponent = () => {
                 styles.items__grid,
                 !items.length && styles.items__grid_empty,
               )}
+              data-mascot-anchor="items-empty"
             >
               {items.length ? (
                 items.map((item) => <ItemCard key={item.id} item={item} />)

@@ -15,6 +15,226 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/admin/antiscam/cases": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-antiscam"
+                ],
+                "summary": "Очередь AI-антискама",
+                "parameters": [
+                    {
+                        "enum": [
+                            "open",
+                            "resolved",
+                            "dismissed"
+                        ],
+                        "type": "string",
+                        "description": "Статус",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Категория",
+                        "name": "category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Минимальный риск",
+                        "name": "min_risk",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Размер страницы",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Смещение",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.pageResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/antiscam/cases/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-antiscam"
+                ],
+                "summary": "Карточка AI-подозрения",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID карточки",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.caseResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/antiscam/cases/{id}/confirm": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-antiscam"
+                ],
+                "summary": "Подтвердить AI-подозрение",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID карточки",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Комментарий",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.decisionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.caseResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/antiscam/cases/{id}/dismiss": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-antiscam"
+                ],
+                "summary": "Отметить ложное AI-срабатывание",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID карточки",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Комментарий",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.decisionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.caseResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/antiscam/cases/{id}/messages": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-antiscam"
+                ],
+                "summary": "Переписка по AI-подозрению",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID карточки",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.messagesResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/audit-log": {
             "get": {
                 "security": [
@@ -4317,6 +4537,9 @@ const docTemplate = `{
                         "/uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg"
                     ]
                 },
+                "search_filters": {
+                    "$ref": "#/definitions/dto.SearchFiltersRequest"
+                },
                 "title": {
                     "type": "string",
                     "example": "Велосипед"
@@ -4543,6 +4766,9 @@ const docTemplate = `{
                         }
                     ],
                     "x-nullable": true
+                },
+                "search_filters": {
+                    "$ref": "#/definitions/dto.SearchFiltersResponse"
                 },
                 "status": {
                     "type": "string"
@@ -4901,6 +5127,41 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.SearchFiltersRequest": {
+            "type": "object",
+            "properties": {
+                "max_chain_length": {
+                    "type": "integer",
+                    "maximum": 5,
+                    "minimum": 2,
+                    "example": 3
+                },
+                "min_participant_rating": {
+                    "type": "number",
+                    "maximum": 5,
+                    "minimum": 0,
+                    "example": 4
+                },
+                "prefer_reliable_participants": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "dto.SearchFiltersResponse": {
+            "type": "object",
+            "properties": {
+                "max_chain_length": {
+                    "type": "integer"
+                },
+                "min_participant_rating": {
+                    "type": "number"
+                },
+                "prefer_reliable_participants": {
+                    "type": "boolean"
+                }
+            }
+        },
         "dto.SetPickupPointRequest": {
             "type": "object",
             "properties": {
@@ -4985,6 +5246,9 @@ const docTemplate = `{
                     "example": [
                         "/uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg"
                     ]
+                },
+                "search_filters": {
+                    "$ref": "#/definitions/dto.SearchFiltersRequest"
                 },
                 "title": {
                     "type": "string",
@@ -5403,6 +5667,141 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.caseResponse": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "closed_at": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "decision": {
+                    "type": "string"
+                },
+                "evidence_count": {
+                    "type": "integer"
+                },
+                "exchange_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "latest_evidence": {
+                    "$ref": "#/definitions/handler.evidenceResponse"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "resolution_comment": {
+                    "type": "string"
+                },
+                "reviewer": {
+                    "$ref": "#/definitions/handler.userResponse"
+                },
+                "risk": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "suspect": {
+                    "$ref": "#/definitions/handler.userResponse"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.decisionRequest": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.evidenceResponse": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.messagesResponse": {
+            "type": "object",
+            "properties": {
+                "case_id": {
+                    "type": "string"
+                },
+                "evidence_message_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "exchange_id": {
+                    "type": "string"
+                },
+                "messages": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.MessageResponse"
+                    }
+                }
+            }
+        },
+        "handler.pageResponse": {
+            "type": "object",
+            "properties": {
+                "cases": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.caseResponse"
+                    }
+                },
+                "pagination": {
+                    "type": "object",
+                    "properties": {
+                        "limit": {
+                            "type": "integer"
+                        },
+                        "offset": {
+                            "type": "integer"
+                        },
+                        "total": {
+                            "type": "integer"
+                        }
+                    }
+                }
+            }
+        },
+        "handler.userResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "nickname": {
+                    "type": "string"
+                },
+                "photo_url": {
                     "type": "string"
                 }
             }

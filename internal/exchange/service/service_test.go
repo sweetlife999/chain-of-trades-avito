@@ -625,6 +625,49 @@ func TestFindAndSaveAllRanksCandidatesBeforeSaving(t *testing.T) {
 	}
 }
 
+func TestFindCyclesRespectsMaximumLengthOfEveryItem(t *testing.T) {
+	t.Parallel()
+	start := testNode(1)
+	second := testNode(2)
+	third := testNode(3)
+	second.MaxChainLength = 2
+	repository := &fakeRepository{neighbors: map[uuid.UUID][]exchangemodel.Node{
+		start.ItemID:  {second},
+		second.ItemID: {third},
+		third.ItemID:  {start},
+	}}
+
+	cycles, err := New(repository).FindCycles(context.Background(), start, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cycles) != 0 {
+		t.Fatalf("cycles = %v, want none because an item allows at most 2 participants", cycles)
+	}
+}
+
+func TestCycleMatchesMinimumRatingOfEveryParticipant(t *testing.T) {
+	t.Parallel()
+	first := testNode(1)
+	second := testNode(2)
+	filters := map[uuid.UUID]exchangemodel.SearchItemFilters{
+		first.ItemID:  {ItemID: first.ItemID, MaxChainLength: 5, MinParticipantRating: 4},
+		second.ItemID: {ItemID: second.ItemID, MaxChainLength: 5},
+	}
+	stats := map[uuid.UUID]exchangemodel.SearchUserStats{
+		first.OwnerID:  {UserID: first.OwnerID, Rating: 5},
+		second.OwnerID: {UserID: second.OwnerID, Rating: 3.9},
+	}
+
+	if cycleMatchesFilters([]exchangemodel.Node{first, second}, stats, filters) {
+		t.Fatal("cycle with participant below requested rating was accepted")
+	}
+	stats[second.OwnerID] = exchangemodel.SearchUserStats{UserID: second.OwnerID, Rating: 4}
+	if !cycleMatchesFilters([]exchangemodel.Node{first, second}, stats, filters) {
+		t.Fatal("cycle meeting the exact rating boundary was rejected")
+	}
+}
+
 func TestFindAndSaveAllRanksBeyondResultLimit(t *testing.T) {
 	t.Parallel()
 
@@ -1364,6 +1407,8 @@ type fakeRepository struct {
 	searchStats         map[uuid.UUID]exchangemodel.SearchUserStats
 	searchStatsError    error
 	searchStatsUserIDs  []uuid.UUID
+	searchFilters       map[uuid.UUID]exchangemodel.SearchItemFilters
+	searchFiltersError  error
 	completedExchangeID uuid.UUID
 	completedUserID     uuid.UUID
 	completeErr         error
@@ -1476,6 +1521,20 @@ func (f *fakeRepository) GetSearchUserStats(
 ) (map[uuid.UUID]exchangemodel.SearchUserStats, error) {
 	f.searchStatsUserIDs = append([]uuid.UUID(nil), userIDs...)
 	return f.searchStats, f.searchStatsError
+}
+
+func (f *fakeRepository) GetSearchItemFilters(
+	_ context.Context,
+	itemIDs []uuid.UUID,
+) (map[uuid.UUID]exchangemodel.SearchItemFilters, error) {
+	if f.searchFilters != nil {
+		return f.searchFilters, f.searchFiltersError
+	}
+	filters := make(map[uuid.UUID]exchangemodel.SearchItemFilters, len(itemIDs))
+	for _, itemID := range itemIDs {
+		filters[itemID] = exchangemodel.SearchItemFilters{ItemID: itemID, MaxChainLength: maxParticipants, PreferReliableParticipants: true}
+	}
+	return filters, f.searchFiltersError
 }
 
 func (f *fakeRepository) SaveExchange(

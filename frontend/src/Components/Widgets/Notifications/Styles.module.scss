@@ -82,6 +82,30 @@
     border-bottom: 1px solid #f0f1f3;
   }
 
+  &__assistant {
+    padding: 12px 16px;
+    border-bottom: 1px solid #edf2ef;
+    background: #f7fcf9;
+  }
+
+  &__assistantMascot {
+    width: 100%;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+
+    > [data-mascot-bubble] {
+      width: auto;
+      min-width: 0;
+      flex: 1 1 auto;
+      padding: 10px 12px;
+    }
+
+    > [data-mascot-stage] {
+      flex: 0 0 auto;
+    }
+  }
+
   &__heading { min-width: 0; }
 
   &__title {
@@ -264,6 +288,12 @@
       left: 0;
       width: auto;
       max-height: calc(100dvh - 100% - 24px);
+    }
+
+    &__assistant { padding: 8px 12px; }
+
+    &__list {
+      max-height: min(300px, max(120px, calc(100dvh - 330px)));
     }
   }
 }

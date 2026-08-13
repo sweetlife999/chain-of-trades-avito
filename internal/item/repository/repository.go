@@ -49,11 +49,14 @@ func (r *Repository) Create(ctx context.Context, item itemmodel.NewItem) (itemmo
 	queries := r.queries.WithTx(transaction)
 
 	id, err := queries.InsertItem(ctx, db.InsertItemParams{
-		OwnerID:     pgUUID(item.OwnerID),
-		Category:    item.Category,
-		Title:       item.Title,
-		Description: item.Description,
-		PhotoUrls:   item.PhotoURLs,
+		OwnerID:                    pgUUID(item.OwnerID),
+		Category:                   item.Category,
+		Title:                      item.Title,
+		Description:                item.Description,
+		PhotoUrls:                  item.PhotoURLs,
+		MaxChainLength:             item.SearchFilters.MaxChainLength,
+		MinParticipantRating:       item.SearchFilters.MinParticipantRating,
+		PreferReliableParticipants: item.SearchFilters.PreferReliableParticipants,
 	})
 	if err != nil {
 		return itemmodel.Item{}, fmt.Errorf("insert item: %w", translateError(err))
@@ -110,11 +113,14 @@ func (r *Repository) Update(ctx context.Context, id uuid.UUID, changes itemmodel
 	queries := r.queries.WithTx(transaction)
 
 	if err := queries.UpdateItem(ctx, db.UpdateItemParams{
-		Title:       optionalText(changes.Title),
-		Description: optionalText(changes.Description),
-		Category:    optionalText(changes.Category),
-		PhotoUrls:   changes.PhotoURLs,
-		ID:          pgUUID(id),
+		Title:                      optionalText(changes.Title),
+		Description:                optionalText(changes.Description),
+		Category:                   optionalText(changes.Category),
+		PhotoUrls:                  changes.PhotoURLs,
+		ID:                         pgUUID(id),
+		MaxChainLength:             optionalInt4(searchFilterMaxLength(changes.SearchFilters)),
+		MinParticipantRating:       optionalFloat8(searchFilterMinRating(changes.SearchFilters)),
+		PreferReliableParticipants: optionalBool(searchFilterReliability(changes.SearchFilters)),
 	}); err != nil {
 		return itemmodel.Item{}, fmt.Errorf("update item: %w", translateError(err))
 	}
@@ -206,6 +212,48 @@ func optionalText(value *string) pgtype.Text {
 	return pgtype.Text{String: *value, Valid: true}
 }
 
+func optionalInt4(value *int32) pgtype.Int4 {
+	if value == nil {
+		return pgtype.Int4{}
+	}
+	return pgtype.Int4{Int32: *value, Valid: true}
+}
+
+func optionalFloat8(value *float64) pgtype.Float8 {
+	if value == nil {
+		return pgtype.Float8{}
+	}
+	return pgtype.Float8{Float64: *value, Valid: true}
+}
+
+func optionalBool(value *bool) pgtype.Bool {
+	if value == nil {
+		return pgtype.Bool{}
+	}
+	return pgtype.Bool{Bool: *value, Valid: true}
+}
+
+func searchFilterMaxLength(filters *itemmodel.SearchFilters) *int32 {
+	if filters == nil {
+		return nil
+	}
+	return &filters.MaxChainLength
+}
+
+func searchFilterMinRating(filters *itemmodel.SearchFilters) *float64 {
+	if filters == nil {
+		return nil
+	}
+	return &filters.MinParticipantRating
+}
+
+func searchFilterReliability(filters *itemmodel.SearchFilters) *bool {
+	if filters == nil {
+		return nil
+	}
+	return &filters.PreferReliableParticipants
+}
+
 func pgUUID(id uuid.UUID) pgtype.UUID {
 	return pgtype.UUID{Bytes: [16]byte(id), Valid: true}
 }
@@ -219,6 +267,11 @@ func toModel(item db.GetItemByIDRow) itemmodel.Item {
 		Description: item.Description,
 		PhotoURLs:   item.PhotoUrls,
 		Wants:       item.Wants,
+		SearchFilters: itemmodel.SearchFilters{
+			MaxChainLength:             item.MaxChainLength,
+			MinParticipantRating:       item.MinParticipantRating,
+			PreferReliableParticipants: item.PreferReliableParticipants,
+		},
 		Status:      string(item.Status),
 		PickupPoint: toPickupPoint(item),
 		CreatedAt:   item.CreatedAt.Time,

@@ -36,12 +36,20 @@ func RankCycles(
 	cycles [][]exchangemodel.Node,
 	stats map[uuid.UUID]exchangemodel.SearchUserStats,
 ) [][]exchangemodel.Node {
+	return RankCyclesWithFilters(cycles, stats, nil)
+}
+
+func RankCyclesWithFilters(
+	cycles [][]exchangemodel.Node,
+	stats map[uuid.UUID]exchangemodel.SearchUserStats,
+	filters map[uuid.UUID]exchangemodel.SearchItemFilters,
+) [][]exchangemodel.Node {
 	ranked := make([]rankedCycle, len(cycles))
 	for index, cycle := range cycles {
 		cycleCopy := append([]exchangemodel.Node(nil), cycle...)
 		ranked[index] = rankedCycle{
 			nodes: cycleCopy,
-			score: cycleScore(cycleCopy, stats),
+			score: cycleScore(cycleCopy, stats, prefersReliable(cycleCopy, filters)),
 			key:   cycleCompositionKey(cycleCopy),
 		}
 	}
@@ -66,6 +74,7 @@ func RankCycles(
 func cycleScore(
 	cycle []exchangemodel.Node,
 	stats map[uuid.UUID]exchangemodel.SearchUserStats,
+	preferReliable bool,
 ) float64 {
 	if len(cycle) == 0 {
 		return 0
@@ -96,10 +105,30 @@ func cycleScore(
 		(maximumParticipants-minimumParticipants)
 	compactness = clamp(compactness, 0, 1)
 
+	reliabilityScore := 0.0
+	if preferReliable {
+		reliabilityScore = reliability * reliabilityWeight
+	}
 	return rating*ratingWeight +
-		reliability*reliabilityWeight +
+		reliabilityScore +
 		experience*experienceWeight +
 		compactness*compactnessWeight
+}
+
+func prefersReliable(
+	cycle []exchangemodel.Node,
+	filters map[uuid.UUID]exchangemodel.SearchItemFilters,
+) bool {
+	if filters == nil {
+		return true
+	}
+	for _, node := range cycle {
+		filter, found := filters[node.ItemID]
+		if !found || filter.PreferReliableParticipants {
+			return true
+		}
+	}
+	return false
 }
 
 func cycleCompositionKey(cycle []exchangemodel.Node) string {

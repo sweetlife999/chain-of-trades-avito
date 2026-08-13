@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import {
   useInfiniteQuery,
   useMutation,
@@ -30,6 +30,7 @@ import type {
 } from "../../../Api/notifications/notifications.types";
 import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
 import { Button } from "../../UI/Button/Button";
+import { useMascot } from "../../../Hooks/useMascot";
 import {
   formatNotificationTime,
   getNotificationDescription,
@@ -67,6 +68,7 @@ const NotificationsPageComponent = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { isAdmin, isAuth } = useAuthSelector();
+  const { reactTo } = useMascot();
   const [filter, setFilter] = useState<TFilter>("all");
   const unreadOnly = filter === "unread";
 
@@ -92,6 +94,18 @@ const NotificationsPageComponent = () => {
     [notificationsQuery.data],
   );
   const unreadCount = notificationsQuery.data?.pages[0]?.unread_count ?? 0;
+
+  useEffect(() => {
+    if (isAuth) {
+      reactTo("NOTIFICATIONS_OPENED");
+    }
+  }, [isAuth, reactTo]);
+
+  useEffect(() => {
+    if (notificationsQuery.isError) {
+      reactTo("ERROR");
+    }
+  }, [notificationsQuery.isError, reactTo]);
 
   const invalidateNotifications = () =>
     queryClient.invalidateQueries({ queryKey: ["notifications"] });
@@ -206,7 +220,10 @@ const NotificationsPageComponent = () => {
         )}
 
       {notifications.length > 0 && (
-        <div className={styles.page__list}>
+        <div
+          className={styles.page__list}
+          data-mascot-anchor="notifications-panel"
+        >
           {notifications.map((notification) => {
             const Icon = iconByKind(notification.kind);
 

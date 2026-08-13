@@ -48,6 +48,11 @@ const CreateChainComponent = () => {
       description: "",
       photo_urls: [],
       wants: [],
+      search_filters: {
+        max_chain_length: 5,
+        min_participant_rating: 0,
+        prefer_reliable_participants: true,
+      },
     },
   });
 
@@ -77,6 +82,7 @@ const CreateChainComponent = () => {
       description: formData.description.trim(),
       photo_urls: formData.photo_urls,
       wants: formData.wants,
+      search_filters: formData.search_filters,
     });
   };
 
@@ -216,6 +222,64 @@ const CreateChainComponent = () => {
                     {errors.wants.message}
                   </span>
                 )}
+              </fieldset>
+
+              <fieldset className={styles.createChain__wants}>
+                <legend className={styles.createChain__label}>
+                  Настройки поиска
+                </legend>
+
+                <label className={styles.createChain__field}>
+                  <span className={styles.createChain__label}>
+                    Максимальная длина цепочки
+                  </span>
+                  <select
+                    className={styles.createChain__select}
+                    disabled={createItemMutation.isPending}
+                    {...register("search_filters.max_chain_length", {
+                      valueAsNumber: true,
+                    })}
+                  >
+                    <option value={2}>2 участника</option>
+                    <option value={3}>До 3 участников</option>
+                    <option value={4}>До 4 участников</option>
+                    <option value={5}>До 5 участников</option>
+                  </select>
+                </label>
+
+                <label className={styles.createChain__field}>
+                  <span className={styles.createChain__label}>
+                    Минимальный рейтинг участников
+                  </span>
+                  <select
+                    className={styles.createChain__select}
+                    disabled={createItemMutation.isPending}
+                    {...register("search_filters.min_participant_rating", {
+                      valueAsNumber: true,
+                    })}
+                  >
+                    <option value={0}>Не учитывать рейтинг</option>
+                    <option value={3}>От 3.0</option>
+                    <option value={3.5}>От 3.5</option>
+                    <option value={4}>От 4.0</option>
+                    <option value={4.5}>От 4.5</option>
+                    <option value={5}>Только 5.0</option>
+                  </select>
+                </label>
+
+                <label className={styles.createChain__category}>
+                  <input
+                    className={styles.createChain__categoryInput}
+                    disabled={createItemMutation.isPending}
+                    type="checkbox"
+                    {...register(
+                      "search_filters.prefer_reliable_participants",
+                    )}
+                  />
+                  <span className={styles.createChain__categoryLabel}>
+                    Сначала показывать обмены с надёжными участниками
+                  </span>
+                </label>
               </fieldset>
             </div>
           </div>

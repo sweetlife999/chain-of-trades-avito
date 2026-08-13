@@ -23,6 +23,7 @@ const ProfilePreviewComponent = ({ user }: TProfilePreviewProps) => {
       <Link
         to={'/profile'}
         className={styles.profile__content}
+        data-tutorial-target="profile"
       >
         <div
   className={styles.profile__avatar}

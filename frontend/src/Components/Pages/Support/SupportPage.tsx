@@ -1,4 +1,12 @@
-import { type FormEvent, memo, useEffect, useMemo, useState } from "react";
+import {
+  type FormEvent,
+  type KeyboardEvent,
+  memo,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
 import { CheckCircle2, Headset, Plus, Send, X } from "lucide-react";
@@ -16,21 +24,12 @@ import {
 import type { TSupportThread } from "../../../Api/support/support.types";
 import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
 import { AuthRequiredState } from "../../UI/AuthRequiredState/AuthRequiredState";
-import { Mascot } from "../../UI/Mascot/Mascot";
-import { useMascot } from "../../../Hooks/useMascot";
 
 const statusLabels: Record<TSupportThread["status"], string> = {
   open: "Ждёт ответа",
   in_progress: "В работе",
   closed: "Закрыто",
 };
-
-const supportHints = [
-  "Подскажите, пожалуйста, что делать дальше?",
-  "Проблема всё ещё актуальна.",
-  "Участник обмена не отвечает.",
-  "Возникла проблема с пунктом выдачи.",
-];
 
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat("ru-RU", {
@@ -42,7 +41,6 @@ const formatDate = (value: string) =>
 
 const SupportPageComponent = () => {
   const { isAuth, user } = useAuthSelector();
-  const { reactTo } = useMascot();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [creating, setCreating] = useState(false);
@@ -50,14 +48,12 @@ const SupportPageComponent = () => {
   const [firstMessage, setFirstMessage] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const endRef = useRef<HTMLDivElement>(null);
+  const messageInputRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    if (!isAuth) {
-      return;
-    }
-
-    reactTo("CHAT_OPENED");
-  }, [isAuth, reactTo]);
+  const restoreMessageFocus = () => {
+    window.requestAnimationFrame(() => messageInputRef.current?.focus());
+  };
 
   const selectedID = searchParams.get("thread") ?? "";
   const threadsQuery = useQuery({
@@ -82,6 +78,17 @@ const SupportPageComponent = () => {
     enabled: isAuth && Boolean(selectedID),
     refetchInterval: 3000,
   });
+  const messages = useMemo(
+    () => messagesQuery.data?.messages ?? [],
+    [messagesQuery.data?.messages],
+  );
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }, [messages.length, selectedID]);
 
   const refresh = async () => {
     await Promise.all([
@@ -98,11 +105,9 @@ const SupportPageComponent = () => {
       setFirstMessage("");
       setError("");
       setSearchParams({ thread: thread.id });
-      reactTo("MESSAGE_SENT_SUCCESS");
       await refresh();
     },
     onError: (requestError) => {
-      reactTo("ERROR");
       setError(getSupportError(requestError, "Не удалось создать обращение"));
     },
   });
@@ -111,12 +116,13 @@ const SupportPageComponent = () => {
     onSuccess: async () => {
       setMessage("");
       setError("");
-      reactTo("MESSAGE_SENT_SUCCESS");
+      restoreMessageFocus();
       await refresh();
+      restoreMessageFocus();
     },
     onError: (requestError) => {
-      reactTo("ERROR");
       setError(getSupportError(requestError, "Не удалось отправить сообщение"));
+      restoreMessageFocus();
     },
   });
   const closeMutation = useMutation({
@@ -145,11 +151,29 @@ const SupportPageComponent = () => {
     event.preventDefault();
     createMutation.mutate({ subject: subject.trim(), body: firstMessage.trim() });
   };
+  const sendCurrentMessage = () => {
+    const value = message.trim();
+
+    if (!selectedID || !value || sendMutation.isPending) {
+      return;
+    }
+
+    sendMutation.mutate({ threadID: selectedID, body: value });
+  };
   const submitMessage = (event: FormEvent) => {
     event.preventDefault();
-    if (selectedID && message.trim()) {
-      reactTo("MESSAGE_SENT");
-      sendMutation.mutate({ threadID: selectedID, body: message.trim() });
+    sendCurrentMessage();
+  };
+  const handleMessageKeyDown = (
+    event: KeyboardEvent<HTMLTextAreaElement>,
+  ) => {
+    if (
+      event.key === "Enter" &&
+      !event.shiftKey &&
+      !event.nativeEvent.isComposing
+    ) {
+      event.preventDefault();
+      sendCurrentMessage();
     }
   };
 
@@ -210,7 +234,7 @@ const SupportPageComponent = () => {
 
         <section className={styles.support__chat}>
           {!selectedID && (
-            <div className={styles.support__empty}><Mascot size="medium" placement="inline" message="Я У. Если что-то пошло не так с обменом — помогу сформулировать обращение в поддержку." /><Headset size={32} /><h2>Напишите нам</h2><p>Создайте обращение, и команда поддержки поможет разобраться.</p></div>
+            <div className={styles.support__empty}><Headset size={32} /><h2>Напишите нам</h2><p>Создайте обращение, и команда поддержки поможет разобраться.</p></div>
           )}
           {selectedID && messagesQuery.isPending && <p className={styles.support__state}>Загружаем переписку...</p>}
           {selectedID && messagesQuery.isError && <p className={styles.support__error}>Не удалось открыть переписку.</p>}
@@ -225,7 +249,7 @@ const SupportPageComponent = () => {
                 )}
               </div>
               <div className={styles.support__messages}>
-                {(messagesQuery.data?.messages ?? []).map((item) => {
+                {messages.map((item) => {
                   const own = item.author.id === user?.id;
                   return (
                     <article className={clsx(styles.support__message, own && styles.support__message_own)} key={item.id}>
@@ -234,48 +258,24 @@ const SupportPageComponent = () => {
                     </article>
                   );
                 })}
+                <div ref={endRef} />
               </div>
               {error && <p className={styles.support__error}>{error}</p>}
               {selectedThread.status !== "closed" ? (
-                <div className={styles.support__composerArea}>
-                  <div className={styles.support__assistant}>
-                    <Mascot size="small" placement="chat" />
-                    <div className={styles.support__hints}>
-                      {supportHints.map((hint) => (
-                        <button
-                          className={styles.support__hint}
-                          key={hint}
-                          type="button"
-                          onClick={() => {
-                            setMessage(hint);
-                            reactTo("HINT_SELECTED");
-                          }}
-                          onMouseEnter={() => reactTo("HINT_SHOWN")}
-                          onFocus={() => reactTo("HINT_SHOWN")}
-                        >
-                          {hint}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <form className={styles.support__composer} onSubmit={submitMessage}>
-                    <textarea
-                      aria-label="Сообщение"
-                      maxLength={4000}
-                      placeholder="Напишите сообщение..."
-                      required
-                      rows={2}
-                      value={message}
-                      onChange={(event) => {
-                        if (!message && event.target.value) {
-                          reactTo("USER_TYPING");
-                        }
-                        setMessage(event.target.value);
-                      }}
-                    />
-                    <button aria-label="Отправить" disabled={sendMutation.isPending || !message.trim()} type="submit"><Send size={20} /></button>
-                  </form>
-                </div>
+                <form className={styles.support__composer} onSubmit={submitMessage}>
+                  <textarea
+                    aria-label="Сообщение"
+                    maxLength={4000}
+                    placeholder="Напишите сообщение..."
+                    ref={messageInputRef}
+                    required
+                    rows={2}
+                    value={message}
+                    onChange={(event) => setMessage(event.target.value)}
+                    onKeyDown={handleMessageKeyDown}
+                  />
+                  <button aria-label="Отправить" disabled={sendMutation.isPending || !message.trim()} type="submit"><Send size={20} /></button>
+                </form>
               ) : (
                 <p className={styles.support__closed}>Обращение закрыто. Можно создать новое.</p>
               )}

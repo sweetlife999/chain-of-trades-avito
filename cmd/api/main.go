@@ -22,6 +22,9 @@ import (
 	admindashboardservice "github.com/sweetlife999/chain-of-trades-avito/internal/admindashboard/service"
 	adminexchangehandler "github.com/sweetlife999/chain-of-trades-avito/internal/adminexchange/handler"
 	adminexchangeservice "github.com/sweetlife999/chain-of-trades-avito/internal/adminexchange/service"
+	antiscamhandler "github.com/sweetlife999/chain-of-trades-avito/internal/antiscam/handler"
+	antiscamrepository "github.com/sweetlife999/chain-of-trades-avito/internal/antiscam/repository"
+	antiscamservice "github.com/sweetlife999/chain-of-trades-avito/internal/antiscam/service"
 	authhandler "github.com/sweetlife999/chain-of-trades-avito/internal/auth/handler"
 	authmiddleware "github.com/sweetlife999/chain-of-trades-avito/internal/auth/middleware"
 	authservice "github.com/sweetlife999/chain-of-trades-avito/internal/auth/service"
@@ -145,6 +148,25 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Без модели антискам продолжает работать на строгих правилах, а накопленные
+	// задания не задерживают отправку сообщений. Готовность Ollama уже проверена
+	// при создании бота поддержки выше.
+	var antiscamModel antiscamservice.Generator
+	if cfg.OllamaURL != "" {
+		antiscamModel = llm.New(cfg.OllamaURL, cfg.OllamaModel)
+	}
+	antiscamRepository := antiscamrepository.New(queries)
+	antiscamAdmin := antiscamservice.NewAdmin(antiscamRepository, exchangesRepository)
+	antiscamWorker := antiscamservice.NewWorker(
+		antiscamRepository,
+		antiscamservice.NewAnalyzer(antiscamModel, cfg.OllamaModel),
+	)
+	antiscamWorkerCtx, stopAntiscamWorker := context.WithCancel(context.Background())
+	antiscamWorkerDone := make(chan struct{})
+	go func() {
+		antiscamWorker.Run(antiscamWorkerCtx)
+		close(antiscamWorkerDone)
+	}()
 	tokens := authtoken.NewManager(cfg.JWTSecret, authTokenTTL)
 	authenticator := authmiddleware.New(tokens, users)
 	adminAuthorizer := authmiddleware.NewAdminAuthorizer(users)
@@ -182,6 +204,7 @@ func main() {
 		reporthandler.NewAdmin(adminReports).RegisterRoutes(adminRouter)
 		adminaudithandler.New(adminAudit).RegisterRoutes(adminRouter)
 		supporthandler.NewAdmin(adminSupport).RegisterRoutes(adminRouter)
+		antiscamhandler.New(antiscamAdmin).RegisterRoutes(adminRouter)
 	})
 
 	router.Get("/health", health)
@@ -229,6 +252,15 @@ func main() {
 	drainWorker("search", searchWorkerDone, stopWorker)
 	drainWorker("support bot", supportBotDone, stopWorker)
 	stopWorker()
+
+	// PostgreSQL хранит оставшиеся задания антискама, поэтому при остановке достаточно
+	// завершить текущий вызов: после запуска job снова подберётся по lease.
+	stopAntiscamWorker()
+	select {
+	case <-antiscamWorkerDone:
+	case <-time.After(workerShutdownTimeout):
+		log.Print("antiscam worker shutdown timed out")
+	}
 
 	if serverErr != nil {
 		log.Printf("HTTP server stopped with error: %v", serverErr)

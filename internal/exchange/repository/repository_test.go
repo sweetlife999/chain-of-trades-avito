@@ -418,6 +418,8 @@ type fakeNeighborQueries struct {
 	statsRows           []db.ListExchangeSearchUserStatsRow
 	statsUserIDs        []pgtype.UUID
 	statsErr            error
+	filterRows          []db.ListExchangeSearchItemFiltersRow
+	filterErr           error
 }
 
 type fakeExchangeWriteQueries struct {
@@ -817,4 +819,11 @@ func (f *fakeNeighborQueries) ListExchangeSearchUserStats(
 ) ([]db.ListExchangeSearchUserStatsRow, error) {
 	f.statsUserIDs = userIDs
 	return f.statsRows, f.statsErr
+}
+
+func (f *fakeNeighborQueries) ListExchangeSearchItemFilters(
+	_ context.Context,
+	_ []pgtype.UUID,
+) ([]db.ListExchangeSearchItemFiltersRow, error) {
+	return f.filterRows, f.filterErr
 }

@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import clsx from "clsx";
@@ -15,6 +15,7 @@ import {
 import { useAuthSelector } from "../../../../Hooks/useAuthDispatch";
 import { ExchangeProgress } from "../ExchangeProgress/ExchangeProgress";
 import { Button } from "../../../UI/Button/Button";
+import { useMascot } from "../../../../Hooks/useMascot";
 
 const tabs: { value: TExchangeStatusTab; label: string }[] = [
   { value: "active", label: "Активные" },
@@ -40,6 +41,11 @@ const MyChainsComponent = () => {
   const { isAuth } = useAuthSelector();
   const [tab, setTab] = useState<TExchangeStatusTab>("active");
   const { user } = useAuthSelector();
+  const { anchor, mood, movement, reactTo, reset } = useMascot();
+  const previousExchangeIdsRef = useRef<{
+    userId: string | null;
+    idsByTab: Map<TTab, Set<string>>;
+  }>({ userId: null, idsByTab: new Map() });
   const {
     data = [],
     isPending,
@@ -47,6 +53,8 @@ const MyChainsComponent = () => {
   } = useQuery({
     queryKey: ["exchanges"],
     queryFn: getExchanges,
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: false,
   });
 
   const exchanges = data.filter(
@@ -55,6 +63,74 @@ const MyChainsComponent = () => {
         (participant) => participant.user.id === user?.id,
       ) && exchangeStatusPresentation[exchange.status].tab === tab,
   );
+  const exchangeIds = exchanges.map(({ id }) => id).join(":");
+  const emptyChainsReactionActive =
+    anchor === "chains-list" && mood === "bored" && movement === "wander";
+
+  useEffect(() => {
+    if (isPending || isError || !user?.id) {
+      return;
+    }
+
+    const tracker = previousExchangeIdsRef.current;
+    const currentIds = new Set(exchanges.map(({ id }) => id));
+
+    if (tracker.userId !== user.id) {
+      tracker.userId = user.id;
+      tracker.idsByTab = new Map([[tab, currentIds]]);
+      if (exchanges.length === 0) {
+        if (!emptyChainsReactionActive) {
+          reactTo("EMPTY_CHAINS");
+        }
+      } else if (emptyChainsReactionActive) {
+        reset();
+      }
+      return;
+    }
+
+    const previousIds = tracker.idsByTab.get(tab);
+    tracker.idsByTab.set(tab, currentIds);
+
+    if (!previousIds) {
+      if (exchanges.length === 0) {
+        if (!emptyChainsReactionActive) {
+          reactTo("EMPTY_CHAINS");
+        }
+      } else if (emptyChainsReactionActive) {
+        reset();
+      }
+      return;
+    }
+
+    if (exchanges.some(({ id }) => !previousIds.has(id))) {
+      reactTo("CHAIN_AVAILABLE");
+      return;
+    }
+
+    if (exchanges.length === 0) {
+      if (!emptyChainsReactionActive) {
+        reactTo("EMPTY_CHAINS");
+      }
+    } else if (emptyChainsReactionActive) {
+      reset();
+    }
+  }, [
+    emptyChainsReactionActive,
+    exchangeIds,
+    exchanges,
+    isError,
+    isPending,
+    reactTo,
+    reset,
+    tab,
+    user?.id,
+  ]);
+
+  useEffect(() => {
+    if (isError) {
+      reactTo("ERROR");
+    }
+  }, [isError, reactTo]);
 
   return (
     <section className={styles.chains}>
@@ -103,7 +179,7 @@ const MyChainsComponent = () => {
       )}
 
       {!isPending && !isError && (
-        <div className={styles.chains__list}>
+        <div className={styles.chains__list} data-mascot-anchor="chains-list">
           {exchanges.length ? (
             exchanges.map((exchange) => (
               <Link
