@@ -102,6 +102,181 @@ func (ns NullAdminAuditTarget) Value() (driver.Value, error) {
 	return string(ns.AdminAuditTarget), nil
 }
 
+type AntiscamAnalysisStatus string
+
+const (
+	AntiscamAnalysisStatusPending    AntiscamAnalysisStatus = "pending"
+	AntiscamAnalysisStatusProcessing AntiscamAnalysisStatus = "processing"
+	AntiscamAnalysisStatusCompleted  AntiscamAnalysisStatus = "completed"
+	AntiscamAnalysisStatusFailed     AntiscamAnalysisStatus = "failed"
+)
+
+func (e *AntiscamAnalysisStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = AntiscamAnalysisStatus(s)
+	case string:
+		*e = AntiscamAnalysisStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for AntiscamAnalysisStatus: %T", src)
+	}
+	return nil
+}
+
+type NullAntiscamAnalysisStatus struct {
+	AntiscamAnalysisStatus AntiscamAnalysisStatus
+	Valid                  bool // Valid is true if AntiscamAnalysisStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullAntiscamAnalysisStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.AntiscamAnalysisStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.AntiscamAnalysisStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullAntiscamAnalysisStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.AntiscamAnalysisStatus), nil
+}
+
+type AntiscamCaseStatus string
+
+const (
+	AntiscamCaseStatusOpen      AntiscamCaseStatus = "open"
+	AntiscamCaseStatusResolved  AntiscamCaseStatus = "resolved"
+	AntiscamCaseStatusDismissed AntiscamCaseStatus = "dismissed"
+)
+
+func (e *AntiscamCaseStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = AntiscamCaseStatus(s)
+	case string:
+		*e = AntiscamCaseStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for AntiscamCaseStatus: %T", src)
+	}
+	return nil
+}
+
+type NullAntiscamCaseStatus struct {
+	AntiscamCaseStatus AntiscamCaseStatus
+	Valid              bool // Valid is true if AntiscamCaseStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullAntiscamCaseStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.AntiscamCaseStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.AntiscamCaseStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullAntiscamCaseStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.AntiscamCaseStatus), nil
+}
+
+type AntiscamCategory string
+
+const (
+	AntiscamCategoryCredentials     AntiscamCategory = "credentials"
+	AntiscamCategoryExternalPayment AntiscamCategory = "external_payment"
+	AntiscamCategoryExternalContact AntiscamCategory = "external_contact"
+	AntiscamCategoryPhishing        AntiscamCategory = "phishing"
+	AntiscamCategoryPressure        AntiscamCategory = "pressure"
+	AntiscamCategoryOther           AntiscamCategory = "other"
+)
+
+func (e *AntiscamCategory) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = AntiscamCategory(s)
+	case string:
+		*e = AntiscamCategory(s)
+	default:
+		return fmt.Errorf("unsupported scan type for AntiscamCategory: %T", src)
+	}
+	return nil
+}
+
+type NullAntiscamCategory struct {
+	AntiscamCategory AntiscamCategory
+	Valid            bool // Valid is true if AntiscamCategory is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullAntiscamCategory) Scan(value interface{}) error {
+	if value == nil {
+		ns.AntiscamCategory, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.AntiscamCategory.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullAntiscamCategory) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.AntiscamCategory), nil
+}
+
+type AntiscamDecision string
+
+const (
+	AntiscamDecisionConfirmed     AntiscamDecision = "confirmed"
+	AntiscamDecisionFalsePositive AntiscamDecision = "false_positive"
+)
+
+func (e *AntiscamDecision) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = AntiscamDecision(s)
+	case string:
+		*e = AntiscamDecision(s)
+	default:
+		return fmt.Errorf("unsupported scan type for AntiscamDecision: %T", src)
+	}
+	return nil
+}
+
+type NullAntiscamDecision struct {
+	AntiscamDecision AntiscamDecision
+	Valid            bool // Valid is true if AntiscamDecision is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullAntiscamDecision) Scan(value interface{}) error {
+	if value == nil {
+		ns.AntiscamDecision, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.AntiscamDecision.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullAntiscamDecision) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.AntiscamDecision), nil
+}
+
 type ChainCancelReason string
 
 const (
@@ -470,6 +645,50 @@ type AdminAuditLog struct {
 	TargetID   pgtype.UUID
 	Metadata   []byte
 	CreatedAt  pgtype.Timestamptz
+}
+
+type AntiscamAnalysis struct {
+	ID              pgtype.UUID
+	MessageID       pgtype.UUID
+	Status          AntiscamAnalysisStatus
+	Attempts        int32
+	AvailableAt     pgtype.Timestamptz
+	LockedAt        pgtype.Timestamptz
+	RuleScore       int32
+	RuleHits        []string
+	ModelSuspicious pgtype.Bool
+	ModelSeverity   pgtype.Text
+	Category        NullAntiscamCategory
+	Reason          string
+	Evidence        []string
+	Risk            int32
+	ModelName       string
+	PromptVersion   string
+	LastError       string
+	CreatedAt       pgtype.Timestamptz
+	ProcessedAt     pgtype.Timestamptz
+}
+
+type AntiscamCase struct {
+	ID                pgtype.UUID
+	ChainID           pgtype.UUID
+	SuspectUserID     pgtype.UUID
+	Status            AntiscamCaseStatus
+	Risk              int32
+	Category          AntiscamCategory
+	Reason            string
+	ReviewedBy        pgtype.UUID
+	Decision          NullAntiscamDecision
+	ResolutionComment string
+	CreatedAt         pgtype.Timestamptz
+	UpdatedAt         pgtype.Timestamptz
+	ClosedAt          pgtype.Timestamptz
+}
+
+type AntiscamCaseMessage struct {
+	CaseID    pgtype.UUID
+	MessageID pgtype.UUID
+	CreatedAt pgtype.Timestamptz
 }
 
 type BrokenExchangeComposition struct {

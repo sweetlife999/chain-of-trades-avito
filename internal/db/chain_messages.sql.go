@@ -16,6 +16,10 @@ WITH inserted AS (
     INSERT INTO chain_messages (chain_id, author_id, body)
     VALUES ($1, $2, $3)
     RETURNING id, kind, body, created_at, author_id
+), queued AS (
+    INSERT INTO antiscam_analyses (message_id)
+    SELECT inserted.id FROM inserted
+    RETURNING message_id
 )
 SELECT
     inserted.id,
@@ -26,6 +30,7 @@ SELECT
     author.nickname  AS author_nickname,
     author.photo_url AS author_photo_url
 FROM inserted
+JOIN queued ON queued.message_id = inserted.id
 LEFT JOIN users AS author
     ON author.id = inserted.author_id
 `

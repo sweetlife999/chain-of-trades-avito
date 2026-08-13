@@ -881,6 +881,94 @@ definitions:
       error:
         type: string
     type: object
+  handler.caseResponse:
+    properties:
+      category:
+        type: string
+      closed_at:
+        type: string
+        x-nullable: true
+      created_at:
+        type: string
+      decision:
+        type: string
+      evidence_count:
+        type: integer
+      exchange_id:
+        type: string
+      id:
+        type: string
+      latest_evidence:
+        $ref: '#/definitions/handler.evidenceResponse'
+      reason:
+        type: string
+      resolution_comment:
+        type: string
+      reviewer:
+        $ref: '#/definitions/handler.userResponse'
+      risk:
+        type: integer
+      status:
+        type: string
+      suspect:
+        $ref: '#/definitions/handler.userResponse'
+      updated_at:
+        type: string
+    type: object
+  handler.decisionRequest:
+    properties:
+      comment:
+        type: string
+    type: object
+  handler.evidenceResponse:
+    properties:
+      body:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+    type: object
+  handler.messagesResponse:
+    properties:
+      case_id:
+        type: string
+      evidence_message_ids:
+        items:
+          type: string
+        type: array
+      exchange_id:
+        type: string
+      messages:
+        items:
+          $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.MessageResponse'
+        type: array
+    type: object
+  handler.pageResponse:
+    properties:
+      cases:
+        items:
+          $ref: '#/definitions/handler.caseResponse'
+        type: array
+      pagination:
+        properties:
+          limit:
+            type: integer
+          offset:
+            type: integer
+          total:
+            type: integer
+        type: object
+    type: object
+  handler.userResponse:
+    properties:
+      id:
+        type: string
+      nickname:
+        type: string
+      photo_url:
+        type: string
+    type: object
 info:
   contact: {}
   description: |-
@@ -894,6 +982,144 @@ info:
   title: Цепочка обмена — API
   version: 0.1.0
 paths:
+  /admin/antiscam/cases:
+    get:
+      parameters:
+      - description: Статус
+        enum:
+        - open
+        - resolved
+        - dismissed
+        in: query
+        name: status
+        type: string
+      - description: Категория
+        in: query
+        name: category
+        type: string
+      - default: 0
+        description: Минимальный риск
+        in: query
+        name: min_risk
+        type: integer
+      - default: 20
+        description: Размер страницы
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Смещение
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.pageResponse'
+      security:
+      - CookieAuth: []
+      summary: Очередь AI-антискама
+      tags:
+      - admin-antiscam
+  /admin/antiscam/cases/{id}:
+    get:
+      parameters:
+      - description: UUID карточки
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.caseResponse'
+      security:
+      - CookieAuth: []
+      summary: Карточка AI-подозрения
+      tags:
+      - admin-antiscam
+  /admin/antiscam/cases/{id}/confirm:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: UUID карточки
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Комментарий
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.decisionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.caseResponse'
+      security:
+      - CookieAuth: []
+      summary: Подтвердить AI-подозрение
+      tags:
+      - admin-antiscam
+  /admin/antiscam/cases/{id}/dismiss:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: UUID карточки
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Комментарий
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.decisionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.caseResponse'
+      security:
+      - CookieAuth: []
+      summary: Отметить ложное AI-срабатывание
+      tags:
+      - admin-antiscam
+  /admin/antiscam/cases/{id}/messages:
+    get:
+      parameters:
+      - description: UUID карточки
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.messagesResponse'
+      security:
+      - CookieAuth: []
+      summary: Переписка по AI-подозрению
+      tags:
+      - admin-antiscam
   /admin/audit-log:
     get:
       description: Возвращает журнал действий с фильтрами по администратору, действию
