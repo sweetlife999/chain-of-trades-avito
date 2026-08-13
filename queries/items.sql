@@ -53,7 +53,7 @@ SELECT
     i.*,
     c.slug AS category,
     COALESCE(
-        (SELECT array_agg(want_category.name ORDER BY want_category.slug)
+        (SELECT array_agg(want_category.slug ORDER BY want_category.slug)
          FROM item_wants w
          JOIN categories want_category ON want_category.id = w.category_id
          WHERE w.item_id = i.id),
@@ -73,7 +73,7 @@ SELECT
     i.*,
     c.slug AS category,
     COALESCE(
-        (SELECT array_agg(want_category.name ORDER BY want_category.slug)
+        (SELECT array_agg(want_category.slug ORDER BY want_category.slug)
          FROM item_wants w
          JOIN categories want_category ON want_category.id = w.category_id
          WHERE w.item_id = i.id),
