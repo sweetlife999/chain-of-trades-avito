@@ -140,6 +140,58 @@ export const AdminReportMessagesSchema = z.object({
   report_id: z.string(),
 });
 
+export const AdminAntiscamStatusSchema = z.enum([
+  "open",
+  "resolved",
+  "dismissed",
+]);
+export const AdminAntiscamCategorySchema = z.enum([
+  "credentials",
+  "external_payment",
+  "external_contact",
+  "phishing",
+  "pressure",
+  "other",
+]);
+export const AdminAntiscamCaseSchema = z.object({
+  id: z.string(),
+  exchange_id: z.string(),
+  suspect: AdminReportUserSchema,
+  status: AdminAntiscamStatusSchema,
+  risk: z.number().int().min(0).max(100),
+  category: AdminAntiscamCategorySchema,
+  reason: z.string(),
+  reviewer: AdminReportUserSchema.nullable().optional(),
+  decision: z.enum(["confirmed", "false_positive"]).nullable().optional(),
+  resolution_comment: z.string(),
+  latest_evidence: z.object({
+    id: z.string(),
+    body: z.string(),
+    created_at: z.string(),
+  }),
+  evidence_count: z.number().int().positive(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  closed_at: z.string().nullable().optional(),
+});
+export const AdminAntiscamCasesSchema = z.object({
+  cases: z.array(AdminAntiscamCaseSchema),
+  pagination: AdminReportsPaginationSchema,
+});
+export const AdminAntiscamParamsSchema = z.object({
+  status: AdminAntiscamStatusSchema.optional(),
+  category: AdminAntiscamCategorySchema.optional(),
+  min_risk: z.number().int().min(0).max(100).default(0),
+  limit: z.number().int().min(1).max(100).default(20),
+  offset: z.number().int().nonnegative().default(0),
+});
+export const AdminAntiscamMessagesSchema = z.object({
+  case_id: z.string(),
+  exchange_id: z.string(),
+  evidence_message_ids: z.array(z.string()),
+  messages: ExchangeMessagesSchema,
+});
+
 export const AdminAuditEntrySchema = z.object({
   action: z.string(),
   admin_id: z.string(),
@@ -207,6 +259,12 @@ export type TAdminReports = z.infer<typeof AdminReportsSchema>;
 export type TAdminReportsParams = z.input<typeof AdminReportsParamsSchema>;
 export type TAdminReportDecision = z.infer<typeof AdminReportDecisionSchema>;
 export type TAdminReportMessages = z.infer<typeof AdminReportMessagesSchema>;
+export type TAdminAntiscamStatus = z.infer<typeof AdminAntiscamStatusSchema>;
+export type TAdminAntiscamCategory = z.infer<typeof AdminAntiscamCategorySchema>;
+export type TAdminAntiscamCase = z.infer<typeof AdminAntiscamCaseSchema>;
+export type TAdminAntiscamCases = z.infer<typeof AdminAntiscamCasesSchema>;
+export type TAdminAntiscamParams = z.input<typeof AdminAntiscamParamsSchema>;
+export type TAdminAntiscamMessages = z.infer<typeof AdminAntiscamMessagesSchema>;
 export type TAdminAuditEntry = z.infer<typeof AdminAuditEntrySchema>;
 export type TAdminAuditLog = z.infer<typeof AdminAuditLogSchema>;
 export type TAdminAuditLogParams = z.input<typeof AdminAuditLogParamsSchema>;

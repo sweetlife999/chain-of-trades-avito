@@ -7,6 +7,7 @@ import { AdminReports } from "../AdminReports/AdminReports";
 import { AdminExchangeDelivery } from "../AdminExchangeDelivery/AdminExchangeDelivery";
 import { AdminAuditLog } from "../AdminAuditLog/AdminAuditLog";
 import { AdminSupport } from "../AdminSupport/AdminSupport";
+import { AdminAntiscam } from "../AdminAntiscam/AdminAntiscam";
 import styles from "./Styles.module.scss";
 
 type TAdminSection =
@@ -15,13 +16,15 @@ type TAdminSection =
   | "pickup-points"
   | "reports"
   | "audit"
-  | "support";
+  | "support"
+  | "antiscam";
 
 const sections: Array<{ id: TAdminSection; label: string }> = [
   { id: "statistics", label: "Статистика" },
   { id: "delivery", label: "Завершение доставки" },
   { id: "pickup-points", label: "Пункты выдачи" },
   { id: "reports", label: "Жалобы пользователей" },
+  { id: "antiscam", label: "AI-антискам" },
   { id: "support", label: "Поддержка" },
   { id: "audit", label: "История действий админов" },
 ];
@@ -73,6 +76,7 @@ const AdminComponent = () => {
         {activeSection === "delivery" && <AdminExchangeDelivery />}
         {activeSection === "pickup-points" && <PickupPoints />}
         {activeSection === "reports" && <AdminReports />}
+        {activeSection === "antiscam" && <AdminAntiscam />}
         {activeSection === "support" && <AdminSupport />}
         {activeSection === "audit" && <AdminAuditLog />}
       </div>
