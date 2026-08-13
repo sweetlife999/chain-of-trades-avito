@@ -25,7 +25,7 @@ const MascotComponent = ({
   className,
   showBubble = true,
   message,
-  label = "У — помощник по обмену",
+  label = "Уми — помощник по обмену",
 }: TProps) => {
   const dispatch = useDispatch<AuthDispatch>();
   const { mood, mode, message: stateMessage, durationMs, revision } = useMascot();
@@ -59,7 +59,7 @@ const MascotComponent = ({
     >
       {bubbleVisible && (
         <div className={clsx(styles.mascot__bubble, styles[`mascot__bubble_${mode}`])}>
-          <strong className={styles.mascot__bubbleName}>У</strong>
+          <strong className={styles.mascot__bubbleName}>Уми</strong>
           <span>{visibleMessage}</span>
         </div>
       )}
@@ -93,7 +93,7 @@ const MascotComponent = ({
 
             <rect className={styles.mascot__torso} x="62" y="118" width="116" height="116" rx="34" />
             <rect className={styles.mascot__chest} x="85" y="150" width="70" height="60" rx="18" />
-            <text className={styles.mascot__letter} x="120" y="192" textAnchor="middle">У</text>
+            <text className={styles.mascot__letter} x="120" y="189" textAnchor="middle">Уми</text>
 
             <g className={styles.mascot__leftLeg}>
               <rect x="79" y="218" width="30" height="43" rx="15" />

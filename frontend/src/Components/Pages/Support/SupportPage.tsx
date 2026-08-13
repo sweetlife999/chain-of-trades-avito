@@ -210,7 +210,7 @@ const SupportPageComponent = () => {
 
         <section className={styles.support__chat}>
           {!selectedID && (
-            <div className={styles.support__empty}><Mascot size="medium" placement="inline" message="Я У. Если что-то пошло не так с обменом — помогу сформулировать обращение в поддержку." /><Headset size={32} /><h2>Напишите нам</h2><p>Создайте обращение, и команда поддержки поможет разобраться.</p></div>
+            <div className={styles.support__empty}><Mascot size="medium" placement="inline" message="Я Уми. Если что-то пошло не так с обменом — помогу сформулировать обращение в поддержку." /><Headset size={32} /><h2>Напишите нам</h2><p>Создайте обращение, и команда поддержки поможет разобраться.</p></div>
           )}
           {selectedID && messagesQuery.isPending && <p className={styles.support__state}>Загружаем переписку...</p>}
           {selectedID && messagesQuery.isError && <p className={styles.support__error}>Не удалось открыть переписку.</p>}

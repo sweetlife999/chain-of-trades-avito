@@ -3,8 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 
 import styles from "./Styles.module.scss";
 import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
-import { useMascot } from "../../../Hooks/useMascot";
-import { Mascot } from "../../UI/Mascot/Mascot";
 
 const steps: [string, string, string][] = [
   ["01", "Добавь вещь", "Опиши, что отдаёшь и что хочешь получить взамен."],
@@ -96,13 +94,9 @@ const faq: [string, string][] = [
 const LandingComponent = () => {
   const navigate = useNavigate();
   const { isAuth } = useAuthSelector();
-  const { reactTo } = useMascot();
   const rootRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
 
-  useEffect(() => {
-    reactTo("APP_OPENED");
-  }, [reactTo]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -173,10 +167,6 @@ const LandingComponent = () => {
         <section className={`${styles.section} ${styles.hero}`}>
           <div className={styles.heroGrid}>
             <div className={styles.heroCopy}>
-              <span className={`${styles.heroEyebrow} ${styles.heroReveal}`}>
-                <span className={styles.heroEyebrowDot} />
-                У — ваш проводник по обмену
-              </span>
               <h1 className={styles.heroTitle}>
                 <span className={`${styles.heroLine} ${styles.heroReveal}`}>
                   Отдай <span className={styles.heroGive}>ненужное</span>.
@@ -204,13 +194,6 @@ const LandingComponent = () => {
               </div>
             </div>
 
-            <div className={`${styles.heroMascot} ${styles.heroReveal}`}>
-              <div className={styles.heroMascotGlow} aria-hidden="true" />
-              <Mascot size="large" placement="landing" />
-              <span className={styles.heroMascotCaption}>
-                Реагирует на этапы обмена и помогает в чатах
-              </span>
-            </div>
           </div>
         </section>
 

@@ -137,8 +137,9 @@
   &__letter {
     fill: #087848;
     font-family: Arial, sans-serif;
-    font-size: 37px;
+    font-size: 24px;
     font-weight: 900;
+    letter-spacing: -1px;
   }
 
   &__face { fill: var(--mascot-screen); }

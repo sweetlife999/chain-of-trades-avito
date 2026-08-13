@@ -1,12 +1,6 @@
 import type { MascotEvent, MascotReaction } from "./mascot.types";
 
 export const mascotReactions: Record<MascotEvent, MascotReaction> = {
-  APP_OPENED: {
-    mood: "hello",
-    mode: "dialog",
-    message: "Привет! Я У 👋 Покажу, как обмениваться проще.",
-    durationMs: 5200,
-  },
   CHAT_OPENED: {
     mood: "idle",
     mode: "dialog",

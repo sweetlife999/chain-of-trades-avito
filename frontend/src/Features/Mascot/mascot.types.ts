@@ -11,7 +11,6 @@ export type MascotMood =
 export type MascotMode = "ambient" | "attention" | "dialog";
 
 export type MascotEvent =
-  | "APP_OPENED"
   | "CHAT_OPENED"
   | "USER_TYPING"
   | "HINT_SHOWN"
