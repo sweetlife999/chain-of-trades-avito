@@ -1,6 +1,5 @@
 import { memo, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
 import clsx from "clsx";
 
 import styles from "./Styles.module.scss";
@@ -66,11 +65,6 @@ const MyItemsComponent = () => {
             </p>
           )}
         </div>
-        {isAuth && (
-          <Link className={styles.items__create} to="/exchanges/create">
-            Добавить вещь
-          </Link>
-        )}
       </div>
 
       {!isAuth ? (

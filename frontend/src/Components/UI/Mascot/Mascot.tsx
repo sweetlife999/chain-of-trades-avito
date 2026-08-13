@@ -31,7 +31,7 @@ type TProps = {
   mode?: MascotMode;
   mood?: MascotMood;
   movement?: MascotMovement;
-  level?: MascotLevel;
+  level?: number;
 };
 
 const normalizeLevel = (level: number | undefined): MascotLevel => {
