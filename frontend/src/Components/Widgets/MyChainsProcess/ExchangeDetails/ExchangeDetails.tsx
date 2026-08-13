@@ -24,15 +24,7 @@ import { ConfirmationPopup } from "../../../UI/ConfirmationPopup/ConfirmationPop
 import { CancelExchangeButton } from "../../Admin/CancelExchangeButton/CancelExchangeButton";
 import { ExchangePickupStage } from "../ExchangePickupStage/ExchangePickupStage";
 import { ExchangeRating } from "../ExchangeRating/ExchangeRating";
-
-const statusLabels: Record<TExchangeStatus, string> = {
-  proposed: "Ждём подтверждения",
-  confirmed: "Передача вещи в ПВЗ",
-  delivering: "Доставка между ПВЗ",
-  delivered: "Вещь ожидает получения",
-  completed: "Обмен завершён",
-  cancelled: "Цепочка распалась",
-};
+import { exchangeStatusPresentation } from "../../../../Features/Exchange/exchangeStatus";
 
 const isParticipationConfirmed = (status: string) =>
   ["confirmed", "accepted"].includes(status.toLowerCase());
@@ -273,7 +265,7 @@ const ExchangeDetailsComponent = () => {
           <span
             className={`${styles.details__status} ${styles[`details__status_${exchange.status}`]}`}
           >
-            {statusLabels[exchange.status]}
+            {exchangeStatusPresentation[exchange.status].detailsLabel}
           </span>
           {adminCanCancel && (
             <CancelExchangeButton

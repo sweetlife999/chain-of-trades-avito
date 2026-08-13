@@ -7,28 +7,20 @@ import styles from "./Styles.module.scss";
 import { getExchanges } from "../../../../Api/exchanges/exchanges";
 import type {
   TExchange,
-  TExchangeStatus,
 } from "../../../../Api/exchanges/exchanges.types";
+import {
+  exchangeStatusPresentation,
+  type TExchangeStatusTab,
+} from "../../../../Features/Exchange/exchangeStatus";
 import { useAuthSelector } from "../../../../Hooks/useAuthDispatch";
 import { ExchangeProgress } from "../ExchangeProgress/ExchangeProgress";
 import { Button } from "../../../UI/Button/Button";
 
-type TTab = "active" | "completed" | "cancelled";
-
-const tabs: { value: TTab; label: string }[] = [
+const tabs: { value: TExchangeStatusTab; label: string }[] = [
   { value: "active", label: "Активные" },
   { value: "completed", label: "Завершённые" },
   { value: "cancelled", label: "Отменённые" },
 ];
-
-const statusData: Record<TExchangeStatus, { label: string; tab: TTab }> = {
-  proposed: { label: "Ждём вашего подтверждения", tab: "active" },
-  confirmed: { label: "Передача вещи в ПВЗ", tab: "active" },
-  delivering: { label: "Вещи доставляются между ПВЗ", tab: "active" },
-  delivered: { label: "Вещь ожидает вас в ПВЗ", tab: "active" },
-  completed: { label: "Обмен завершён", tab: "completed" },
-  cancelled: { label: "Цепочка распалась", tab: "cancelled" },
-};
 
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat("ru-RU").format(new Date(value));
@@ -46,7 +38,7 @@ const getTitle = (exchange: TExchange, userId?: string) => {
 const MyChainsComponent = () => {
   const navigate = useNavigate();
   const { isAuth } = useAuthSelector();
-  const [tab, setTab] = useState<TTab>("active");
+  const [tab, setTab] = useState<TExchangeStatusTab>("active");
   const { user } = useAuthSelector();
   const {
     data = [],
@@ -61,7 +53,7 @@ const MyChainsComponent = () => {
     (exchange) =>
       exchange.participants.some(
         (participant) => participant.user.id === user?.id,
-      ) && statusData[exchange.status].tab === tab,
+      ) && exchangeStatusPresentation[exchange.status].tab === tab,
   );
 
   return (
@@ -128,7 +120,7 @@ const MyChainsComponent = () => {
                       styles[`chains__status_${exchange.status}`]
                     }`}
                   >
-                    {statusData[exchange.status].label}
+                    {exchangeStatusPresentation[exchange.status].listLabel}
                   </span>
                   <time
                     className={styles.chains__date}
