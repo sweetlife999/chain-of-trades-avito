@@ -1,34 +1,24 @@
-import { memo, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import clsx from "clsx";
 
 import styles from "./Styles.module.scss";
 import { getExchanges } from "../../../../Api/exchanges/exchanges";
-import type {
-  TExchange,
-  TExchangeStatus,
-} from "../../../../Api/exchanges/exchanges.types";
+import type { TExchange } from "../../../../Api/exchanges/exchanges.types";
+import {
+  exchangeStatusPresentation,
+  type TExchangeStatusTab,
+} from "../../../../Features/Exchange/exchangeStatus";
 import { useAuthSelector } from "../../../../Hooks/useAuthDispatch";
 import { ExchangeProgress } from "../ExchangeProgress/ExchangeProgress";
-import { Button } from "../../../UI/Button/Button";
+import { useMascot } from "../../../../Hooks/useMascot";
 
-type TTab = "active" | "completed" | "cancelled";
-
-const tabs: { value: TTab; label: string }[] = [
+const tabs: { value: TExchangeStatusTab; label: string }[] = [
   { value: "active", label: "Активные" },
   { value: "completed", label: "Завершённые" },
   { value: "cancelled", label: "Отменённые" },
 ];
-
-const statusData: Record<TExchangeStatus, { label: string; tab: TTab }> = {
-  proposed: { label: "Ждём вашего подтверждения", tab: "active" },
-  confirmed: { label: "Передача вещи в ПВЗ", tab: "active" },
-  delivering: { label: "Вещи доставляются между ПВЗ", tab: "active" },
-  delivered: { label: "Вещь ожидает вас в ПВЗ", tab: "active" },
-  completed: { label: "Обмен завершён", tab: "completed" },
-  cancelled: { label: "Цепочка распалась", tab: "cancelled" },
-};
 
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat("ru-RU").format(new Date(value));
@@ -44,10 +34,18 @@ const getTitle = (exchange: TExchange, userId?: string) => {
 };
 
 const MyChainsComponent = () => {
-  const navigate = useNavigate();
-  const { isAuth } = useAuthSelector();
-  const [tab, setTab] = useState<TTab>("active");
   const { user } = useAuthSelector();
+  const [tab, setTab] = useState<TExchangeStatusTab>("active");
+  const { anchor, mood, movement, reactTo, reset } = useMascot();
+
+  const previousExchangeIdsRef = useRef<{
+    userId: string | null;
+    idsByTab: Map<TExchangeStatusTab, Set<string>>;
+  }>({
+    userId: null,
+    idsByTab: new Map(),
+  });
+
   const {
     data = [],
     isPending,
@@ -55,14 +53,90 @@ const MyChainsComponent = () => {
   } = useQuery({
     queryKey: ["exchanges"],
     queryFn: getExchanges,
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: false,
   });
 
-  const exchanges = data.filter(
-    (exchange) =>
-      exchange.participants.some(
-        (participant) => participant.user.id === user?.id,
-      ) && statusData[exchange.status].tab === tab,
+  const exchanges = useMemo(
+    () =>
+      data.filter(
+        (exchange) =>
+          exchange.participants.some(
+            (participant) => participant.user.id === user?.id,
+          ) && exchangeStatusPresentation[exchange.status].tab === tab,
+      ),
+    [data, tab, user?.id],
   );
+
+  const exchangeIds = exchanges.map(({ id }) => id).join(":");
+
+  const emptyChainsReactionActive =
+    anchor === "chains-list" && mood === "bored" && movement === "wander";
+
+  useEffect(() => {
+    if (isPending || isError || !user?.id) {
+      return;
+    }
+
+    const tracker = previousExchangeIdsRef.current;
+    const currentIds = new Set(exchanges.map(({ id }) => id));
+
+    if (tracker.userId !== user.id) {
+      tracker.userId = user.id;
+      tracker.idsByTab = new Map([[tab, currentIds]]);
+      if (exchanges.length === 0) {
+        if (!emptyChainsReactionActive) {
+          reactTo("EMPTY_CHAINS");
+        }
+      } else if (emptyChainsReactionActive) {
+        reset();
+      }
+      return;
+    }
+
+    const previousIds = tracker.idsByTab.get(tab);
+    tracker.idsByTab.set(tab, currentIds);
+
+    if (!previousIds) {
+      if (exchanges.length === 0) {
+        if (!emptyChainsReactionActive) {
+          reactTo("EMPTY_CHAINS");
+        }
+      } else if (emptyChainsReactionActive) {
+        reset();
+      }
+      return;
+    }
+
+    if (exchanges.some(({ id }) => !previousIds.has(id))) {
+      reactTo("CHAIN_AVAILABLE");
+      return;
+    }
+
+    if (exchanges.length === 0) {
+      if (!emptyChainsReactionActive) {
+        reactTo("EMPTY_CHAINS");
+      }
+    } else if (emptyChainsReactionActive) {
+      reset();
+    }
+  }, [
+    emptyChainsReactionActive,
+    exchangeIds,
+    exchanges,
+    isError,
+    isPending,
+    reactTo,
+    reset,
+    tab,
+    user?.id,
+  ]);
+
+  useEffect(() => {
+    if (isError) {
+      reactTo("ERROR");
+    }
+  }, [isError, reactTo]);
 
   return (
     <section className={styles.chains}>
@@ -73,35 +147,23 @@ const MyChainsComponent = () => {
             Следите за подтверждением, передачей в ПВЗ и доставкой вещей.
           </p>
         </div>
-        <Button
-          className={styles.chains__create}
-          onClick={() =>
-            isAuth
-              ? navigate("/exchanges/create")
-              : navigate("/login", {
-                  state: { from: "/exchanges/create" },
-                })
-          }
-        >
-          Создать вещь
-        </Button>
       </div>
 
       <div className={styles.chains__filters}>
-            {tabs.map(({ value, label }) => (
-              <button
-                className={clsx(
-                  styles.chains__filter,
-                  tab === value && styles.chains__filter_active,
-                )}
-                key={value}
-                type="button"
-                onClick={() => setTab(value)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+        {tabs.map(({ value, label }) => (
+          <button
+            className={clsx(
+              styles.chains__filter,
+              tab === value && styles.chains__filter_active,
+            )}
+            key={value}
+            type="button"
+            onClick={() => setTab(value)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       {isPending && <p className={styles.chains__message}>Загрузка...</p>}
       {isError && (
@@ -111,7 +173,7 @@ const MyChainsComponent = () => {
       )}
 
       {!isPending && !isError && (
-        <div className={styles.chains__list}>
+        <div className={styles.chains__list} data-mascot-anchor="chains-list">
           {exchanges.length ? (
             exchanges.map((exchange) => (
               <Link
@@ -128,7 +190,7 @@ const MyChainsComponent = () => {
                       styles[`chains__status_${exchange.status}`]
                     }`}
                   >
-                    {statusData[exchange.status].label}
+                    {exchangeStatusPresentation[exchange.status].listLabel}
                   </span>
                   <time
                     className={styles.chains__date}

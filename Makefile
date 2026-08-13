@@ -2,7 +2,7 @@
 export
 
 
-.PHONY: lint run up db down reset migrate-up migrate-down migrate-status sqlc smoke swagger test-exchange-integration test-user-blocks-integration test-exchange-recovery-integration test-exchange-refusal-integration test-exchange-messages-integration test-item-search-visibility-integration test-delivery-integration test-reports-integration test-admin-audit-integration test-notifications-integration
+.PHONY: lint run up db llm down reset migrate-up migrate-down migrate-status sqlc smoke swagger test-ratings-integration test-exchange-integration test-user-blocks-integration test-exchange-recovery-integration test-exchange-refusal-integration test-exchange-messages-integration test-item-search-visibility-integration test-delivery-integration test-reports-integration test-admin-audit-integration test-notifications-integration test-antiscam test-support-bot-llm test-item-assistant-llm test-support-admin-integration
 
 # Линтер. Требует golangci-lint v2 той же версии, что пиннится в CI:
 # go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
@@ -20,6 +20,12 @@ up:
 # Только БД с миграциями — для разработки, дальше make run и npm run dev
 db:
 	docker compose up -d postgres migrate
+
+# Только модель: поднимает Ollama и докачивает веса. Отдельно от db, потому что
+# большинству задач модель не нужна, а первый запуск тянет сотни мегабайт.
+# Проверить, чем кончилось скачивание: docker compose logs ollama-pull
+llm:
+	docker compose up -d ollama ollama-pull
 
 down:
 	docker compose down
@@ -108,3 +114,35 @@ test-admin-audit-integration:
 test-notifications-integration:
 	go test -tags=integration ./internal/notification/handler \
 		-run TestNotificationsIntegration -count=1
+
+# Живой сценарий оценки: партнёра назначает сам цикл, перезапись оценки, пересчёт
+# среднего балла триггером и отказы постороннему, незавершённому обмену и просроченному сроку.
+test-ratings-integration:
+	go test -tags=integration ./internal/rating/handler \
+		-run TestRatingsIntegration -count=1
+
+test-antiscam:
+	go test ./internal/antiscam/... -count=1
+
+# Точность роутера поддержки на замороженном наборе обращений. Требует живую Ollama
+# (OLLAMA_URL) и нужна при любой правке промпта в internal/support/service/bot.go:
+# 0.5B гиперчувствительна к формулировке, поэтому промпт меряется, а не обсуждается.
+# Без OLLAMA_URL тест скипается.
+test-support-bot-llm:
+	OLLAMA_URL=$${OLLAMA_URL:-http://localhost:11434} \
+	go test -tags=integration ./internal/support/service \
+		-run TestSupportBotAccuracy -count=1 -v
+
+# Живой набор объявлений проверяет и текст, и выбор категории на той же 0.5B-модели,
+# что используется в проде. Без поднятой Ollama тест скипается.
+test-item-assistant-llm:
+	OLLAMA_URL=$${OLLAMA_URL:-http://localhost:11434} \
+	go test -tags=integration ./internal/itemassistant/service \
+		-run TestItemAssistantModel -count=1 -v
+
+# Живой сценарий очереди модерации поддержки: превью берётся из сообщения автора
+# обращения, в том числе когда автор — сам администратор. Тест написан по факту падения:
+# на таком обращении список отдавал 500 целиком.
+test-support-admin-integration:
+	go test -tags=integration ./internal/support/repository \
+		-run TestAdminSupportQueueIntegration -count=1 -v

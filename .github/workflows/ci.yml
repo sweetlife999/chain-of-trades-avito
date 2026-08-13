@@ -63,7 +63,10 @@ jobs:
       # DATABASE_URL задан, поэтому тесты против живой БД не скипаются.
       - run: go test ./... -race
 
-      - run: go test -tags=integration ./internal/exchange/handler -count=1
+      # Пакеты перечисляются явно, и список отстаёт: живые сценарии есть ещё у item,
+      # user, report, notification и adminaudit, а сюда попали только два. Цели
+      # `make test-*-integration` гоняют их все — CI пока нет.
+      - run: go test -tags=integration ./internal/exchange/handler ./internal/rating/handler -count=1
 
   generated:
     runs-on: ubuntu-latest

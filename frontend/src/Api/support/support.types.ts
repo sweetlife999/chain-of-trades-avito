@@ -1,9 +1,11 @@
 import { z } from "zod";
 
+import { OptionalPhotoUrlResponseSchema } from "../common.types";
+
 export const SupportPersonSchema = z.object({
   id: z.string(),
   nickname: z.string(),
-  photo_url: z.string().nullable().optional(),
+  photo_url: OptionalPhotoUrlResponseSchema,
   is_admin: z.boolean(),
 });
 
@@ -19,6 +21,9 @@ export const SupportThreadSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
   closed_at: z.string().nullable(),
+  // Непустое — автоответ не решил вопрос: пользователь написал повторно либо бот не
+  // справился с первого сообщения. nullish, а не nullable: у старых ответов API поля нет.
+  escalated_at: z.string().nullish(),
 });
 
 export const SupportMessageSchema = z.object({
@@ -43,5 +48,7 @@ export const AdminSupportPageSchema = z.object({
 
 export type TSupportThread = z.infer<typeof SupportThreadSchema>;
 export type TSupportMessage = z.infer<typeof SupportMessageSchema>;
-export type TSupportThreadMessages = z.infer<typeof SupportThreadMessagesSchema>;
+export type TSupportThreadMessages = z.infer<
+  typeof SupportThreadMessagesSchema
+>;
 export type TAdminSupportPage = z.infer<typeof AdminSupportPageSchema>;

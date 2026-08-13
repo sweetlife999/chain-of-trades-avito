@@ -15,6 +15,226 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/admin/antiscam/cases": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-antiscam"
+                ],
+                "summary": "Очередь AI-антискама",
+                "parameters": [
+                    {
+                        "enum": [
+                            "open",
+                            "resolved",
+                            "dismissed"
+                        ],
+                        "type": "string",
+                        "description": "Статус",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Категория",
+                        "name": "category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Минимальный риск",
+                        "name": "min_risk",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Размер страницы",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Смещение",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.pageResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/antiscam/cases/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-antiscam"
+                ],
+                "summary": "Карточка AI-подозрения",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID карточки",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.caseResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/antiscam/cases/{id}/confirm": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-antiscam"
+                ],
+                "summary": "Подтвердить AI-подозрение",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID карточки",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Комментарий",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.decisionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.caseResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/antiscam/cases/{id}/dismiss": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-antiscam"
+                ],
+                "summary": "Отметить ложное AI-срабатывание",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID карточки",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Комментарий",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.decisionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.caseResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/antiscam/cases/{id}/messages": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-antiscam"
+                ],
+                "summary": "Переписка по AI-подозрению",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID карточки",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.messagesResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/audit-log": {
             "get": {
                 "security": [
@@ -1140,6 +1360,13 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Статус",
                         "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Только ждущие модератора: эскалированные и те, на которые никто не ответил",
+                        "name": "needs_human",
                         "in": "query"
                     },
                     {
@@ -2332,6 +2559,88 @@ const docTemplate = `{
                 }
             }
         },
+        "/exchanges/{id}/rating": {
+            "put": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Ставит оценку участнику, который передал вещь текущему пользователю. Кого\nоценивают, определяет сама цепочка. Повторный запрос переписывает оценку.\nДоступно 14 дней после завершения обмена.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ratings"
+                ],
+                "summary": "Оценить партнёра по обмену",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID обмена",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Балл от 1 до 5 и необязательный комментарий",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.RateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.RatingResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный UUID, тело или балл вне 1..5",
+                        "schema": {
+                            "$ref": "#/definitions/dto.RatingError"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/dto.RatingError"
+                        }
+                    },
+                    "403": {
+                        "description": "Пользователь не участвует в обмене",
+                        "schema": {
+                            "$ref": "#/definitions/dto.RatingError"
+                        }
+                    },
+                    "404": {
+                        "description": "Обмен не найден",
+                        "schema": {
+                            "$ref": "#/definitions/dto.RatingError"
+                        }
+                    },
+                    "409": {
+                        "description": "Обмен не завершён или срок оценки истёк",
+                        "schema": {
+                            "$ref": "#/definitions/dto.RatingError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/dto.RatingError"
+                        }
+                    }
+                }
+            }
+        },
         "/health": {
             "get": {
                 "description": "Отвечает 200, если процесс поднят. Состояние БД не проверяет.",
@@ -2400,7 +2709,7 @@ const docTemplate = `{
                         "CookieAuth": []
                     }
                 ],
-                "description": "Требует cookie ` + "`" + `access_token` + "`" + `. Владелец берётся из токена, а не из тела запроса.\nНужна хотя бы одна фотография (ссылкой) и хотя бы одна желаемая категория —\nбез них объявление не участвует в подборе обменов. Список категорий: GET /categories.",
+                "description": "Требует cookie ` + "`" + `access_token` + "`" + `. Владелец берётся из токена, а не из тела запроса.\nНужна хотя бы одна фотография и хотя бы одна желаемая категория —\nбез них объявление не участвует в подборе обменов. Список категорий: GET /categories.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2445,6 +2754,121 @@ const docTemplate = `{
                         "description": "Внутренняя ошибка",
                         "schema": {
                             "$ref": "#/definitions/dto.ItemError"
+                        }
+                    }
+                }
+            }
+        },
+        "/items/ai-suggestions": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Принимает рассказ пользователя, ставит генерацию в фоновую очередь и сразу возвращает ID задачи.\nРезультат не применяется автоматически: пользователь должен проверить и принять подсказку на фронте.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "items"
+                ],
+                "summary": "Запустить ИИ-помощника объявления",
+                "parameters": [
+                    {
+                        "description": "Описание вещи своими словами",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.SubmitRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/handler.JobResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Текст короче 10 или длиннее 1200 символов",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Нет или истекла cookie access_token",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Очередь модели заполнена",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/items/ai-suggestions/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Задача доступна только создавшему её пользователю и хранится 30 минут.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "items"
+                ],
+                "summary": "Получить результат ИИ-помощника",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID задачи",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.JobResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный UUID",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Нет или истекла cookie access_token",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Чужая задача",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Задача не найдена или истекла",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     }
                 }
@@ -2569,7 +2993,7 @@ const docTemplate = `{
                         "CookieAuth": []
                     }
                 ],
-                "description": "Требует cookie ` + "`" + `access_token` + "`" + `, менять можно только свои объявления. Достаточно одного поля.\n` + "`" + `photo_urls` + "`" + ` и ` + "`" + `wants` + "`" + ` заменяются целиком: чтобы добавить фотографию, пришлите старые\nссылки вместе с новой. Пустой список запрещён — у объявления всегда есть хотя бы одно фото.",
+                "description": "Требует cookie ` + "`" + `access_token` + "`" + `, менять можно только свои объявления. Достаточно одного поля.\n` + "`" + `photo_urls` + "`" + ` и ` + "`" + `wants` + "`" + ` заменяются целиком: чтобы добавить фотографию, загрузите её\nчерез POST /uploads и пришлите старые ссылки вместе с новой. Пустой список запрещён —\nу объявления всегда есть хотя бы одно фото.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3552,6 +3976,67 @@ const docTemplate = `{
                 }
             }
         },
+        "/uploads": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Требует cookie ` + "`" + `access_token` + "`" + `. Принимает один файл в поле ` + "`" + `file` + "`" + ` формы\nmultipart/form-data: jpeg, png или webp размером до 5 МБ. Тип определяется по\nсодержимому файла, а имя присваивает сервер, поэтому расширение в запросе ни на\nчто не влияет.\n\nВозвращает ссылку, которую нужно передать в ` + "`" + `photo_urls` + "`" + ` объявления или в\n` + "`" + `photo_url` + "`" + ` профиля. Сама по себе загрузка ни к чему файл не привязывает.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "uploads"
+                ],
+                "summary": "Загрузить фотографию",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Файл изображения",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Загружено, ссылка в поле url",
+                        "schema": {
+                            "$ref": "#/definitions/dto.UploadResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Нет файла в запросе или это не картинка поддерживаемого формата",
+                        "schema": {
+                            "$ref": "#/definitions/dto.UploadError"
+                        }
+                    },
+                    "401": {
+                        "description": "Нет или истекла cookie access_token",
+                        "schema": {
+                            "$ref": "#/definitions/dto.UploadError"
+                        }
+                    },
+                    "413": {
+                        "description": "Файл больше 5 МБ",
+                        "schema": {
+                            "$ref": "#/definitions/dto.UploadError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/dto.UploadError"
+                        }
+                    }
+                }
+            }
+        },
         "/users": {
             "post": {
                 "description": "Регистрация: nickname 3–32 символа, пароль 8–72 байта. Пароль хранится bcrypt-хешем и в ответе не возвращается.",
@@ -3868,6 +4353,61 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/users/{id}/ratings": {
+            "get": {
+                "description": "Возвращает оценки, полученные пользователем, от новых к старым. Отзывы\nанонимны: автор не возвращается. Общее число оценок лежит в профиле.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ratings"
+                ],
+                "summary": "Получить отзывы о пользователе",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID пользователя",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Размер страницы, от 1 до 100",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Смещение, начиная с 0",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.RatingsPageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный UUID или параметры страницы",
+                        "schema": {
+                            "$ref": "#/definitions/dto.RatingError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "$ref": "#/definitions/dto.RatingError"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -4050,6 +4590,9 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
+                "experience": {
+                    "$ref": "#/definitions/dto.ExperienceResponse"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -4063,7 +4606,12 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "rating": {
-                    "type": "number"
+                    "description": "null — оценок ещё нет, и это не ноль. Сколько их — в ratings_count.",
+                    "type": "number",
+                    "x-nullable": true
+                },
+                "ratings_count": {
+                    "type": "integer"
                 },
                 "updated_at": {
                     "type": "string"
@@ -4104,9 +4652,11 @@ const docTemplate = `{
                         "type": "string"
                     },
                     "example": [
-                        "https://example.com/bike-1.jpg",
-                        "https://example.com/bike-2.jpg"
+                        "/uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg"
                     ]
+                },
+                "search_filters": {
+                    "$ref": "#/definitions/dto.SearchFiltersRequest"
                 },
                 "title": {
                     "type": "string",
@@ -4235,6 +4785,25 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.ExchangeRatingResponse": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "rate_until": {
+                    "type": "string"
+                },
+                "rated_user_id": {
+                    "type": "string"
+                },
+                "score": {
+                    "description": "null — оценка ещё не поставлена.",
+                    "type": "integer",
+                    "x-nullable": true
+                }
+            }
+        },
         "dto.ExchangeStatisticsResponse": {
             "type": "object",
             "properties": {
@@ -4257,6 +4826,35 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.ExperienceResponse": {
+            "type": "object",
+            "properties": {
+                "current_level_xp": {
+                    "type": "integer"
+                },
+                "deals_to_next_level": {
+                    "type": "integer"
+                },
+                "is_max_level": {
+                    "type": "boolean"
+                },
+                "level": {
+                    "type": "integer"
+                },
+                "max_level": {
+                    "type": "integer"
+                },
+                "next_level_xp": {
+                    "type": "integer"
+                },
+                "progress_percent": {
+                    "type": "integer"
+                },
+                "total_xp": {
                     "type": "integer"
                 }
             }
@@ -4315,6 +4913,9 @@ const docTemplate = `{
                         }
                     ],
                     "x-nullable": true
+                },
+                "search_filters": {
+                    "$ref": "#/definitions/dto.SearchFiltersResponse"
                 },
                 "status": {
                     "type": "string"
@@ -4570,6 +5171,78 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.RateRequest": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string",
+                    "example": "Всё пришло вовремя, спасибо"
+                },
+                "score": {
+                    "type": "integer",
+                    "example": 5
+                }
+            }
+        },
+        "dto.RatingError": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.RatingResponse": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "rated_user_id": {
+                    "type": "string"
+                },
+                "score": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.RatingsPageResponse": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "ratings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ReceivedRatingResponse"
+                    }
+                }
+            }
+        },
+        "dto.ReceivedRatingResponse": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "score": {
+                    "type": "integer"
+                }
+            }
+        },
         "dto.ReportError": {
             "type": "object",
             "properties": {
@@ -4598,6 +5271,41 @@ const docTemplate = `{
                 },
                 "status": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.SearchFiltersRequest": {
+            "type": "object",
+            "properties": {
+                "max_chain_length": {
+                    "type": "integer",
+                    "maximum": 5,
+                    "minimum": 2,
+                    "example": 3
+                },
+                "min_participant_rating": {
+                    "type": "number",
+                    "maximum": 5,
+                    "minimum": 0,
+                    "example": 4
+                },
+                "prefer_reliable_participants": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "dto.SearchFiltersResponse": {
+            "type": "object",
+            "properties": {
+                "max_chain_length": {
+                    "type": "integer"
+                },
+                "min_participant_rating": {
+                    "type": "number"
+                },
+                "prefer_reliable_participants": {
+                    "type": "boolean"
                 }
             }
         },
@@ -4634,6 +5342,10 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "created_at": {
+                    "type": "string"
+                },
+                "escalated_at": {
+                    "description": "Непустое — автоответ не решил вопрос и обращение ждёт человека. В очереди\nмодерации по этому полю рисуется пометка.",
                     "type": "string"
                 },
                 "id": {
@@ -4679,9 +5391,11 @@ const docTemplate = `{
                         "type": "string"
                     },
                     "example": [
-                        "https://example.com/bike-1.jpg",
-                        "https://example.com/bike-3.jpg"
+                        "/uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg"
                     ]
+                },
+                "search_filters": {
+                    "$ref": "#/definitions/dto.SearchFiltersRequest"
                 },
                 "title": {
                     "type": "string",
@@ -4721,7 +5435,25 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "photo_url": {
+                    "type": "string",
+                    "example": "/uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg"
+                }
+            }
+        },
+        "dto.UploadError": {
+            "type": "object",
+            "properties": {
+                "error": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.UploadResponse": {
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "example": "/uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg"
                 }
             }
         },
@@ -4760,6 +5492,9 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
+                "experience": {
+                    "$ref": "#/definitions/dto.ExperienceResponse"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -4770,7 +5505,12 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "rating": {
-                    "type": "number"
+                    "description": "null — оценок ещё нет, и это не ноль. Сколько их — в ratings_count.",
+                    "type": "number",
+                    "x-nullable": true
+                },
+                "ratings_count": {
+                    "type": "integer"
                 },
                 "updated_at": {
                     "type": "string"
@@ -4920,6 +5660,15 @@ const docTemplate = `{
                         "$ref": "#/definitions/dto.ParticipantResponse"
                     }
                 },
+                "rating": {
+                    "description": "null — оценивать нечего: обмен не завершён либо смотрит не участник.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.ExchangeRatingResponse"
+                        }
+                    ],
+                    "x-nullable": true
+                },
                 "status": {
                     "type": "string"
                 },
@@ -5068,6 +5817,208 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.JobResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "pending",
+                        "processing",
+                        "completed",
+                        "failed"
+                    ]
+                },
+                "suggestion": {
+                    "$ref": "#/definitions/handler.SuggestionResponse"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.SubmitRequest": {
+            "type": "object",
+            "properties": {
+                "input": {
+                    "type": "string",
+                    "example": "старый пленочный фотоаппарат, рабочий, есть чехол"
+                }
+            }
+        },
+        "handler.SuggestionResponse": {
+            "type": "object",
+            "properties": {
+                "category_name": {
+                    "type": "string",
+                    "example": "Электроника"
+                },
+                "category_slug": {
+                    "type": "string",
+                    "example": "electronics"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Рабочий плёночный фотоаппарат. В комплекте чехол."
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Плёночный фотоаппарат с чехлом"
+                }
+            }
+        },
+        "handler.caseResponse": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "closed_at": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "decision": {
+                    "type": "string"
+                },
+                "evidence_count": {
+                    "type": "integer"
+                },
+                "exchange_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "latest_evidence": {
+                    "$ref": "#/definitions/handler.evidenceResponse"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "resolution_comment": {
+                    "type": "string"
+                },
+                "reviewer": {
+                    "$ref": "#/definitions/handler.userResponse"
+                },
+                "risk": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "suspect": {
+                    "$ref": "#/definitions/handler.userResponse"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.decisionRequest": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.evidenceResponse": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.messagesResponse": {
+            "type": "object",
+            "properties": {
+                "case_id": {
+                    "type": "string"
+                },
+                "evidence_message_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "exchange_id": {
+                    "type": "string"
+                },
+                "messages": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.MessageResponse"
+                    }
+                }
+            }
+        },
+        "handler.pageResponse": {
+            "type": "object",
+            "properties": {
+                "cases": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.caseResponse"
+                    }
+                },
+                "pagination": {
+                    "type": "object",
+                    "properties": {
+                        "limit": {
+                            "type": "integer"
+                        },
+                        "offset": {
+                            "type": "integer"
+                        },
+                        "total": {
+                            "type": "integer"
+                        }
+                    }
+                }
+            }
+        },
+        "handler.userResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "nickname": {
+                    "type": "string"
+                },
+                "photo_url": {
                     "type": "string"
                 }
             }

@@ -1,0 +1,261 @@
+// Package llm обращается к локальной модели, которую поднимает Ollama соседним
+// контейнером. Пакет знает ровно одну операцию — короткий вопрос с ответом по
+// JSON-схеме: и антискам в чате обмена, и маршрутизация обращений в поддержку
+// сводятся к ней, поэтому второго метода генерации не появляется.
+//
+// Внешней библиотеки под Ollama нет намеренно: это один GET и один POST, а
+// зависимость пришлось бы обновлять и объяснять. Подробности — docs/llm.md.
+package llm
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	"time"
+)
+
+var (
+	// ErrUnavailable — до сервера Ollama не достучались.
+	ErrUnavailable = errors.New("ollama is unavailable")
+	// ErrModelMissing — сервер отвечает, но модель на нём не скачана. Лечится
+	// иначе, чем ErrUnavailable, поэтому это отдельная ошибка, а не одна на двоих.
+	ErrModelMissing = errors.New("ollama model is not pulled")
+)
+
+const (
+	// Верхняя граница на случай, если Ollama примет соединение и замолчит. Реальный
+	// срок задаёт context вызывающего: на одном ядре разброс между быстрым и
+	// медленным ответом слишком велик, чтобы зашивать его константой.
+	requestTimeout = 2 * time.Minute
+	// Ответ классификатора — несколько токенов (замерено: 7–9 на JSON с одним полем).
+	// Более длинный означает, что модель ушла не туда, и оборвать его дешевле, чем
+	// дочитать.
+	maxResponseTokens = 32
+	// Развёрнутому структурированному ответу (например, карточке объявления) нужно
+	// больше места, чем классификатору. Верхняя граница защищает одноядерный сервер
+	// от случайного запроса на тысячи токенов.
+	maxDetailedResponseTokens = 256
+	// Окно контекста. Больше не нужно: вызывающий обрезает вход, и вместе с промптом
+	// в запрос уходит порядка 400 токенов. Значение одно на всех вызывающих
+	// намеренно — см. inferenceThreads.
+	contextWindow = 1024
+	// Один поток на инференс. В контейнере nproc показывает ядра хоста, а не квоту
+	// cgroup, поэтому по умолчанию Ollama подняла бы столько потоков, сколько ядер у
+	// машины, и молотила бы их внутри `cpus: "0.5"` из прод-оверлея.
+	//
+	// Значение — калибровочная ручка под конкретный сервер: вырастет квота, вырастет и
+	// оно. Менять его на живом сервисе по одному вызову нельзя: num_thread и num_ctx
+	// определяют раннер, и любое расхождение между вызывающими заставляет Ollama
+	// перезагружать веса (замерено: +1–3 с на вызов). Поэтому это константы пакета, а
+	// не аргументы Generate.
+	inferenceThreads = 1
+	// Тело ошибки нужно целиком только в патологическом случае, а в лог оно едет
+	// одной строкой.
+	maxErrorBytes = 512
+)
+
+type Client struct {
+	baseURL string
+	model   string
+	http    *http.Client
+}
+
+// inferenceGate общий для клиентов пакета: main собирает антискам, поддержку и
+// помощника объявлений независимо, но физически они обращаются к одной Ollama на
+// одном ядре. Параллельные запросы не ускоряют модель, а только отнимают CPU у API.
+var inferenceGate = make(chan struct{}, 1)
+
+func New(baseURL, model string) *Client {
+	return &Client{
+		baseURL: strings.TrimSuffix(baseURL, "/"),
+		model:   model,
+		http:    &http.Client{Timeout: requestTimeout},
+	}
+}
+
+// Available проверяет, что сервер поднят и нужная модель уже скачана. Инференс при
+// этом не запускается намеренно: на одноядерном сервере прогрев весов ради проверки
+// живости занял бы ровно то ядро, на котором отвечает API.
+func (c *Client) Available(ctx context.Context) error {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/tags", nil)
+	if err != nil {
+		return fmt.Errorf("build tags request: %w", err)
+	}
+
+	response, err := c.http.Do(request)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrUnavailable, err)
+	}
+	defer func() { _ = response.Body.Close() }()
+
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("%w: tags returned %s", ErrUnavailable, response.Status)
+	}
+
+	var payload struct {
+		Models []struct {
+			Name string `json:"name"`
+		} `json:"models"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
+		return fmt.Errorf("decode tags response: %w", err)
+	}
+
+	wanted := withDefaultTag(c.model)
+	for _, model := range payload.Models {
+		if withDefaultTag(model.Name) == wanted {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("%w: %s", ErrModelMissing, c.model)
+}
+
+// Generate задаёт модели один вопрос и возвращает ответ как есть. Непустой format —
+// это JSON-схема, и тогда Ollama сам принуждает ответ к ней, так что разбирать прозу
+// вызывающему не приходится. Ответ остаётся строкой, а не json.RawMessage: без схемы
+// в нём лежит обычный текст, и выдавать его за JSON было бы враньём в типе.
+//
+// Вызывающий обязан обрезать вход: время ответа определяется длиной запроса, а не
+// длиной ответа. Замерено на одном потоке — 250 токенов промпта это 0.9 с, 690 токенов
+// уже 3.2 с, тогда как сам ответ во всех случаях 7–9 токенов.
+//
+// Первый и пока единственный вызывающий — автоответчик поддержки
+// (internal/support/service/bot.go).
+func (c *Client) Generate(
+	ctx context.Context,
+	system string,
+	user string,
+	format json.RawMessage,
+) (string, error) {
+	return c.generate(ctx, system, user, format, maxResponseTokens)
+}
+
+// GenerateDetailed выполняет тот же структурированный запрос, но оставляет модели
+// место для короткого пользовательского текста. Классификаторы продолжают ходить
+// через Generate и сохраняют прежний лимит в 32 токена.
+func (c *Client) GenerateDetailed(
+	ctx context.Context,
+	system string,
+	user string,
+	format json.RawMessage,
+) (string, error) {
+	return c.generate(ctx, system, user, format, maxDetailedResponseTokens)
+}
+
+func (c *Client) generate(
+	ctx context.Context,
+	system string,
+	user string,
+	format json.RawMessage,
+	responseTokens int,
+) (string, error) {
+	body := chatRequest{
+		Model: c.model,
+		// Ответ нужен целиком и сразу: он короткий, а поток заставил бы склеивать
+		// куски ради пары десятков токенов.
+		Stream: false,
+		Format: format,
+		Options: chatOptions{
+			// Классификации нужен воспроизводимый ответ, а не разнообразие. При нулевой
+			// температуре повторный запрос с тем же текстом даёт тот же ответ; ответ на
+			// чуть иначе сформулированный вопрос может отличаться заметно.
+			Temperature: 0,
+			NumPredict:  responseTokens,
+			NumCtx:      contextWindow,
+			NumThread:   inferenceThreads,
+		},
+	}
+	if system != "" {
+		body.Messages = append(body.Messages, chatMessage{Role: "system", Content: system})
+	}
+	body.Messages = append(body.Messages, chatMessage{Role: "user", Content: user})
+
+	encoded, err := json.Marshal(body)
+	if err != nil {
+		return "", fmt.Errorf("encode chat request: %w", err)
+	}
+
+	request, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		c.baseURL+"/api/chat",
+		bytes.NewReader(encoded),
+	)
+	if err != nil {
+		return "", fmt.Errorf("build chat request: %w", err)
+	}
+	request.Header.Set("Content-Type", "application/json")
+
+	select {
+	case inferenceGate <- struct{}{}:
+		defer func() { <-inferenceGate }()
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
+
+	response, err := c.http.Do(request)
+	if err != nil {
+		return "", fmt.Errorf("%w: %w", ErrUnavailable, err)
+	}
+	defer func() { _ = response.Body.Close() }()
+
+	if response.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("chat returned %s: %s", response.Status, errorBody(response.Body))
+	}
+
+	var payload struct {
+		Message chatMessage `json:"message"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
+		return "", fmt.Errorf("decode chat response: %w", err)
+	}
+
+	return payload.Message.Content, nil
+}
+
+type chatRequest struct {
+	Model    string          `json:"model"`
+	Messages []chatMessage   `json:"messages"`
+	Stream   bool            `json:"stream"`
+	Format   json.RawMessage `json:"format,omitempty"`
+	Options  chatOptions     `json:"options"`
+}
+
+type chatMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+type chatOptions struct {
+	Temperature float64 `json:"temperature"`
+	NumPredict  int     `json:"num_predict"`
+	NumCtx      int     `json:"num_ctx"`
+	NumThread   int     `json:"num_thread"`
+}
+
+// Ollama хранит модель без тега как «:latest», поэтому «qwen2.5» и «qwen2.5:latest»
+// — одно имя. Без приведения проверка доступности врала бы про отсутствие модели.
+func withDefaultTag(model string) string {
+	if strings.Contains(model, ":") {
+		return model
+	}
+
+	return model + ":latest"
+}
+
+// Ollama кладёт причину в {"error": "..."}, но при падении внутри сервера отдаёт и
+// обычный текст. Поэтому берём тело как есть, ограничив длину.
+func errorBody(body io.Reader) string {
+	snippet, err := io.ReadAll(io.LimitReader(body, maxErrorBytes))
+	if err != nil {
+		return "<unreadable>"
+	}
+
+	return strings.TrimSpace(string(snippet))
+}

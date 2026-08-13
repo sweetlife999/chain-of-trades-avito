@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
@@ -17,6 +17,12 @@ export default defineConfig({
       },
     },
   },
+  test: {
+    environment: "jsdom",
+    setupFiles: "./src/test/setup.ts",
+    clearMocks: true,
+    restoreMocks: true,
+  },
   server: {
     proxy: {
       "/api": {
@@ -25,6 +31,14 @@ export default defineConfig({
         secure: false,
 
         rewrite: (path) => path.replace(/^\/api/, ""),
+      },
+
+      // Загруженные фотографии. Без rewrite: в базе лежит путь /uploads/<файл>, и
+      // ровно его же ждёт Go — в проде этот путь проксирует Caddy тем же образом.
+      "/uploads": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+        secure: false,
       },
     },
   },

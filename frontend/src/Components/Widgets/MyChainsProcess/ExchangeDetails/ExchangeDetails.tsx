@@ -23,15 +23,8 @@ import { ExchangeProgress } from "../ExchangeProgress/ExchangeProgress";
 import { ConfirmationPopup } from "../../../UI/ConfirmationPopup/ConfirmationPopup";
 import { CancelExchangeButton } from "../../Admin/CancelExchangeButton/CancelExchangeButton";
 import { ExchangePickupStage } from "../ExchangePickupStage/ExchangePickupStage";
-
-const statusLabels: Record<TExchangeStatus, string> = {
-  proposed: "Ждём подтверждения",
-  confirmed: "Передача вещи в ПВЗ",
-  delivering: "Доставка между ПВЗ",
-  delivered: "Вещь ожидает получения",
-  completed: "Обмен завершён",
-  cancelled: "Цепочка распалась",
-};
+import { ExchangeRating } from "../ExchangeRating/ExchangeRating";
+import { exchangeStatusPresentation } from "../../../../Features/Exchange/exchangeStatus";
 
 const isParticipationConfirmed = (status: string) =>
   ["confirmed", "accepted"].includes(status.toLowerCase());
@@ -198,7 +191,12 @@ const ExchangeDetailsComponent = () => {
 
   const completeMutation = useMutation({
     mutationFn: () => completeExchange(id),
-    onSuccess: refreshExchange,
+    onSuccess: async () => {
+      await Promise.all([
+        refreshExchange(),
+        queryClient.invalidateQueries({ queryKey: ["auth", "me"] }),
+      ]);
+    },
   });
 
   if (isPending) {
@@ -247,6 +245,11 @@ const ExchangeDetailsComponent = () => {
   const isAdmin = Boolean(user?.is_admin);
   const adminCanCancel =
     isAdmin && ["proposed", "confirmed"].includes(exchange.status);
+  // Кого оценивать, решил сервер — здесь только достаём его ник для подписи.
+  const ratedPartnerNickname =
+    exchange.participants.find(
+      ({ user: participant }) => participant.id === exchange.rating?.rated_user_id,
+    )?.user.nickname ?? "участника";
   const returnTo = isParticipant ? "/exchanges" : "/feed";
   const returnLabel = isParticipant ? "Мои цепочки" : "Обмены";
 
@@ -267,7 +270,7 @@ const ExchangeDetailsComponent = () => {
           <span
             className={`${styles.details__status} ${styles[`details__status_${exchange.status}`]}`}
           >
-            {statusLabels[exchange.status]}
+            {exchangeStatusPresentation[exchange.status].detailsLabel}
           </span>
           {adminCanCancel && (
             <CancelExchangeButton
@@ -485,6 +488,13 @@ const ExchangeDetailsComponent = () => {
             exchangeStatus={exchange.status}
             participants={exchange.participants}
           />
+          {exchange.rating && (
+            <ExchangeRating
+              exchangeId={exchange.id}
+              partnerNickname={ratedPartnerNickname}
+              rating={exchange.rating}
+            />
+          )}
           <Link className={styles.details__resultAction} to="/exchanges">
             Вернуться к цепочкам
           </Link>

@@ -34,6 +34,13 @@ linters:
       - path: _test\.go
         linters:
           - gosec
+      # G304 в загрузке файлов: путь склеен из каталога конфигурации и uuid, который
+      # сгенерировал сам сервис. Имя файла от клиента не участвует вовсе — брать его
+      # оттуда и было бы дырой, поэтому мы его отбрасываем.
+      - path: internal/upload/service/service\.go
+        text: G304
+        linters:
+          - gosec
 
 formatters:
   enable:

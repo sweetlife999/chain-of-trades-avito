@@ -193,6 +193,7 @@ func toModel(user db.User) (usermodel.User, error) {
 		DealsCompleted: user.DealsCompleted,
 		DealsBroken:    user.DealsBroken,
 		Rating:         rating,
+		RatingsCount:   user.RatingsCount,
 		IsAdmin:        user.IsAdmin,
 		IsBlocked:      user.IsBlocked,
 		BlockedAt:      blockedAt,

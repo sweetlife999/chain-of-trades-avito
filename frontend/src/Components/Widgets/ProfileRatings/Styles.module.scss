@@ -1,0 +1,226 @@
+.ratings {
+  display: grid;
+  justify-items: start;
+  gap: 16px;
+  padding: clamp(20px, 3vw, 28px);
+
+  background: #fff;
+  border: 1px solid #b8b8b8;
+  border-radius: $border-radius;
+
+  &__titleRow,
+  &__pagination,
+  &__paginationControls,
+  &__ownReviewHeader,
+  &__editButtons {
+    display: flex;
+    align-items: center;
+  }
+
+  &__titleRow {
+    gap: 10px;
+  }
+
+  &__title {
+    @include section-title;
+
+    margin: 0;
+  }
+
+  &__total {
+    display: inline-grid;
+    place-items: center;
+    min-width: 28px;
+    height: 28px;
+    padding: 0 8px;
+
+    color: #5d646d;
+    font-size: 12px;
+    font-weight: 700;
+    background: $background-input;
+    border-radius: 999px;
+  }
+
+  &__state {
+    margin: 0;
+    color: #727780;
+    font-size: 14px;
+
+    &_error {
+      color: #991b1b;
+    }
+  }
+
+  &__ownReviews {
+    display: grid;
+    gap: 10px;
+    width: 100%;
+  }
+
+  &__ownReview {
+    display: grid;
+    gap: 12px;
+    width: 100%;
+    padding: 14px 16px;
+
+    border: 1px solid #dfe7e2;
+    border-radius: $border-radius;
+    background: #f7fbf8;
+  }
+
+  &__ownReviewHeader {
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  &__ownReviewInfo {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+  }
+
+  &__ownReviewTitle {
+    color: #171717;
+    font-size: 14px;
+  }
+
+  &__ownReviewSummary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  &__ownReviewComment {
+    min-width: 0;
+    overflow: hidden;
+    color: #444;
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__ownReviewDeadline {
+    color: #727780;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  &__editForm {
+    display: grid;
+    justify-items: start;
+    gap: 10px;
+    width: 100%;
+    padding-top: 4px;
+  }
+
+  &__editComment {
+    width: 100%;
+  }
+
+  &__editButtons {
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  &__editError {
+    margin: 0;
+    color: #991b1b;
+    font-size: 13px;
+  }
+
+  &__editSaved {
+    margin: 0;
+    color: #166534;
+    font-size: 13px;
+  }
+
+  &__list {
+    display: grid;
+    gap: 14px;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__item {
+    display: grid;
+    gap: 8px;
+    padding: 14px 16px;
+
+    background: $background-input;
+    border-radius: 12px;
+  }
+
+  &__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+
+  &__author {
+    color: #444;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  &__date {
+    color: #777;
+    font-size: 12px;
+  }
+
+  &__comment {
+    margin: 0;
+    color: #202124;
+    font-size: 14px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+
+  &__pagination {
+    justify-content: space-between;
+    gap: 16px;
+    width: 100%;
+    padding-top: 2px;
+  }
+
+  &__paginationSummary,
+  &__paginationCurrent {
+    color: #727780;
+    font-size: 12px;
+  }
+
+  &__paginationControls {
+    gap: 8px;
+  }
+
+  &__paginationCurrent {
+    min-width: 54px;
+    text-align: center;
+  }
+}
+
+@media (max-width: 700px) {
+  .ratings {
+    &__ownReviewHeader {
+      align-items: stretch;
+      flex-direction: column;
+    }
+  }
+}
+
+@media (max-width: 600px) {
+  .ratings {
+    &__pagination {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    &__paginationControls {
+      justify-content: space-between;
+      width: 100%;
+    }
+  }
+}

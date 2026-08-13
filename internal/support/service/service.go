@@ -43,9 +43,16 @@ type Repository interface {
 	CloseByUser(context.Context, uuid.UUID, uuid.UUID) error
 }
 
-type Service struct{ repository Repository }
+type Service struct {
+	repository Repository
+	// Нулевой bot — выключенная фича: пустой OLLAMA_URL не должен мешать поддержке
+	// работать, поэтому проверок на nil у вызовов нет, они внутри Bot.
+	bot *Bot
+}
 
-func New(repository Repository) *Service { return &Service{repository: repository} }
+func New(repository Repository, bot *Bot) *Service {
+	return &Service{repository: repository, bot: bot}
+}
 
 func (s *Service) Create(
 	ctx context.Context,
@@ -68,6 +75,9 @@ func (s *Service) Create(
 	if err != nil {
 		return supportmodel.Thread{}, fmt.Errorf("create support thread: %w", err)
 	}
+	// Автоответ считается в фоне и только на первое сообщение: инференс на этом
+	// сервере занимает то же ядро, что обслуживает HTTP, а ответ обращению нужен один.
+	s.bot.Enqueue(thread.ID, subject, body)
 	return thread, nil
 }
 

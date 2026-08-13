@@ -1,4 +1,13 @@
-import { type FormEvent, memo, useEffect, useMemo, useState } from "react";
+import {
+  type FormEvent,
+  type KeyboardEvent,
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
 import { CheckCircle2, Headset, Plus, Send, X } from "lucide-react";
@@ -16,6 +25,11 @@ import {
 import type { TSupportThread } from "../../../Api/support/support.types";
 import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
 import { AuthRequiredState } from "../../UI/AuthRequiredState/AuthRequiredState";
+import type {
+  MascotMood,
+  MascotMovement,
+} from "../../../Features/Mascot/mascot.types";
+import { SupportAssistant } from "./SupportAssistant";
 
 const statusLabels: Record<TSupportThread["status"], string> = {
   open: "Ждёт ответа",
@@ -40,6 +54,46 @@ const SupportPageComponent = () => {
   const [firstMessage, setFirstMessage] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [assistantMood, setAssistantMood] = useState<MascotMood>("idle");
+  const [assistantMovement, setAssistantMovement] =
+    useState<MascotMovement>("roam");
+  const assistantTimerRef = useRef<number | null>(null);
+  const messagesRef = useRef<HTMLDivElement>(null);
+  const messageInputRef = useRef<HTMLTextAreaElement>(null);
+
+  const showAssistantReaction = useCallback(
+    (
+      nextMood: MascotMood,
+      nextMovement: MascotMovement = "roam",
+      durationMs = 2200,
+    ) => {
+      if (assistantTimerRef.current !== null) {
+        window.clearTimeout(assistantTimerRef.current);
+      }
+
+      setAssistantMood(nextMood);
+      setAssistantMovement(nextMovement);
+      assistantTimerRef.current = window.setTimeout(() => {
+        setAssistantMood("idle");
+        setAssistantMovement("roam");
+        assistantTimerRef.current = null;
+      }, durationMs);
+    },
+    [],
+  );
+
+  useEffect(
+    () => () => {
+      if (assistantTimerRef.current !== null) {
+        window.clearTimeout(assistantTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  const restoreMessageFocus = () => {
+    window.requestAnimationFrame(() => messageInputRef.current?.focus());
+  };
 
   const selectedID = searchParams.get("thread") ?? "";
   const threadsQuery = useQuery({
@@ -64,6 +118,19 @@ const SupportPageComponent = () => {
     enabled: isAuth && Boolean(selectedID),
     refetchInterval: 3000,
   });
+  const messages = useMemo(
+    () => messagesQuery.data?.messages ?? [],
+    [messagesQuery.data?.messages],
+  );
+
+  useEffect(() => {
+    const messagesElement = messagesRef.current;
+
+    messagesElement?.scrollTo({
+      behavior: "smooth",
+      top: messagesElement.scrollHeight,
+    });
+  }, [messages.length, selectedID]);
 
   const refresh = async () => {
     await Promise.all([
@@ -82,18 +149,25 @@ const SupportPageComponent = () => {
       setSearchParams({ thread: thread.id });
       await refresh();
     },
-    onError: (requestError) =>
-      setError(getSupportError(requestError, "Не удалось создать обращение")),
+    onError: (requestError) => {
+      setError(getSupportError(requestError, "Не удалось создать обращение"));
+    },
   });
   const sendMutation = useMutation({
     mutationFn: sendSupportMessage,
     onSuccess: async () => {
       setMessage("");
       setError("");
+      showAssistantReaction("happy");
+      restoreMessageFocus();
       await refresh();
+      restoreMessageFocus();
     },
-    onError: (requestError) =>
-      setError(getSupportError(requestError, "Не удалось отправить сообщение")),
+    onError: (requestError) => {
+      setError(getSupportError(requestError, "Не удалось отправить сообщение"));
+      showAssistantReaction("sad");
+      restoreMessageFocus();
+    },
   });
   const closeMutation = useMutation({
     mutationFn: closeSupportThread,
@@ -121,11 +195,39 @@ const SupportPageComponent = () => {
     event.preventDefault();
     createMutation.mutate({ subject: subject.trim(), body: firstMessage.trim() });
   };
+  const sendCurrentMessage = () => {
+    const value = message.trim();
+
+    if (!selectedID || !value || sendMutation.isPending) {
+      return;
+    }
+
+    showAssistantReaction("thinking");
+    sendMutation.mutate({ threadID: selectedID, body: value });
+  };
   const submitMessage = (event: FormEvent) => {
     event.preventDefault();
-    if (selectedID && message.trim()) {
-      sendMutation.mutate({ threadID: selectedID, body: message.trim() });
+    sendCurrentMessage();
+  };
+  const handleMessageKeyDown = (
+    event: KeyboardEvent<HTMLTextAreaElement>,
+  ) => {
+    if (
+      event.key === "Enter" &&
+      !event.shiftKey &&
+      !event.nativeEvent.isComposing
+    ) {
+      event.preventDefault();
+      sendCurrentMessage();
     }
+  };
+  const selectSupportHint = (hint: string) => {
+    setMessage(hint);
+    showAssistantReaction("happy");
+    window.requestAnimationFrame(() => {
+      messageInputRef.current?.focus();
+      messageInputRef.current?.setSelectionRange(hint.length, hint.length);
+    });
   };
 
   return (
@@ -185,7 +287,7 @@ const SupportPageComponent = () => {
 
         <section className={styles.support__chat}>
           {!selectedID && (
-            <div className={styles.support__empty}><Headset size={46} /><h2>Напишите нам</h2><p>Создайте обращение, и команда поддержки поможет разобраться.</p></div>
+            <div className={styles.support__empty}><Headset size={32} /><h2>Напишите нам</h2><p>Создайте обращение, и команда поддержки поможет разобраться.</p></div>
           )}
           {selectedID && messagesQuery.isPending && <p className={styles.support__state}>Загружаем переписку...</p>}
           {selectedID && messagesQuery.isError && <p className={styles.support__error}>Не удалось открыть переписку.</p>}
@@ -199,8 +301,8 @@ const SupportPageComponent = () => {
                   </button>
                 )}
               </div>
-              <div className={styles.support__messages}>
-                {(messagesQuery.data?.messages ?? []).map((item) => {
+              <div className={styles.support__messages} ref={messagesRef}>
+                {messages.map((item) => {
                   const own = item.author.id === user?.id;
                   return (
                     <article className={clsx(styles.support__message, own && styles.support__message_own)} key={item.id}>
@@ -212,10 +314,36 @@ const SupportPageComponent = () => {
               </div>
               {error && <p className={styles.support__error}>{error}</p>}
               {selectedThread.status !== "closed" ? (
-                <form className={styles.support__composer} onSubmit={submitMessage}>
-                  <textarea aria-label="Сообщение" maxLength={4000} placeholder="Напишите сообщение..." required rows={2} value={message} onChange={(event) => setMessage(event.target.value)} />
-                  <button aria-label="Отправить" disabled={sendMutation.isPending || !message.trim()} type="submit"><Send size={20} /></button>
-                </form>
+                <div className={styles.support__composerArea}>
+                  <SupportAssistant
+                    level={user?.experience.level}
+                    mood={assistantMood}
+                    movement={assistantMovement}
+                    onHintPreview={() =>
+                      showAssistantReaction("hint", "approach")
+                    }
+                    onHintSelect={selectSupportHint}
+                  />
+                  <form className={styles.support__composer} onSubmit={submitMessage}>
+                    <textarea
+                      aria-label="Сообщение"
+                      maxLength={4000}
+                      placeholder="Напишите сообщение..."
+                      ref={messageInputRef}
+                      required
+                      rows={2}
+                      value={message}
+                      onChange={(event) => {
+                        if (!message && event.target.value) {
+                          showAssistantReaction("listening");
+                        }
+                        setMessage(event.target.value);
+                      }}
+                      onKeyDown={handleMessageKeyDown}
+                    />
+                    <button aria-label="Отправить" disabled={sendMutation.isPending || !message.trim()} type="submit"><Send size={20} /></button>
+                  </form>
+                </div>
               ) : (
                 <p className={styles.support__closed}>Обращение закрыто. Можно создать новое.</p>
               )}

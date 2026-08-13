@@ -1,6 +1,7 @@
 import {
   memo,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent,
@@ -81,6 +82,7 @@ const ExchangeChatComponent = ({
   const [body, setBody] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
   const lastMarkedMessageRef = useRef<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const queryClient = useQueryClient();
   const queryKey = ["exchanges", exchangeId, "messages"] as const;
 
@@ -112,16 +114,17 @@ const ExchangeChatComponent = ({
         exact: true,
       });
       setBody("");
+      window.requestAnimationFrame(() => textareaRef.current?.focus());
     },
   });
 
-  const messages = messagesQuery.data ?? [];
+  const messages = useMemo(() => messagesQuery.data ?? [], [messagesQuery.data]);
   const lastMessageId = messages.at(-1)?.id;
 
   useEffect(() => {
     endRef.current?.scrollIntoView({
       behavior: "smooth",
-      block: "end",
+      block: "start",
     });
   }, [messages.length]);
 
@@ -132,7 +135,7 @@ const ExchangeChatComponent = ({
 
     lastMarkedMessageRef.current = lastMessageId;
 
-     markExchangeMessagesRead(exchangeId, lastMessageId)
+    markExchangeMessagesRead(exchangeId, lastMessageId)
       .then(() =>
         queryClient.invalidateQueries({
           queryKey: ["exchanges"],
@@ -157,7 +160,11 @@ const ExchangeChatComponent = ({
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === "Enter" && !event.shiftKey) {
+    if (
+      event.key === "Enter" &&
+      !event.shiftKey &&
+      !event.nativeEvent.isComposing
+    ) {
       event.preventDefault();
       submitMessage();
     }
@@ -312,6 +319,7 @@ const ExchangeChatComponent = ({
           }}
         >
           <textarea
+            ref={textareaRef}
             className={styles.chat__textarea}
             maxLength={2000}
             onChange={(event) => setBody(event.target.value)}

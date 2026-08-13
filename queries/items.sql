@@ -3,13 +3,25 @@
 -- ловит NOT NULL на колонке. Так «такой категории нет» — ошибка БД, а не тихая подстановка.
 
 -- name: InsertItem :one
-INSERT INTO items (owner_id, category_id, title, description, photo_urls)
+INSERT INTO items (
+    owner_id,
+    category_id,
+    title,
+    description,
+    photo_urls,
+    max_chain_length,
+    min_participant_rating,
+    prefer_reliable_participants
+)
 VALUES (
     sqlc.arg(owner_id),
     (SELECT id FROM categories WHERE slug = sqlc.arg(category)),
     sqlc.arg(title),
     sqlc.arg(description),
-    sqlc.arg(photo_urls)
+    sqlc.arg(photo_urls),
+    sqlc.arg(max_chain_length),
+    sqlc.arg(min_participant_rating),
+    sqlc.arg(prefer_reliable_participants)
 )
 RETURNING id;
 
@@ -83,6 +95,12 @@ UPDATE items SET
     title       = COALESCE(sqlc.narg(title), title),
     description = COALESCE(sqlc.narg(description), description),
     photo_urls  = COALESCE(sqlc.narg(photo_urls)::text[], photo_urls),
+    max_chain_length = COALESCE(sqlc.narg(max_chain_length), max_chain_length),
+    min_participant_rating = COALESCE(sqlc.narg(min_participant_rating), min_participant_rating),
+    prefer_reliable_participants = COALESCE(
+        sqlc.narg(prefer_reliable_participants),
+        prefer_reliable_participants
+    ),
     category_id = CASE
         WHEN sqlc.narg(category)::text IS NULL THEN items.category_id
         ELSE (SELECT c.id FROM categories c WHERE c.slug = sqlc.narg(category))

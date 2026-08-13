@@ -39,6 +39,32 @@ func TestRankCyclesPrefersReliableParticipants(t *testing.T) {
 	assertFirstCycleContains(t, ranked, reliable.ItemID)
 }
 
+func TestRankCyclesCanDisableReliabilityPreference(t *testing.T) {
+	t.Parallel()
+	unreliable := rankingNode(1)
+	reliable := rankingNode(2)
+	first := []exchangemodel.Node{unreliable, rankingNode(3)}
+	second := []exchangemodel.Node{reliable, rankingNode(4)}
+	stats := neutralStats([][]exchangemodel.Node{first, second})
+	stats[unreliable.OwnerID] = searchStats(unreliable.OwnerID, 2, 8, neutralRating)
+	stats[reliable.OwnerID] = searchStats(reliable.OwnerID, 8, 2, neutralRating)
+	filters := map[uuid.UUID]exchangemodel.SearchItemFilters{}
+	for _, cycle := range [][]exchangemodel.Node{first, second} {
+		for _, node := range cycle {
+			filters[node.ItemID] = exchangemodel.SearchItemFilters{ItemID: node.ItemID}
+		}
+	}
+
+	ranked := RankCyclesWithFilters([][]exchangemodel.Node{first, second}, stats, filters)
+	wantFirst := first
+	if cycleCompositionKey(second) < cycleCompositionKey(first) {
+		wantFirst = second
+	}
+	if cycleCompositionKey(ranked[0]) != cycleCompositionKey(wantFirst) {
+		t.Fatalf("reliability affected disabled preference: first = %q, want %q", cycleCompositionKey(ranked[0]), cycleCompositionKey(wantFirst))
+	}
+}
+
 func TestRankCyclesPrefersShorterCycleWhenUsersAreEqual(t *testing.T) {
 	t.Parallel()
 
@@ -60,8 +86,8 @@ func TestRankCyclesTreatsMissingStatsAsNeutral(t *testing.T) {
 	explicitNeutralCycle := []exchangemodel.Node{rankingNode(3), rankingNode(4)}
 	stats := neutralStats([][]exchangemodel.Node{explicitNeutralCycle})
 
-	missingScore := cycleScore(missingStatsCycle, stats)
-	neutralScore := cycleScore(explicitNeutralCycle, stats)
+	missingScore := cycleScore(missingStatsCycle, stats, true)
+	neutralScore := cycleScore(explicitNeutralCycle, stats, true)
 	if missingScore != neutralScore {
 		t.Fatalf("missing stats score = %f, explicit neutral score = %f", missingScore, neutralScore)
 	}

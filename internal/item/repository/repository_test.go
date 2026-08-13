@@ -32,6 +32,11 @@ func TestRepositoryAgainstDatabase(t *testing.T) {
 	}
 
 	repository := New(pool)
+	defaultSearchFilters := itemmodel.SearchFilters{
+		MaxChainLength:             5,
+		MinParticipantRating:       0,
+		PreferReliableParticipants: true,
+	}
 
 	// Пользователь уносит за собой свои вещи (items.owner_id ON DELETE CASCADE),
 	// поэтому убирать за тестом достаточно его одного.
@@ -48,12 +53,13 @@ func TestRepositoryAgainstDatabase(t *testing.T) {
 	})
 
 	created, err := repository.Create(ctx, itemmodel.NewItem{
-		OwnerID:     ownerID,
-		Category:    "bikes",
-		Title:       "Велосипед",
-		Description: "Почти новый",
-		PhotoURLs:   []string{"https://example.com/1.jpg", "https://example.com/2.jpg"},
-		Wants:       []string{"consoles", "phones"},
+		OwnerID:       ownerID,
+		Category:      "bikes",
+		Title:         "Велосипед",
+		Description:   "Почти новый",
+		PhotoURLs:     []string{"https://example.com/1.jpg", "https://example.com/2.jpg"},
+		Wants:         []string{"consoles", "phones"},
+		SearchFilters: defaultSearchFilters,
 	})
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
@@ -70,22 +76,24 @@ func TestRepositoryAgainstDatabase(t *testing.T) {
 	}
 
 	_, err = repository.Create(ctx, itemmodel.NewItem{
-		OwnerID:   ownerID,
-		Category:  "no-such-category",
-		Title:     "Мимо справочника",
-		PhotoURLs: []string{"https://example.com/1.jpg"},
-		Wants:     []string{"books"},
+		OwnerID:       ownerID,
+		Category:      "no-such-category",
+		Title:         "Мимо справочника",
+		PhotoURLs:     []string{"https://example.com/1.jpg"},
+		Wants:         []string{"books"},
+		SearchFilters: defaultSearchFilters,
 	})
 	if !errors.Is(err, ErrUnknownCategory) {
 		t.Fatalf("Create() with unknown category error = %v, want ErrUnknownCategory", err)
 	}
 
 	if _, err := repository.Create(ctx, itemmodel.NewItem{
-		OwnerID:   ownerID,
-		Category:  "bikes",
-		Title:     "Мимо справочника в желаниях",
-		PhotoURLs: []string{"https://example.com/1.jpg"},
-		Wants:     []string{"books", "no-such-category"},
+		OwnerID:       ownerID,
+		Category:      "bikes",
+		Title:         "Мимо справочника в желаниях",
+		PhotoURLs:     []string{"https://example.com/1.jpg"},
+		Wants:         []string{"books", "no-such-category"},
+		SearchFilters: defaultSearchFilters,
 	}); !errors.Is(err, ErrUnknownCategory) {
 		t.Fatalf("Create() with unknown want error = %v, want ErrUnknownCategory", err)
 	}
@@ -143,11 +151,12 @@ func TestRepositoryAgainstDatabase(t *testing.T) {
 		_, _ = pool.Exec(context.Background(), `DELETE FROM users WHERE id = $1`, strangerID)
 	})
 	if _, err := repository.Create(ctx, itemmodel.NewItem{
-		OwnerID:   strangerID,
-		Category:  "phones",
-		Title:     "Чужой смартфон",
-		PhotoURLs: []string{"https://example.com/stranger.jpg"},
-		Wants:     []string{"bikes"},
+		OwnerID:       strangerID,
+		Category:      "phones",
+		Title:         "Чужой смартфон",
+		PhotoURLs:     []string{"https://example.com/stranger.jpg"},
+		Wants:         []string{"bikes"},
+		SearchFilters: defaultSearchFilters,
 	}); err != nil {
 		t.Fatalf("Create() stranger item error = %v", err)
 	}
@@ -165,11 +174,12 @@ func TestRepositoryAgainstDatabase(t *testing.T) {
 
 	// Вещь, занятую в цепочке, удалить нельзя — из этой ошибки хэндлер делает 409.
 	partner, err := repository.Create(ctx, itemmodel.NewItem{
-		OwnerID:   ownerID,
-		Category:  "phones",
-		Title:     "Смартфон",
-		PhotoURLs: []string{"https://example.com/phone.jpg"},
-		Wants:     []string{"bikes"},
+		OwnerID:       ownerID,
+		Category:      "phones",
+		Title:         "Смартфон",
+		PhotoURLs:     []string{"https://example.com/phone.jpg"},
+		Wants:         []string{"bikes"},
+		SearchFilters: defaultSearchFilters,
 	})
 	if err != nil {
 		t.Fatalf("Create() partner item error = %v", err)

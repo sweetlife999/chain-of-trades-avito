@@ -1,4 +1,12 @@
-import { type FormEvent, memo, useState } from "react";
+import {
+  type FormEvent,
+  type KeyboardEvent,
+  memo,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
 import { CheckCircle2, Headset, Send, UserCheck } from "lucide-react";
@@ -45,12 +53,21 @@ const AdminSupportComponent = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedID = searchParams.get("thread") ?? "";
   const [filter, setFilter] = useState<TFilter>("");
+  // По умолчанию очередь показывает только то, что ждёт человека: на остальное уже
+  // ответил автоответчик, и пользователь не возражал.
+  const [needsHuman, setNeedsHuman] = useState(true);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const endRef = useRef<HTMLDivElement>(null);
+  const messageInputRef = useRef<HTMLTextAreaElement>(null);
+
+  const restoreMessageFocus = () => {
+    window.requestAnimationFrame(() => messageInputRef.current?.focus());
+  };
 
   const listQuery = useQuery({
-    queryKey: ["admin-support", "threads", filter],
-    queryFn: () => getAdminSupportThreads({ status: filter || undefined, limit: 100 }),
+    queryKey: ["admin-support", "threads", filter, needsHuman],
+    queryFn: () => getAdminSupportThreads({ status: filter || undefined, needs_human: needsHuman || undefined, limit: 100 }),
     refetchInterval: 4000,
   });
   const messagesQuery = useQuery({
@@ -59,6 +76,17 @@ const AdminSupportComponent = () => {
     enabled: Boolean(selectedID),
     refetchInterval: 3000,
   });
+  const messages = useMemo(
+    () => messagesQuery.data?.messages ?? [],
+    [messagesQuery.data?.messages],
+  );
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }, [messages.length, selectedID]);
 
   const refresh = async () => {
     await Promise.all([
@@ -78,9 +106,14 @@ const AdminSupportComponent = () => {
     onSuccess: async () => {
       setMessage("");
       setError("");
+      restoreMessageFocus();
       await refresh();
+      restoreMessageFocus();
     },
-    onError: (requestError) => mutationError(requestError, "Не удалось отправить ответ"),
+    onError: (requestError) => {
+      mutationError(requestError, "Не удалось отправить ответ");
+      restoreMessageFocus();
+    },
   });
   const closeMutation = useMutation({
     mutationFn: closeAdminSupportThread,
@@ -96,10 +129,29 @@ const AdminSupportComponent = () => {
     next.set("thread", id);
     setSearchParams(next);
   };
+  const sendCurrentMessage = () => {
+    const value = message.trim();
+
+    if (!selectedID || !value || sendMutation.isPending) {
+      return;
+    }
+
+    sendMutation.mutate({ threadID: selectedID, body: value });
+  };
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (selectedID && message.trim()) {
-      sendMutation.mutate({ threadID: selectedID, body: message.trim() });
+    sendCurrentMessage();
+  };
+  const handleMessageKeyDown = (
+    event: KeyboardEvent<HTMLTextAreaElement>,
+  ) => {
+    if (
+      event.key === "Enter" &&
+      !event.shiftKey &&
+      !event.nativeEvent.isComposing
+    ) {
+      event.preventDefault();
+      sendCurrentMessage();
     }
   };
 
@@ -111,6 +163,7 @@ const AdminSupportComponent = () => {
           {filters.map((item) => (
             <button className={filter === item.value ? styles.support__filter_active : ""} key={item.value} type="button" onClick={() => setFilter(item.value)}>{item.label}</button>
           ))}
+          <button className={clsx(styles.support__needshuman, needsHuman && styles.support__filter_active)} type="button" onClick={() => setNeedsHuman((value) => !value)}>{needsHuman ? "Ждут человека" : "Показаны все"}</button>
         </div>
       </div>
 
@@ -118,11 +171,11 @@ const AdminSupportComponent = () => {
         <aside className={styles.support__queue}>
           {listQuery.isPending && <p>Загрузка...</p>}
           {listQuery.isError && <p className={styles.support__error}>Не удалось загрузить очередь.</p>}
-          {listQuery.data?.threads.length === 0 && <div className={styles.support__empty}><Headset size={28} />Обращений нет</div>}
+          {listQuery.data?.threads.length === 0 && <div className={styles.support__empty}><Headset size={28} />{needsHuman ? "Ни одно обращение не ждёт человека" : "Обращений нет"}</div>}
           {listQuery.data?.threads.map((item) => (
             <button className={clsx(styles.support__thread, selectedID === item.id && styles.support__thread_active)} key={item.id} type="button" onClick={() => openThread(item.id)}>
               <span><strong>{item.subject}</strong>{item.unread_count > 0 && <b>{item.unread_count}</b>}</span>
-              <span>{item.user?.nickname ?? "Пользователь"} · {statusLabels[item.status]}</span>
+              <span>{item.user?.nickname ?? "Пользователь"} · {statusLabels[item.status]}{item.escalated_at && <i className={styles.support__escalated}>нужен человек</i>}</span>
               <small>{formatDate(item.last_message_at ?? item.created_at)}</small>
             </button>
           ))}
@@ -135,22 +188,32 @@ const AdminSupportComponent = () => {
           {thread && (
             <>
               <header className={styles.support__chatHeader}>
-                <div><h3>{thread.subject}</h3><span>{thread.user?.nickname} · {statusLabels[thread.status]}{thread.assigned_admin ? ` · админ ${thread.assigned_admin.nickname}` : ""}</span></div>
+                <div><h3>{thread.subject}</h3><span>{thread.user?.nickname} · {statusLabels[thread.status]}{thread.assigned_admin ? ` · админ ${thread.assigned_admin.nickname}` : ""}{thread.escalated_at && <i className={styles.support__escalated}>автоответ не помог</i>}</span></div>
                 <div className={styles.support__actions}>
                   {thread.status === "open" && <button disabled={assignMutation.isPending} type="button" onClick={() => assignMutation.mutate(thread.id)}><UserCheck size={17} />Взять в работу</button>}
                   {thread.status === "in_progress" && assignedToMe && <button disabled={closeMutation.isPending} type="button" onClick={() => closeMutation.mutate(thread.id)}><CheckCircle2 size={17} />Закрыть</button>}
                 </div>
               </header>
               <div className={styles.support__messages}>
-                {(messagesQuery.data?.messages ?? []).map((item) => {
+                {messages.map((item) => {
                   const adminMessage = item.author.is_admin;
                   return <article className={clsx(styles.support__message, adminMessage && styles.support__message_admin)} key={item.id}><strong>{item.author.nickname}{adminMessage ? " · администратор" : ""}</strong><p>{item.body}</p><time>{formatDate(item.created_at)}</time></article>;
                 })}
+                <div ref={endRef} />
               </div>
               {error && <p className={styles.support__error}>{error}</p>}
               {thread.status === "in_progress" && assignedToMe ? (
                 <form className={styles.support__composer} onSubmit={submit}>
-                  <textarea maxLength={4000} placeholder="Ответ пользователю..." required rows={2} value={message} onChange={(event) => setMessage(event.target.value)} />
+                  <textarea
+                    maxLength={4000}
+                    placeholder="Ответ пользователю..."
+                    ref={messageInputRef}
+                    required
+                    rows={2}
+                    value={message}
+                    onChange={(event) => setMessage(event.target.value)}
+                    onKeyDown={handleMessageKeyDown}
+                  />
                   <button aria-label="Отправить" disabled={sendMutation.isPending || !message.trim()} type="submit"><Send size={20} /></button>
                 </form>
               ) : thread.status !== "closed" ? (

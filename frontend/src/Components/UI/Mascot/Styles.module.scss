@@ -1,0 +1,448 @@
+.mascot {
+  --mascot-green: #00a86b;
+  --mascot-green-dark: #087848;
+  --mascot-green-light: #62e2a7;
+  --mascot-screen: #14231d;
+  --mascot-cream: #f6fffa;
+  --mascot-size: 190px;
+
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 14px;
+  min-width: 0;
+
+  &_size_tiny { --mascot-size: 72px; }
+  &_size_small { --mascot-size: 96px; }
+  &_size_medium { --mascot-size: 154px; }
+  &_size_large { --mascot-size: min(31vw, 300px); }
+
+  &_placement_landing {
+    flex-direction: column;
+    align-items: center;
+
+    // Бабл живёт по таймеру: в потоке его появление и исчезновение двигало
+    // маскота с подписью внутри отцентрованного героя. Вне потока — не двигает.
+    .mascot__bubble {
+      position: absolute;
+      right: 0;
+      bottom: 100%;
+      left: 0;
+      margin: 0 auto 10px;
+    }
+  }
+
+  &_placement_chat {
+    align-items: center;
+    justify-content: flex-start;
+  }
+
+  &_placement_floating {
+    width: min(280px, calc(100vw - 24px));
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+
+    .mascot__bubble {
+      width: min(280px, calc(100vw - 24px));
+      border-radius: 16px 16px 5px;
+    }
+  }
+
+  &__stage {
+    position: relative;
+    width: var(--mascot-size);
+    min-width: var(--mascot-size);
+    aspect-ratio: 240 / 280;
+    isolation: isolate;
+  }
+
+  &__robot {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    filter: drop-shadow(0 16px 18px rgb(17 59 38 / 16%));
+    transform-origin: 50% 90%;
+    animation: mascotFloat 3.8s ease-in-out infinite;
+  }
+
+  &__shadow {
+    position: absolute;
+    z-index: 1;
+    left: 22%;
+    right: 22%;
+    bottom: 0;
+    height: 8%;
+    border-radius: 50%;
+    background: rgb(15 60 37 / 16%);
+    filter: blur(6px);
+    animation: shadowFloat 3.8s ease-in-out infinite;
+  }
+
+  &__bubble {
+    position: relative;
+    z-index: 4;
+    width: min(330px, 72vw);
+    padding: 13px 15px;
+    color: #20362b;
+    background: rgb(255 255 255 / 96%);
+    border: 1px solid #cceadd;
+    border-radius: 16px 16px 16px 5px;
+    box-shadow: 0 12px 34px rgb(31 75 53 / 12%);
+    font-size: 13px;
+    line-height: 1.45;
+    text-rendering: optimizeLegibility;
+    animation: bubbleIn .32s cubic-bezier(.2, .8, .2, 1) both;
+
+    &_attention {
+      border-color: #90d8b9;
+      box-shadow: 0 12px 34px rgb(0 153 81 / 16%);
+    }
+  }
+
+  &__bubbleName {
+    display: inline-grid;
+    width: 23px;
+    height: 23px;
+    margin-right: 7px;
+    place-items: center;
+    color: #fff;
+    // Не var(--mascot-green): значок живёт на белом бабле, а не на корпусе.
+    // Со светлым скином (CTA лендинга) он уезжал в белое по белому.
+    background: #00a86b;
+    border-radius: 8px;
+    font-size: 13px;
+  }
+
+  &__bubbleText {
+    overflow-wrap: anywhere;
+  }
+
+  &__bubbleFooter {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 11px;
+  }
+
+  &__bubbleMeta {
+    color: #6d7d74;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  &__bubbleAction {
+    min-height: 32px;
+    margin-left: auto;
+    padding: 6px 13px;
+    color: #fff;
+    border: 0;
+    border-radius: 9px;
+    background: var(--mascot-green-dark);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    pointer-events: auto;
+
+    &:hover { background: #05683d; }
+
+    &:focus-visible {
+      outline: 3px solid rgb(0 168 107 / 24%);
+      outline-offset: 2px;
+    }
+  }
+
+  &__antenna path,
+  &__leftArm rect,
+  &__leftArm circle,
+  &__rightArm rect,
+  &__rightArm circle,
+  &__leftLeg rect,
+  &__rightLeg rect {
+    fill: var(--mascot-green);
+    stroke: var(--mascot-green-dark);
+    stroke-width: 4;
+  }
+
+  &__antenna circle {
+    fill: var(--mascot-green-light);
+    stroke: var(--mascot-green-dark);
+    stroke-width: 4;
+  }
+
+  &__antenna path {
+    fill: none;
+    stroke-linecap: round;
+  }
+
+  &__antennaGlow {
+    opacity: 0;
+    stroke: #b9ffdc !important;
+    stroke-width: 9 !important;
+    filter: blur(5px);
+  }
+
+  &__torso,
+  &__headShell {
+    fill: var(--mascot-green);
+    stroke: var(--mascot-green-dark);
+    stroke-width: 5;
+  }
+
+  &__chest {
+    fill: #e8fff3;
+    stroke: #087848;
+    stroke-width: 4;
+  }
+
+  &__letter {
+    fill: #087848;
+    font-family: Arial, sans-serif;
+    font-size: 37px;
+    font-weight: 900;
+  }
+
+  &__face { fill: var(--mascot-screen); }
+  &__eye { fill: #9bffd0; filter: drop-shadow(0 0 5px #4df4a5); transform-origin: center; }
+  &__mouth { fill: none; stroke: #9bffd0; stroke-width: 4; stroke-linecap: round; }
+  &__cheek { fill: #4ccb91; opacity: .35; }
+  &__head { transform-origin: 120px 130px; }
+  &__leftArm { transform-origin: 45px 139px; }
+  &__rightArm { transform-origin: 195px 139px; }
+  &__rightLeg {
+    transform-box: fill-box;
+    transform-origin: 50% 16%;
+  }
+  &__thinkingDots { opacity: 0; fill: var(--mascot-green); }
+
+  &__levelBadge {
+    circle {
+      fill: #fff4bd;
+      stroke: #c98e17;
+      stroke-width: 3;
+    }
+
+    text {
+      fill: #8c5c05;
+      font-family: Arial, sans-serif;
+      font-size: 17px;
+      font-weight: 900;
+    }
+  }
+
+  &__headphones {
+    path {
+      fill: none;
+      stroke: #2f5dff;
+      stroke-linecap: round;
+      stroke-width: 8;
+    }
+
+    rect {
+      fill: #7693ff;
+      stroke: #1f3ca6;
+      stroke-width: 3;
+    }
+  }
+
+  &__shoulderLights {
+    fill: #72d9ff;
+    stroke: #197eab;
+    stroke-width: 3;
+    filter: drop-shadow(0 0 5px #72d9ff);
+  }
+
+  &__crown {
+    fill: #ffd75b;
+    stroke: #b87a00;
+    stroke-linejoin: round;
+    stroke-width: 3;
+    filter: drop-shadow(0 3px 4px rgb(160 96 0 / 30%));
+
+    circle { fill: #ff6969; }
+  }
+
+  &_level_2 {
+    --mascot-green-light: #94ebff;
+  }
+
+  &_level_3 {
+    --mascot-green: #169b79;
+    --mascot-green-dark: #06634e;
+  }
+
+  &_level_4 {
+    --mascot-green: #247fbb;
+    --mascot-green-dark: #174d82;
+    --mascot-green-light: #8bdcff;
+  }
+
+  &_level_5 {
+    --mascot-green: #7657d5;
+    --mascot-green-dark: #493197;
+    --mascot-green-light: #cabaff;
+  }
+
+  &__confetti {
+    position: absolute;
+    z-index: 3;
+    inset: -4% -6% 22%;
+    pointer-events: none;
+    opacity: 0;
+
+    i {
+      position: absolute;
+      width: 6px;
+      height: 11px;
+      border-radius: 2px;
+      background: var(--mascot-green);
+    }
+
+    i:nth-child(1) { left: 8%; top: 18%; transform: rotate(-25deg); }
+    i:nth-child(2) { left: 24%; top: 4%; background: #f0bd3f; transform: rotate(24deg); }
+    i:nth-child(3) { left: 43%; top: 12%; background: #e0656b; transform: rotate(-16deg); }
+    i:nth-child(4) { right: 27%; top: 2%; background: #50a8ff; transform: rotate(31deg); }
+    i:nth-child(5) { right: 8%; top: 19%; background: #f0bd3f; transform: rotate(-35deg); }
+    i:nth-child(6) { right: 17%; top: 42%; background: #e0656b; transform: rotate(18deg); }
+  }
+
+  &_mood_hello {
+    .mascot__rightArm { animation: wave .7s ease-in-out 4; }
+    .mascot__robot { animation: helloBounce .8s cubic-bezier(.2,.8,.2,1) 1, mascotFloat 3.8s .8s ease-in-out infinite; }
+  }
+
+  &_mood_listening {
+    .mascot__head { animation: listenTilt 1.2s ease-in-out infinite alternate; }
+    .mascot__eye { animation: blink 2.2s ease-in-out infinite; }
+  }
+
+  &_mood_thinking {
+    .mascot__head { animation: thinkTilt 1.5s ease-in-out infinite alternate; }
+    .mascot__eyes { transform: translateY(-5px); }
+    .mascot__thinkingDots { opacity: 1; animation: thinkingDots 1.1s ease-in-out infinite alternate; }
+  }
+
+  &_mood_hint {
+    .mascot__antennaGlow { opacity: .75; animation: antennaPulse .9s ease-in-out infinite alternate; }
+    .mascot__rightArm { animation: pointUp .9s ease-in-out infinite alternate; }
+  }
+
+  &_mood_happy {
+    .mascot__robot { animation: happyBounce .6s cubic-bezier(.22,.9,.28,1.25) 2, mascotFloat 3.8s 1.2s ease-in-out infinite; }
+    .mascot__eye { transform: scaleY(.7); }
+  }
+
+  &_mood_celebrate {
+    .mascot__robot { animation: celebrateBounce .62s cubic-bezier(.22,.9,.28,1.25) 3, mascotFloat 3.8s 1.86s ease-in-out infinite; }
+    .mascot__leftArm { animation: armsUp .55s ease-in-out infinite alternate; }
+    .mascot__rightArm { animation: armsUpRight .55s ease-in-out infinite alternate; }
+    // forwards обязателен: без него после двух вспышек анимация снимается,
+    // opacity возвращается к 1 из строки выше, и конфетти застывает на экране.
+    .mascot__confetti { opacity: 1; animation: confettiPop 1.1s ease-out 2 forwards; }
+  }
+
+  &_mood_concerned {
+    .mascot__head { transform: rotate(-5deg) translateY(4px); }
+    .mascot__eye { transform: scaleY(.72); }
+    .mascot__robot { animation: concernedSway 1.8s ease-in-out infinite alternate; }
+  }
+
+  &_mood_pointing {
+    .mascot__head { animation: pointLook 1.1s ease-in-out infinite alternate; }
+    .mascot__rightArm { animation: pointDown .72s ease-in-out infinite alternate; }
+    .mascot__antennaGlow { opacity: .55; animation: antennaPulse .9s ease-in-out infinite alternate; }
+  }
+
+  &_mood_excited {
+    .mascot__robot { animation: excitedBounce .48s ease-in-out infinite alternate; }
+    .mascot__leftArm { animation: excitedArm .48s ease-in-out infinite alternate; }
+    .mascot__rightArm { animation: excitedArmRight .48s ease-in-out infinite alternate; }
+  }
+
+  &_mood_sad {
+    .mascot__head { animation: sadHead 1.8s ease-in-out infinite alternate; }
+    .mascot__eye { transform: scaleY(.58); }
+    .mascot__leftArm { transform: rotate(-8deg) translateY(5px); }
+    .mascot__rightArm { transform: rotate(8deg) translateY(5px); }
+    .mascot__rightLeg { animation: errorFoot .55s ease-in-out 3 alternate; }
+  }
+
+  &_mood_bored {
+    .mascot__head { animation: boredLook 3.2s ease-in-out infinite; }
+    .mascot__eye { animation: boredBlink 3.2s ease-in-out infinite; }
+  }
+
+  &_mood_reading {
+    .mascot__head { animation: readSweep 2.2s ease-in-out infinite; }
+    .mascot__eyes { animation: readEyes 1.1s steps(2, end) infinite; }
+  }
+
+  &_mood_angry {
+    .mascot__head { animation: angryShake .32s ease-in-out 5 alternate; }
+    .mascot__eye { transform: scaleY(.62) rotate(5deg); }
+  }
+
+  &_movement_scan {
+    .mascot__head { animation: readSweep 1.7s ease-in-out infinite; }
+  }
+
+  &_movement_kick {
+    .mascot__rightLeg { animation: kick .9s ease-in-out infinite; }
+  }
+}
+
+@keyframes mascotFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes shadowFloat { 0%, 100% { transform: scale(1); opacity: .7; } 50% { transform: scale(.88); opacity: .45; } }
+@keyframes bubbleIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes wave { 0%, 100% { transform: rotate(0deg); } 45% { transform: rotate(-55deg) translate(2px, -8px); } }
+@keyframes helloBounce { 0% { transform: translateY(14px) scale(.94); } 55% { transform: translateY(-9px) scale(1.02); } 100% { transform: none; } }
+@keyframes listenTilt { from { transform: rotate(-4deg); } to { transform: rotate(6deg); } }
+@keyframes blink { 0%, 44%, 50%, 100% { transform: scaleY(1); } 47% { transform: scaleY(.08); } }
+@keyframes thinkTilt { from { transform: rotate(-2deg); } to { transform: rotate(7deg); } }
+@keyframes thinkingDots { from { transform: translateY(3px); opacity: .35; } to { transform: translateY(-4px); opacity: 1; } }
+@keyframes antennaPulse { from { opacity: .25; } to { opacity: 1; } }
+@keyframes pointUp { from { transform: rotate(0deg); } to { transform: rotate(-34deg) translateY(-8px); } }
+@keyframes happyBounce { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-13px) scale(1.025); } }
+@keyframes celebrateBounce { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-17px) rotate(2deg); } }
+@keyframes armsUp { from { transform: rotate(0); } to { transform: rotate(35deg) translate(-5px, -10px); } }
+@keyframes armsUpRight { from { transform: rotate(0); } to { transform: rotate(-35deg) translate(5px, -10px); } }
+@keyframes confettiPop { 0% { transform: translateY(-8px) scale(.8); opacity: 0; } 35% { opacity: 1; } 100% { transform: translateY(24px) scale(1.05); opacity: 0; } }
+@keyframes concernedSway { from { transform: rotate(-1.3deg) translateY(2px); } to { transform: rotate(1.3deg) translateY(5px); } }
+@keyframes pointLook { from { transform: rotate(-2deg); } to { transform: rotate(5deg) translateY(2px); } }
+@keyframes pointDown { from { transform: rotate(-10deg); } to { transform: rotate(24deg) translate(4px, 8px); } }
+@keyframes excitedBounce { from { transform: translateY(0) rotate(-1deg); } to { transform: translateY(-12px) rotate(1deg); } }
+@keyframes excitedArm { from { transform: rotate(8deg); } to { transform: rotate(34deg) translate(-4px, -7px); } }
+@keyframes excitedArmRight { from { transform: rotate(-8deg); } to { transform: rotate(-34deg) translate(4px, -7px); } }
+@keyframes sadHead { from { transform: rotate(-3deg) translateY(5px); } to { transform: rotate(2deg) translateY(8px); } }
+@keyframes boredLook { 0%, 25%, 100% { transform: rotate(-5deg); } 45%, 75% { transform: rotate(7deg); } }
+@keyframes boredBlink { 0%, 35%, 43%, 100% { transform: scaleY(.62); } 39% { transform: scaleY(.08); } }
+@keyframes errorFoot { from { transform: rotate(0); } to { transform: rotate(-11deg) translateY(-4px); } }
+@keyframes readSweep { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(7deg); } }
+@keyframes readEyes { from { transform: translateX(-5px); } to { transform: translateX(5px); } }
+@keyframes angryShake { from { transform: rotate(-5deg); } to { transform: rotate(5deg); } }
+@keyframes kick { 0%, 48%, 100% { transform: rotate(0); } 68% { transform: rotate(16deg) translate(-2px, -1px); } }
+
+@media (max-width: 680px) {
+  .mascot {
+    &_placement_chat {
+      align-items: flex-end;
+    }
+
+    &__bubble {
+      width: min(260px, 68vw);
+      font-size: 12px;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mascot,
+  .mascot * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

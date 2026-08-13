@@ -127,6 +127,30 @@ func TestCreateCleansInput(t *testing.T) {
 	}
 }
 
+// Загруженный файл и внешняя ссылка живут в одном списке: старые объявления держат вторые,
+// новые — первые, и редактирование первых не должно спотыкаться о вторые.
+func TestCreateAcceptsUploadedPhotosAlongsideExternalLinks(t *testing.T) {
+	t.Parallel()
+
+	var saved itemmodel.NewItem
+	repository := &fakeRepository{
+		create: func(_ context.Context, item itemmodel.NewItem) (itemmodel.Item, error) {
+			saved = item
+			return itemmodel.Item{}, nil
+		},
+	}
+
+	input := validCreateInput()
+	input.PhotoURLs = []string{"/uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg", "https://example.com/1.jpg"}
+
+	if _, err := New(repository).Create(context.Background(), input); err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	if len(saved.PhotoURLs) != 2 || saved.PhotoURLs[0] != input.PhotoURLs[0] {
+		t.Fatalf("photo urls = %#v, want обе ссылки в исходном порядке", saved.PhotoURLs)
+	}
+}
+
 func TestCreateValidation(t *testing.T) {
 	t.Parallel()
 
@@ -140,6 +164,14 @@ func TestCreateValidation(t *testing.T) {
 		{name: "фото без схемы", modify: func(i *CreateInput) { i.PhotoURLs = []string{"example.com/1.jpg"} }},
 		{name: "фото не http", modify: func(i *CreateInput) { i.PhotoURLs = []string{"ftp://example.com/1.jpg"} }},
 		{name: "фото без хоста", modify: func(i *CreateInput) { i.PhotoURLs = []string{"https:///1.jpg"} }},
+		// Оба похожи на путь загруженного файла, но ведут мимо: первый — за каталог,
+		// второй — вообще на чужой домен.
+		{name: "путь мимо каталога загрузок", modify: func(i *CreateInput) {
+			i.PhotoURLs = []string{"/uploads/../../etc/passwd"}
+		}},
+		{name: "протокол-относительная ссылка", modify: func(i *CreateInput) {
+			i.PhotoURLs = []string{"//evil.com/1.jpg"}
+		}},
 		{name: "больше десяти фото", modify: func(i *CreateInput) { i.PhotoURLs = photos(11) }},
 		{name: "без желаний", modify: func(i *CreateInput) { i.Wants = nil }},
 		{name: "пустой список желаний", modify: func(i *CreateInput) { i.Wants = []string{} }},
@@ -168,6 +200,27 @@ func TestCreateValidation(t *testing.T) {
 				t.Fatalf("error = %v, want ErrValidation", err)
 			}
 		})
+	}
+}
+
+func TestSearchFilterValidation(t *testing.T) {
+	t.Parallel()
+	for _, filters := range []*itemmodel.SearchFilters{
+		{MaxChainLength: 1},
+		{MaxChainLength: 6},
+		{MaxChainLength: 5, MinParticipantRating: -0.1},
+		{MaxChainLength: 5, MinParticipantRating: 5.1},
+	} {
+		if _, err := cleanSearchFilters(filters); !errors.Is(err, ErrValidation) {
+			t.Fatalf("cleanSearchFilters(%+v) error = %v, want validation", filters, err)
+		}
+	}
+	defaults, err := cleanSearchFilters(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if defaults.MaxChainLength != 5 || !defaults.PreferReliableParticipants {
+		t.Fatalf("defaults = %+v", defaults)
 	}
 }
 

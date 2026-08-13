@@ -116,6 +116,8 @@ definitions:
         type: integer
       description:
         type: string
+      experience:
+        $ref: '#/definitions/dto.ExperienceResponse'
       id:
         type: string
       is_admin:
@@ -125,7 +127,11 @@ definitions:
       photo_url:
         type: string
       rating:
+        description: null — оценок ещё нет, и это не ноль. Сколько их — в ratings_count.
         type: number
+        x-nullable: true
+      ratings_count:
+        type: integer
       updated_at:
         type: string
     type: object
@@ -150,11 +156,12 @@ definitions:
         type: string
       photo_urls:
         example:
-        - https://example.com/bike-1.jpg
-        - https://example.com/bike-2.jpg
+        - /uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg
         items:
           type: string
         type: array
+      search_filters:
+        $ref: '#/definitions/dto.SearchFiltersRequest'
       title:
         example: Велосипед
         type: string
@@ -240,6 +247,19 @@ definitions:
       target_type:
         type: string
     type: object
+  dto.ExchangeRatingResponse:
+    properties:
+      comment:
+        type: string
+      rate_until:
+        type: string
+      rated_user_id:
+        type: string
+      score:
+        description: null — оценка ещё не поставлена.
+        type: integer
+        x-nullable: true
+    type: object
   dto.ExchangeStatisticsResponse:
     properties:
       cancelled:
@@ -255,6 +275,25 @@ definitions:
       proposed:
         type: integer
       total:
+        type: integer
+    type: object
+  dto.ExperienceResponse:
+    properties:
+      current_level_xp:
+        type: integer
+      deals_to_next_level:
+        type: integer
+      is_max_level:
+        type: boolean
+      level:
+        type: integer
+      max_level:
+        type: integer
+      next_level_xp:
+        type: integer
+      progress_percent:
+        type: integer
+      total_xp:
         type: integer
     type: object
   dto.ItemError:
@@ -292,6 +331,8 @@ definitions:
         - $ref: '#/definitions/dto.ItemPickupPoint'
         description: null — вещь дома у владельца.
         x-nullable: true
+      search_filters:
+        $ref: '#/definitions/dto.SearchFiltersResponse'
       status:
         type: string
       title:
@@ -457,6 +498,53 @@ definitions:
       updated_at:
         type: string
     type: object
+  dto.RateRequest:
+    properties:
+      comment:
+        example: Всё пришло вовремя, спасибо
+        type: string
+      score:
+        example: 5
+        type: integer
+    type: object
+  dto.RatingError:
+    properties:
+      error:
+        type: string
+    type: object
+  dto.RatingResponse:
+    properties:
+      comment:
+        type: string
+      created_at:
+        type: string
+      rated_user_id:
+        type: string
+      score:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  dto.RatingsPageResponse:
+    properties:
+      limit:
+        type: integer
+      offset:
+        type: integer
+      ratings:
+        items:
+          $ref: '#/definitions/dto.ReceivedRatingResponse'
+        type: array
+    type: object
+  dto.ReceivedRatingResponse:
+    properties:
+      comment:
+        type: string
+      created_at:
+        type: string
+      score:
+        type: integer
+    type: object
   dto.ReportError:
     properties:
       error:
@@ -476,6 +564,31 @@ definitions:
         type: string
       status:
         type: string
+    type: object
+  dto.SearchFiltersRequest:
+    properties:
+      max_chain_length:
+        example: 3
+        maximum: 5
+        minimum: 2
+        type: integer
+      min_participant_rating:
+        example: 4
+        maximum: 5
+        minimum: 0
+        type: number
+      prefer_reliable_participants:
+        example: true
+        type: boolean
+    type: object
+  dto.SearchFiltersResponse:
+    properties:
+      max_chain_length:
+        type: integer
+      min_participant_rating:
+        type: number
+      prefer_reliable_participants:
+        type: boolean
     type: object
   dto.SetPickupPointRequest:
     properties:
@@ -499,6 +612,11 @@ definitions:
       closed_at:
         type: string
       created_at:
+        type: string
+      escalated_at:
+        description: |-
+          Непустое — автоответ не решил вопрос и обращение ждёт человека. В очереди
+          модерации по этому полю рисуется пометка.
         type: string
       id:
         type: string
@@ -527,11 +645,12 @@ definitions:
         type: string
       photo_urls:
         example:
-        - https://example.com/bike-1.jpg
-        - https://example.com/bike-3.jpg
+        - /uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg
         items:
           type: string
         type: array
+      search_filters:
+        $ref: '#/definitions/dto.SearchFiltersRequest'
       title:
         example: Велосипед городской
         type: string
@@ -558,6 +677,18 @@ definitions:
       nickname:
         type: string
       photo_url:
+        example: /uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg
+        type: string
+    type: object
+  dto.UploadError:
+    properties:
+      error:
+        type: string
+    type: object
+  dto.UploadResponse:
+    properties:
+      url:
+        example: /uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg
         type: string
     type: object
   dto.UserBlockResponse:
@@ -583,6 +714,8 @@ definitions:
         type: integer
       description:
         type: string
+      experience:
+        $ref: '#/definitions/dto.ExperienceResponse'
       id:
         type: string
       nickname:
@@ -590,7 +723,11 @@ definitions:
       photo_url:
         type: string
       rating:
+        description: null — оценок ещё нет, и это не ноль. Сколько их — в ratings_count.
         type: number
+        x-nullable: true
+      ratings_count:
+        type: integer
       updated_at:
         type: string
     type: object
@@ -691,6 +828,11 @@ definitions:
         items:
           $ref: '#/definitions/dto.ParticipantResponse'
         type: array
+      rating:
+        allOf:
+        - $ref: '#/definitions/dto.ExchangeRatingResponse'
+        description: 'null — оценивать нечего: обмен не завершён либо смотрит не участник.'
+        x-nullable: true
       status:
         type: string
       unread_count:
@@ -793,6 +935,140 @@ definitions:
       error:
         type: string
     type: object
+  handler.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  handler.JobResponse:
+    properties:
+      created_at:
+        type: string
+      error:
+        type: string
+      id:
+        type: string
+      status:
+        enum:
+        - pending
+        - processing
+        - completed
+        - failed
+        type: string
+      suggestion:
+        $ref: '#/definitions/handler.SuggestionResponse'
+      updated_at:
+        type: string
+    type: object
+  handler.SubmitRequest:
+    properties:
+      input:
+        example: старый пленочный фотоаппарат, рабочий, есть чехол
+        type: string
+    type: object
+  handler.SuggestionResponse:
+    properties:
+      category_name:
+        example: Электроника
+        type: string
+      category_slug:
+        example: electronics
+        type: string
+      description:
+        example: Рабочий плёночный фотоаппарат. В комплекте чехол.
+        type: string
+      title:
+        example: Плёночный фотоаппарат с чехлом
+        type: string
+    type: object
+  handler.caseResponse:
+    properties:
+      category:
+        type: string
+      closed_at:
+        type: string
+        x-nullable: true
+      created_at:
+        type: string
+      decision:
+        type: string
+      evidence_count:
+        type: integer
+      exchange_id:
+        type: string
+      id:
+        type: string
+      latest_evidence:
+        $ref: '#/definitions/handler.evidenceResponse'
+      reason:
+        type: string
+      resolution_comment:
+        type: string
+      reviewer:
+        $ref: '#/definitions/handler.userResponse'
+      risk:
+        type: integer
+      status:
+        type: string
+      suspect:
+        $ref: '#/definitions/handler.userResponse'
+      updated_at:
+        type: string
+    type: object
+  handler.decisionRequest:
+    properties:
+      comment:
+        type: string
+    type: object
+  handler.evidenceResponse:
+    properties:
+      body:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+    type: object
+  handler.messagesResponse:
+    properties:
+      case_id:
+        type: string
+      evidence_message_ids:
+        items:
+          type: string
+        type: array
+      exchange_id:
+        type: string
+      messages:
+        items:
+          $ref: '#/definitions/github_com_sweetlife999_chain-of-trades-avito_internal_exchange_dto.MessageResponse'
+        type: array
+    type: object
+  handler.pageResponse:
+    properties:
+      cases:
+        items:
+          $ref: '#/definitions/handler.caseResponse'
+        type: array
+      pagination:
+        properties:
+          limit:
+            type: integer
+          offset:
+            type: integer
+          total:
+            type: integer
+        type: object
+    type: object
+  handler.userResponse:
+    properties:
+      id:
+        type: string
+      nickname:
+        type: string
+      photo_url:
+        type: string
+    type: object
 info:
   contact: {}
   description: |-
@@ -806,6 +1082,144 @@ info:
   title: Цепочка обмена — API
   version: 0.1.0
 paths:
+  /admin/antiscam/cases:
+    get:
+      parameters:
+      - description: Статус
+        enum:
+        - open
+        - resolved
+        - dismissed
+        in: query
+        name: status
+        type: string
+      - description: Категория
+        in: query
+        name: category
+        type: string
+      - default: 0
+        description: Минимальный риск
+        in: query
+        name: min_risk
+        type: integer
+      - default: 20
+        description: Размер страницы
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Смещение
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.pageResponse'
+      security:
+      - CookieAuth: []
+      summary: Очередь AI-антискама
+      tags:
+      - admin-antiscam
+  /admin/antiscam/cases/{id}:
+    get:
+      parameters:
+      - description: UUID карточки
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.caseResponse'
+      security:
+      - CookieAuth: []
+      summary: Карточка AI-подозрения
+      tags:
+      - admin-antiscam
+  /admin/antiscam/cases/{id}/confirm:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: UUID карточки
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Комментарий
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.decisionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.caseResponse'
+      security:
+      - CookieAuth: []
+      summary: Подтвердить AI-подозрение
+      tags:
+      - admin-antiscam
+  /admin/antiscam/cases/{id}/dismiss:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: UUID карточки
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Комментарий
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.decisionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.caseResponse'
+      security:
+      - CookieAuth: []
+      summary: Отметить ложное AI-срабатывание
+      tags:
+      - admin-antiscam
+  /admin/antiscam/cases/{id}/messages:
+    get:
+      parameters:
+      - description: UUID карточки
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.messagesResponse'
+      security:
+      - CookieAuth: []
+      summary: Переписка по AI-подозрению
+      tags:
+      - admin-antiscam
   /admin/audit-log:
     get:
       description: Возвращает журнал действий с фильтрами по администратору, действию
@@ -1552,6 +1966,12 @@ paths:
         in: query
         name: status
         type: string
+      - default: false
+        description: 'Только ждущие модератора: эскалированные и те, на которые никто
+          не ответил'
+        in: query
+        name: needs_human
+        type: boolean
       - default: 20
         description: Размер страницы (1-100)
         in: query
@@ -2344,6 +2764,62 @@ paths:
       summary: Отметить тред прочитанным
       tags:
       - exchanges
+  /exchanges/{id}/rating:
+    put:
+      consumes:
+      - application/json
+      description: |-
+        Ставит оценку участнику, который передал вещь текущему пользователю. Кого
+        оценивают, определяет сама цепочка. Повторный запрос переписывает оценку.
+        Доступно 14 дней после завершения обмена.
+      parameters:
+      - description: UUID обмена
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Балл от 1 до 5 и необязательный комментарий
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.RatingResponse'
+        "400":
+          description: Некорректный UUID, тело или балл вне 1..5
+          schema:
+            $ref: '#/definitions/dto.RatingError'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/dto.RatingError'
+        "403":
+          description: Пользователь не участвует в обмене
+          schema:
+            $ref: '#/definitions/dto.RatingError'
+        "404":
+          description: Обмен не найден
+          schema:
+            $ref: '#/definitions/dto.RatingError'
+        "409":
+          description: Обмен не завершён или срок оценки истёк
+          schema:
+            $ref: '#/definitions/dto.RatingError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.RatingError'
+      security:
+      - CookieAuth: []
+      summary: Оценить партнёра по обмену
+      tags:
+      - ratings
   /health:
     get:
       description: Отвечает 200, если процесс поднят. Состояние БД не проверяет.
@@ -2391,7 +2867,7 @@ paths:
       - application/json
       description: |-
         Требует cookie `access_token`. Владелец берётся из токена, а не из тела запроса.
-        Нужна хотя бы одна фотография (ссылкой) и хотя бы одна желаемая категория —
+        Нужна хотя бы одна фотография и хотя бы одна желаемая категория —
         без них объявление не участвует в подборе обменов. Список категорий: GET /categories.
       parameters:
       - description: Данные объявления
@@ -2508,8 +2984,9 @@ paths:
       - application/json
       description: |-
         Требует cookie `access_token`, менять можно только свои объявления. Достаточно одного поля.
-        `photo_urls` и `wants` заменяются целиком: чтобы добавить фотографию, пришлите старые
-        ссылки вместе с новой. Пустой список запрещён — у объявления всегда есть хотя бы одно фото.
+        `photo_urls` и `wants` заменяются целиком: чтобы добавить фотографию, загрузите её
+        через POST /uploads и пришлите старые ссылки вместе с новой. Пустой список запрещён —
+        у объявления всегда есть хотя бы одно фото.
       parameters:
       - description: UUID объявления
         example: 8db9f3e2-8a45-4a70-b3d1-167b4f97e121
@@ -2748,6 +3225,82 @@ paths:
       security:
       - CookieAuth: []
       summary: Вернуть объявление в поиск
+      tags:
+      - items
+  /items/ai-suggestions:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Принимает рассказ пользователя, ставит генерацию в фоновую очередь и сразу возвращает ID задачи.
+        Результат не применяется автоматически: пользователь должен проверить и принять подсказку на фронте.
+      parameters:
+      - description: Описание вещи своими словами
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.SubmitRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/handler.JobResponse'
+        "400":
+          description: Текст короче 10 или длиннее 1200 символов
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Нет или истекла cookie access_token
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "429":
+          description: Очередь модели заполнена
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Запустить ИИ-помощника объявления
+      tags:
+      - items
+  /items/ai-suggestions/{id}:
+    get:
+      description: Задача доступна только создавшему её пользователю и хранится 30
+        минут.
+      parameters:
+      - description: UUID задачи
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.JobResponse'
+        "400":
+          description: Некорректный UUID
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Нет или истекла cookie access_token
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Чужая задача
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Задача не найдена или истекла
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Получить результат ИИ-помощника
       tags:
       - items
   /notifications:
@@ -3162,6 +3715,52 @@ paths:
       summary: Написать в поддержку
       tags:
       - support
+  /uploads:
+    post:
+      consumes:
+      - multipart/form-data
+      description: |-
+        Требует cookie `access_token`. Принимает один файл в поле `file` формы
+        multipart/form-data: jpeg, png или webp размером до 5 МБ. Тип определяется по
+        содержимому файла, а имя присваивает сервер, поэтому расширение в запросе ни на
+        что не влияет.
+
+        Возвращает ссылку, которую нужно передать в `photo_urls` объявления или в
+        `photo_url` профиля. Сама по себе загрузка ни к чему файл не привязывает.
+      parameters:
+      - description: Файл изображения
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Загружено, ссылка в поле url
+          schema:
+            $ref: '#/definitions/dto.UploadResponse'
+        "400":
+          description: Нет файла в запросе или это не картинка поддерживаемого формата
+          schema:
+            $ref: '#/definitions/dto.UploadError'
+        "401":
+          description: Нет или истекла cookie access_token
+          schema:
+            $ref: '#/definitions/dto.UploadError'
+        "413":
+          description: Файл больше 5 МБ
+          schema:
+            $ref: '#/definitions/dto.UploadError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.UploadError'
+      security:
+      - CookieAuth: []
+      summary: Загрузить фотографию
+      tags:
+      - uploads
   /users:
     post:
       consumes:
@@ -3286,6 +3885,45 @@ paths:
       summary: Обновить свой профиль
       tags:
       - users
+  /users/{id}/ratings:
+    get:
+      description: |-
+        Возвращает оценки, полученные пользователем, от новых к старым. Отзывы
+        анонимны: автор не возвращается. Общее число оценок лежит в профиле.
+      parameters:
+      - description: UUID пользователя
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 20
+        description: Размер страницы, от 1 до 100
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Смещение, начиная с 0
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.RatingsPageResponse'
+        "400":
+          description: Некорректный UUID или параметры страницы
+          schema:
+            $ref: '#/definitions/dto.RatingError'
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            $ref: '#/definitions/dto.RatingError'
+      summary: Получить отзывы о пользователе
+      tags:
+      - ratings
   /users/me/blocks:
     get:
       description: Возвращает личный список блокировок текущего пользователя. Заблокированные

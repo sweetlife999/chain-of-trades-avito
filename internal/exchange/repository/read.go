@@ -58,6 +58,10 @@ type exchangeRecord struct {
 	ReceivesPickupPointName    pgtype.Text
 	ReceivesPickupPointAddress pgtype.Text
 	UnreadCount                int64
+	RatingTargetUserID         pgtype.UUID
+	RatingUntil                pgtype.Timestamptz
+	MyRatingScore              pgtype.Int2
+	MyRatingComment            pgtype.Text
 }
 
 func (r *Repository) ListByUser(ctx context.Context, userID uuid.UUID) ([]exchangemodel.Details, error) {
@@ -192,6 +196,7 @@ func groupExchangeRecords(records []exchangeRecord) []exchangemodel.Details {
 				CancelReason: optionalCancelReason(record.ExchangeCancelReason),
 				Participants: make([]exchangemodel.DetailsParticipant, 0),
 				UnreadCount:  record.UnreadCount,
+				Rating:       ratingFromRecord(record),
 				CreatedAt:    record.ExchangeCreatedAt.Time,
 				UpdatedAt:    record.ExchangeUpdatedAt.Time,
 				ClosedAt:     optionalTime(record.ExchangeClosedAt),
@@ -295,7 +300,33 @@ func recordFromGetRow(row db.GetExchangeByIDRow) exchangeRecord {
 		ReceivesPickupPointName:    row.ReceivesPickupPointName,
 		ReceivesPickupPointAddress: row.ReceivesPickupPointAddress,
 		UnreadCount:                row.UnreadCount,
+		RatingTargetUserID:         row.RatingTargetUserID,
+		RatingUntil:                row.RatingUntil,
+		MyRatingScore:              row.MyRatingScore,
+		MyRatingComment:            row.MyRatingComment,
 	}
+}
+
+// Оценивать можно только завершённый обмен, поэтому на остальных статусах поля оценки
+// не отдаются вовсе: у отменённого closed_at тоже заполнен, и срок «до» без этой
+// проверки выглядел бы приглашением оценить сорванную сделку. Пустой партнёр означает
+// либо постороннего, либо цепочку, которую читает административный список.
+func ratingFromRecord(record exchangeRecord) *exchangemodel.DetailsRating {
+	if record.ExchangeStatus != db.ChainStatusCompleted || !record.RatingTargetUserID.Valid {
+		return nil
+	}
+
+	rating := exchangemodel.DetailsRating{
+		RatedUserID: uuid.UUID(record.RatingTargetUserID.Bytes),
+		RateUntil:   record.RatingUntil.Time,
+		Comment:     record.MyRatingComment.String,
+	}
+	if record.MyRatingScore.Valid {
+		score := int32(record.MyRatingScore.Int16)
+		rating.Score = &score
+	}
+
+	return &rating
 }
 
 // Пункт приезжает LEFT JOIN-ом: невалидный id означает, что вещь ещё дома.

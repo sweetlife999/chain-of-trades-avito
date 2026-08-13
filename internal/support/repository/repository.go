@@ -32,10 +32,13 @@ type Queries interface {
 	MarkSupportThreadReadByUser(context.Context, db.MarkSupportThreadReadByUserParams) (int64, error)
 	CloseSupportThreadByUser(context.Context, db.CloseSupportThreadByUserParams) (int64, error)
 	ListAdminSupportThreads(context.Context, db.ListAdminSupportThreadsParams) ([]db.ListAdminSupportThreadsRow, error)
-	CountAdminSupportThreads(context.Context, string) (int64, error)
+	CountAdminSupportThreads(context.Context, db.CountAdminSupportThreadsParams) (int64, error)
 	GetAdminSupportThread(context.Context, pgtype.UUID) (db.GetAdminSupportThreadRow, error)
 	AssignSupportThread(context.Context, db.AssignSupportThreadParams) (int64, error)
 	CreateAdminSupportMessage(context.Context, db.CreateAdminSupportMessageParams) (db.CreateAdminSupportMessageRow, error)
+	CreateBotSupportMessage(context.Context, db.CreateBotSupportMessageParams) (db.CreateBotSupportMessageRow, error)
+	SupportBotUserExists(context.Context, string) (bool, error)
+	EscalateSupportThread(context.Context, pgtype.UUID) (int64, error)
 	MarkSupportThreadReadByAdmin(context.Context, pgtype.UUID) (int64, error)
 	CloseSupportThreadByAdmin(context.Context, db.CloseSupportThreadByAdminParams) (int64, error)
 }
@@ -179,12 +182,15 @@ func (r *Repository) ListAdmin(
 	filter supportmodel.AdminFilter,
 ) ([]supportmodel.Thread, int64, error) {
 	rows, err := r.queries.ListAdminSupportThreads(ctx, db.ListAdminSupportThreadsParams{
-		StatusFilter: filter.Status, PageLimit: filter.Limit, PageOffset: filter.Offset,
+		StatusFilter: filter.Status, NeedsHuman: filter.NeedsHuman,
+		PageLimit: filter.Limit, PageOffset: filter.Offset,
 	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("list admin support threads: %w", err)
 	}
-	total, err := r.queries.CountAdminSupportThreads(ctx, filter.Status)
+	total, err := r.queries.CountAdminSupportThreads(ctx, db.CountAdminSupportThreadsParams{
+		StatusFilter: filter.Status, NeedsHuman: filter.NeedsHuman,
+	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("count admin support threads: %w", err)
 	}
@@ -244,6 +250,49 @@ func (r *Repository) CreateAdminMessage(
 	return messageFromAdminCreateRow(row), nil
 }
 
+// BotUserExists отвечает, есть ли в базе служебный пользователь с этим ником. Нужен
+// ровно для одного: ник в коде и ник в миграции обязаны совпадать, а расхождение иначе
+// проявляется как молчание бота на каждом обращении — вставка не находит автора, отдаёт
+// ноль строк, и это неотличимо от «обращение уже не ждёт ответа».
+func (r *Repository) BotUserExists(ctx context.Context, botNickname string) (bool, error) {
+	exists, err := r.queries.SupportBotUserExists(ctx, botNickname)
+	if err != nil {
+		return false, fmt.Errorf("check support bot user: %w", err)
+	}
+	return exists, nil
+}
+
+// Escalate помечает, что обращению нужен человек. Идемпотентно и намеренно не возвращает
+// ErrConflict на ноль строк: ноль означает «уже эскалировано или закрыто», и для
+// вызывающего это не ошибка, а отсутствие работы.
+func (r *Repository) Escalate(ctx context.Context, threadID uuid.UUID) error {
+	if _, err := r.queries.EscalateSupportThread(ctx, pgUUID(threadID)); err != nil {
+		return fmt.Errorf("escalate support thread: %w", err)
+	}
+	return nil
+}
+
+// CreateBotMessage пишет ответ автоответчика. Автора запрос находит сам по нику, а
+// ErrConflict здесь не ошибка выполнения, а нормальный исход: обращение успели закрыть,
+// взять в работу или бот в нём уже отвечал. Вызывающий на такое только пишет в лог.
+func (r *Repository) CreateBotMessage(
+	ctx context.Context,
+	threadID uuid.UUID,
+	botNickname string,
+	body string,
+) (supportmodel.Message, error) {
+	row, err := r.queries.CreateBotSupportMessage(ctx, db.CreateBotSupportMessageParams{
+		ThreadID: pgUUID(threadID), BotNickname: botNickname, Body: body,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return supportmodel.Message{}, ErrConflict
+	}
+	if err != nil {
+		return supportmodel.Message{}, fmt.Errorf("create bot support message: %w", err)
+	}
+	return messageFromBotCreateRow(row), nil
+}
+
 func (r *Repository) MarkReadByAdmin(ctx context.Context, threadID uuid.UUID) error {
 	affected, err := r.queries.MarkSupportThreadReadByAdmin(ctx, pgUUID(threadID))
 	if err != nil {
@@ -297,7 +346,7 @@ func threadFromAdminListRow(row db.ListAdminSupportThreadsRow) supportmodel.Thre
 		AssignedAdmin: optionalPerson(row.AssignedAdminID, row.AssignedAdminNickname, pgtype.Text{}, true),
 		LastMessage:   row.LastMessageBody, LastMessageAt: optionalTime(row.LastMessageCreatedAt),
 		UnreadCount: row.UnreadCount, CreatedAt: row.CreatedAt.Time, UpdatedAt: row.UpdatedAt.Time,
-		ClosedAt: optionalTime(row.ClosedAt),
+		ClosedAt: optionalTime(row.ClosedAt), EscalatedAt: optionalTime(row.EscalatedAt),
 	}
 }
 
@@ -307,6 +356,7 @@ func threadFromAdminRow(row db.GetAdminSupportThreadRow) supportmodel.Thread {
 		User:          &supportmodel.Person{ID: uuid.UUID(row.UserID.Bytes), Nickname: row.UserNickname, PhotoURL: optionalText(row.UserPhotoUrl)},
 		AssignedAdmin: optionalPerson(row.AssignedAdminID, row.AssignedAdminNickname, pgtype.Text{}, true),
 		CreatedAt:     row.CreatedAt.Time, UpdatedAt: row.UpdatedAt.Time, ClosedAt: optionalTime(row.ClosedAt),
+		EscalatedAt: optionalTime(row.EscalatedAt),
 	}
 }
 
@@ -327,6 +377,14 @@ func messageFromUserCreateRow(row db.CreateUserSupportMessageRow) supportmodel.M
 }
 
 func messageFromAdminCreateRow(row db.CreateAdminSupportMessageRow) supportmodel.Message {
+	return supportmodel.Message{
+		ID: uuid.UUID(row.ID.Bytes), ThreadID: uuid.UUID(row.ThreadID.Bytes), Body: row.Body,
+		Author:    supportmodel.Person{ID: uuid.UUID(row.AuthorID.Bytes), Nickname: row.AuthorNickname, PhotoURL: optionalText(row.AuthorPhotoUrl), IsAdmin: row.AuthorIsAdmin},
+		CreatedAt: row.CreatedAt.Time,
+	}
+}
+
+func messageFromBotCreateRow(row db.CreateBotSupportMessageRow) supportmodel.Message {
 	return supportmodel.Message{
 		ID: uuid.UUID(row.ID.Bytes), ThreadID: uuid.UUID(row.ThreadID.Bytes), Body: row.Body,
 		Author:    supportmodel.Person{ID: uuid.UUID(row.AuthorID.Bytes), Nickname: row.AuthorNickname, PhotoURL: optionalText(row.AuthorPhotoUrl), IsAdmin: row.AuthorIsAdmin},

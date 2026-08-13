@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
+	uploadservice "github.com/sweetlife999/chain-of-trades-avito/internal/upload/service"
 	usermodel "github.com/sweetlife999/chain-of-trades-avito/internal/user/model"
 	userrepository "github.com/sweetlife999/chain-of-trades-avito/internal/user/repository"
 )
@@ -91,10 +93,15 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (usermodel.User
 		return usermodel.User{}, fmt.Errorf("hash password: %w", err)
 	}
 
+	photoURL := cleanOptional(input.PhotoURL)
+	if err := validatePhotoURL(photoURL); err != nil {
+		return usermodel.User{}, err
+	}
+
 	return s.repository.Create(ctx, usermodel.NewUser{
 		Nickname:     nickname,
 		PasswordHash: string(passwordHash),
-		PhotoURL:     cleanOptional(input.PhotoURL),
+		PhotoURL:     photoURL,
 		Description:  strings.TrimSpace(input.Description),
 	})
 }
@@ -129,6 +136,9 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, input UpdateInput) (
 	changes := usermodel.Changes{
 		PhotoURL:    cleanOptional(input.PhotoURL),
 		Description: cleanOptional(input.Description),
+	}
+	if err := validatePhotoURL(changes.PhotoURL); err != nil {
+		return usermodel.User{}, err
 	}
 
 	if input.Nickname != nil {
@@ -182,6 +192,23 @@ func validateNickname(nickname string) error {
 	length := utf8.RuneCountInString(nickname)
 	if length < minNicknameLength || length > maxNicknameLength {
 		return validationError("nickname must contain from 3 to 32 characters")
+	}
+
+	return nil
+}
+
+// Аватарка попадает прямо в <img src> на чужих экранах, поэтому строка обязана быть либо
+// путём загруженного файла, либо абсолютным http(s)-адресом. Пусто — это «без аватарки»,
+// нормальное состояние профиля. Внешние ссылки принимаем и дальше: с ними живут аккаунты,
+// заведённые до загрузки файлов, и на них не должно спотыкаться сохранение профиля.
+func validatePhotoURL(photoURL *string) error {
+	if photoURL == nil || *photoURL == "" || uploadservice.IsPath(*photoURL) {
+		return nil
+	}
+
+	parsed, err := url.Parse(*photoURL)
+	if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+		return &ValidationError{message: "photo url must be an uploaded file or an absolute http(s) link"}
 	}
 
 	return nil

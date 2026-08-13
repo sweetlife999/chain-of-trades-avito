@@ -1,0 +1,31 @@
+.antiscam { display: grid; gap: 20px; color: #17212b; }
+.antiscam__header, .antiscam__heading, .antiscam__cardTop, .antiscam__details header, .antiscam__conversation h4, .antiscam__conversation article div, .antiscam__decision > div { display: flex; align-items: center; gap: 12px; }
+.antiscam__header { justify-content: space-between; }
+.antiscam__heading h2, .antiscam__heading p, .antiscam__details h3, .antiscam__conversation h4 { margin: 0; }
+.antiscam__heading p { margin-top: 4px; color: #667085; }
+.antiscam__filters { display: flex; flex-wrap: wrap; gap: 16px; padding: 16px; border-radius: 16px; background: #f7f9f8; }
+.antiscam__filters label, .antiscam__decision label { display: grid; gap: 6px; font-weight: 600; }
+.antiscam__filters select, .antiscam__decision textarea { min-width: 220px; padding: 10px 12px; border: 1px solid #d0d5dd; border-radius: 10px; background: white; font: inherit; }
+.antiscam__list { display: grid; gap: 12px; }
+.antiscam__card { display: grid; gap: 10px; width: 100%; padding: 18px; text-align: left; border: 1px solid #dfe5e2; border-radius: 16px; background: white; cursor: pointer; }
+.antiscam__card:hover { border-color: #00a86b; box-shadow: 0 7px 20px rgb(16 24 40 / 7%); }
+.antiscam__cardTop time { margin-left: auto; color: #667085; }
+.antiscam__card blockquote { margin: 0; padding: 10px 12px; border-left: 3px solid #ffb020; background: #fff8e7; }
+.antiscam__risk_high, .antiscam__risk_medium { padding: 5px 9px; border-radius: 999px; font-weight: 700; }
+.antiscam__risk_high { color: #a11919; background: #ffeded; }
+.antiscam__risk_medium { color: #8a5500; background: #fff1cf; }
+.antiscam__state { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 130px; color: #667085; }
+.antiscam__overlay { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: rgb(10 20 30 / 55%); }
+.antiscam__details { width: min(820px, 100%); max-height: 90vh; overflow: auto; padding: 24px; border-radius: 20px; background: white; box-shadow: 0 24px 80px rgb(0 0 0 / 25%); }
+.antiscam__details header { justify-content: space-between; }
+.antiscam__details header button { border: 0; background: transparent; cursor: pointer; }
+.antiscam__reason { padding: 12px; border-radius: 12px; background: #fff8e7; }
+.antiscam__conversation { display: grid; gap: 10px; margin-top: 20px; }
+.antiscam__conversation article { padding: 12px; border: 1px solid #e5e7eb; border-radius: 12px; }
+.antiscam__conversation article p { margin: 8px 0 0; }
+.antiscam__conversation article time { margin-left: auto; color: #667085; }
+.antiscam__conversation article span { padding: 3px 7px; border-radius: 999px; color: #a11919; background: #ffeded; font-size: 12px; }
+.antiscam__evidence { border-color: #f04438 !important; background: #fff8f7; }
+.antiscam__decision { display: grid; gap: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb; }
+.antiscam__decision textarea { min-width: 0; resize: vertical; }
+@media (max-width: 640px) { .antiscam__header, .antiscam__cardTop { align-items: flex-start; flex-direction: column; } .antiscam__cardTop time { margin-left: 0; } .antiscam__decision > div { align-items: stretch; flex-direction: column; } }

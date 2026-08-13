@@ -22,6 +22,9 @@ import (
 	admindashboardservice "github.com/sweetlife999/chain-of-trades-avito/internal/admindashboard/service"
 	adminexchangehandler "github.com/sweetlife999/chain-of-trades-avito/internal/adminexchange/handler"
 	adminexchangeservice "github.com/sweetlife999/chain-of-trades-avito/internal/adminexchange/service"
+	antiscamhandler "github.com/sweetlife999/chain-of-trades-avito/internal/antiscam/handler"
+	antiscamrepository "github.com/sweetlife999/chain-of-trades-avito/internal/antiscam/repository"
+	antiscamservice "github.com/sweetlife999/chain-of-trades-avito/internal/antiscam/service"
 	authhandler "github.com/sweetlife999/chain-of-trades-avito/internal/auth/handler"
 	authmiddleware "github.com/sweetlife999/chain-of-trades-avito/internal/auth/middleware"
 	authservice "github.com/sweetlife999/chain-of-trades-avito/internal/auth/service"
@@ -36,18 +39,26 @@ import (
 	itemhandler "github.com/sweetlife999/chain-of-trades-avito/internal/item/handler"
 	itemrepository "github.com/sweetlife999/chain-of-trades-avito/internal/item/repository"
 	itemservice "github.com/sweetlife999/chain-of-trades-avito/internal/item/service"
+	itemassistanthandler "github.com/sweetlife999/chain-of-trades-avito/internal/itemassistant/handler"
+	itemassistantservice "github.com/sweetlife999/chain-of-trades-avito/internal/itemassistant/service"
+	"github.com/sweetlife999/chain-of-trades-avito/internal/llm"
 	notificationhandler "github.com/sweetlife999/chain-of-trades-avito/internal/notification/handler"
 	notificationrepository "github.com/sweetlife999/chain-of-trades-avito/internal/notification/repository"
 	notificationservice "github.com/sweetlife999/chain-of-trades-avito/internal/notification/service"
 	pickuppointhandler "github.com/sweetlife999/chain-of-trades-avito/internal/pickuppoint/handler"
 	pickuppointrepository "github.com/sweetlife999/chain-of-trades-avito/internal/pickuppoint/repository"
 	pickuppointservice "github.com/sweetlife999/chain-of-trades-avito/internal/pickuppoint/service"
+	ratinghandler "github.com/sweetlife999/chain-of-trades-avito/internal/rating/handler"
+	ratingrepository "github.com/sweetlife999/chain-of-trades-avito/internal/rating/repository"
+	ratingservice "github.com/sweetlife999/chain-of-trades-avito/internal/rating/service"
 	reporthandler "github.com/sweetlife999/chain-of-trades-avito/internal/report/handler"
 	reportrepository "github.com/sweetlife999/chain-of-trades-avito/internal/report/repository"
 	reportservice "github.com/sweetlife999/chain-of-trades-avito/internal/report/service"
 	supporthandler "github.com/sweetlife999/chain-of-trades-avito/internal/support/handler"
 	supportrepository "github.com/sweetlife999/chain-of-trades-avito/internal/support/repository"
 	supportservice "github.com/sweetlife999/chain-of-trades-avito/internal/support/service"
+	uploadhandler "github.com/sweetlife999/chain-of-trades-avito/internal/upload/handler"
+	uploadservice "github.com/sweetlife999/chain-of-trades-avito/internal/upload/service"
 	userhandler "github.com/sweetlife999/chain-of-trades-avito/internal/user/handler"
 	userrepository "github.com/sweetlife999/chain-of-trades-avito/internal/user/repository"
 	userservice "github.com/sweetlife999/chain-of-trades-avito/internal/user/service"
@@ -58,6 +69,7 @@ const (
 	searchQueueCapacity   = 256
 	serverShutdownTimeout = 10 * time.Second
 	workerShutdownTimeout = 35 * time.Second
+	llmProbeTimeout       = 3 * time.Second
 )
 
 // @title       Цепочка обмена — API
@@ -104,13 +116,14 @@ func main() {
 	exchanges := exchangeservice.New(exchangesRepository, searchQueue)
 	searchWorker := exchangesearch.NewWorker(searchQueue, exchanges)
 	workerCtx, stopWorker := context.WithCancel(context.Background())
-	workerDone := make(chan struct{})
+	searchWorkerDone := make(chan struct{})
 	go func() {
 		searchWorker.Run(workerCtx)
-		close(workerDone)
+		close(searchWorkerDone)
 	}()
 	exchangesHandler := exchangehandler.New(exchanges)
-	items := itemservice.New(itemrepository.New(pool), exchanges)
+	itemsRepository := itemrepository.New(pool)
+	items := itemservice.New(itemsRepository, exchanges)
 	pickupPoints := pickuppointservice.New(pickuppointrepository.New(queries))
 	adminDashboard := admindashboardservice.New(admindashboardrepository.New(queries))
 	adminExchanges := adminexchangeservice.New(usersRepository, exchangesRepository)
@@ -119,10 +132,57 @@ func main() {
 	adminReports := reportservice.NewAdmin(reportsRepository, exchangesRepository)
 	adminAudit := adminauditservice.New(adminauditrepository.New(queries))
 	notifications := notificationservice.New(notificationrepository.New(queries))
+	ratings := ratingservice.New(ratingrepository.New(queries))
 	supportRepository := supportrepository.New(queries)
-	support := supportservice.New(supportRepository)
+	modelClient := newLLMClient(cfg)
+	// Модель — не зависимость API, а инструмент одной фичи: пустой OLLAMA_URL отдаёт
+	// нулевого бота, и поддержка работает как раньше, только без автоответов.
+	supportBot := newSupportBot(supportRepository, modelClient)
+	supportBotDone := make(chan struct{})
+	go func() {
+		supportBot.Run(workerCtx)
+		close(supportBotDone)
+	}()
+	support := supportservice.New(supportRepository, supportBot)
 	adminSupport := supportservice.NewAdmin(supportRepository)
+	// Каталог создаётся здесь же: прав на запись не окажется — упадём на старте, а не на
+	// первой загрузке пользователя.
+	uploads, err := uploadservice.New(cfg.UploadsDirectory)
+	if err != nil {
+		log.Fatal(err)
+	}
 
+	// Без модели антискам продолжает работать на строгих правилах, а накопленные
+	// задания не задерживают отправку сообщений. Готовность Ollama уже проверена
+	// при создании бота поддержки выше.
+	var antiscamModel antiscamservice.Generator
+	if modelClient != nil {
+		antiscamModel = modelClient
+	}
+	antiscamRepository := antiscamrepository.New(queries)
+	antiscamAdmin := antiscamservice.NewAdmin(antiscamRepository, exchangesRepository)
+	antiscamWorker := antiscamservice.NewWorker(
+		antiscamRepository,
+		antiscamservice.NewAnalyzer(antiscamModel, cfg.OllamaModel),
+	)
+	antiscamWorkerCtx, stopAntiscamWorker := context.WithCancel(context.Background())
+	antiscamWorkerDone := make(chan struct{})
+	go func() {
+		antiscamWorker.Run(antiscamWorkerCtx)
+		close(antiscamWorkerDone)
+	}()
+	var itemAssistant *itemassistantservice.Service
+	itemAssistantDone := make(chan struct{})
+	itemAssistantCtx, stopItemAssistant := context.WithCancel(context.Background())
+	if modelClient != nil {
+		itemAssistant = itemassistantservice.New(itemsRepository, modelClient)
+		go func() {
+			itemAssistant.Run(itemAssistantCtx)
+			close(itemAssistantDone)
+		}()
+	} else {
+		close(itemAssistantDone)
+	}
 	tokens := authtoken.NewManager(cfg.JWTSecret, authTokenTTL)
 	authenticator := authmiddleware.New(tokens, users)
 	adminAuthorizer := authmiddleware.NewAdminAuthorizer(users)
@@ -130,6 +190,7 @@ func main() {
 
 	userhandler.New(users).RegisterRoutes(router, authenticator.RequireAuthentication)
 	itemhandler.New(items).RegisterRoutes(router, authenticator.RequireAuthentication)
+	itemassistanthandler.New(itemAssistant).RegisterRoutes(router, authenticator.RequireAuthentication)
 	authhandler.New(auth, cfg.CookieSecure, authTokenTTL).
 		RegisterRoutes(router, authenticator.RequireAuthentication)
 	exchangesHandler.RegisterRoutes(router, authenticator.RequireAuthentication)
@@ -140,7 +201,13 @@ func main() {
 	// Жалуется обычный участник обмена, поэтому маршрут живёт вне группы /admin.
 	reporthandler.New(reports).RegisterRoutes(router, authenticator.RequireAuthentication)
 	notificationhandler.New(notifications).RegisterRoutes(router, authenticator.RequireAuthentication)
+	// Оценку ставит участник завершённого обмена, а лента отзывов публична, как профиль,
+	// поэтому модуль живёт вне /admin: администратор в оценки не вмешивается.
+	ratinghandler.New(ratings).RegisterRoutes(router, authenticator.RequireAuthentication)
 	supporthandler.New(support).RegisterRoutes(router, authenticator.RequireAuthentication)
+	// Загрузка отделена от объявлений и профиля: сначала файл, потом ссылка на него в любом
+	// из них. Иначе multipart пришлось бы тащить в создание и в редактирование вещи разом.
+	uploadhandler.New(uploads).RegisterRoutes(router, authenticator.RequireAuthentication)
 
 	// Все следующие административные модули регистрируются только внутри этой группы.
 	// JWT сначала определяет пользователя, затем роль проверяется по актуальным данным БД.
@@ -154,6 +221,7 @@ func main() {
 		reporthandler.NewAdmin(adminReports).RegisterRoutes(adminRouter)
 		adminaudithandler.New(adminAudit).RegisterRoutes(adminRouter)
 		supporthandler.NewAdmin(adminSupport).RegisterRoutes(adminRouter)
+		antiscamhandler.New(antiscamAdmin).RegisterRoutes(adminRouter)
 	})
 
 	router.Get("/health", health)
@@ -195,19 +263,95 @@ func main() {
 	}
 	cancelShutdown()
 
-	// Новые HTTP-задачи уже не появятся. Закрытие канала даёт worker дочитать буфер.
+	// Новые HTTP-задачи уже не появятся. Закрытие очередей даёт воркерам дочитать буфер.
 	searchQueue.Close()
-	select {
-	case <-workerDone:
-	case <-time.After(workerShutdownTimeout):
-		log.Print("search worker drain timed out, forcing shutdown")
-		stopWorker()
-		<-workerDone
-	}
+	supportBot.Close()
+	drainWorker("search", searchWorkerDone, stopWorker)
+	drainWorker("support bot", supportBotDone, stopWorker)
 	stopWorker()
+
+	// PostgreSQL хранит оставшиеся задания антискама, поэтому при остановке достаточно
+	// завершить текущий вызов: после запуска job снова подберётся по lease.
+	stopAntiscamWorker()
+	select {
+	case <-antiscamWorkerDone:
+	case <-time.After(workerShutdownTimeout):
+		log.Print("antiscam worker shutdown timed out")
+	}
+	stopItemAssistant()
+	select {
+	case <-itemAssistantDone:
+	case <-time.After(workerShutdownTimeout):
+		log.Print("item assistant worker shutdown timed out")
+	}
 
 	if serverErr != nil {
 		log.Printf("HTTP server stopped with error: %v", serverErr)
+	}
+}
+
+// newSupportBot собирает автоответчик поддержки и попутно пишет в лог состояние модели.
+// Проверка спрашивает у Ollama список моделей и не запускает инференс: греть веса ради
+// строчки в логе значило бы занять единственное ядро сервера ровно в тот момент, когда
+// API поднимается.
+//
+// Недоступная модель бота не отменяет: «недоступна» сразу после деплоя — нормальный
+// ответ, Ollama в это время может ещё качать веса, а обращения появятся позже. Пустой
+// OLLAMA_URL — это выключенная фича, и тогда возвращается nil: методы Bot на нём
+// безопасны, поддержка работает без автоответов.
+func newLLMClient(cfg config.Config) *llm.Client {
+	if cfg.OllamaURL == "" {
+		log.Print("llm: OLLAMA_URL is empty, model-backed features are disabled")
+		return nil
+	}
+
+	client := llm.New(cfg.OllamaURL, cfg.OllamaModel)
+
+	ctx, cancel := context.WithTimeout(context.Background(), llmProbeTimeout)
+	defer cancel()
+
+	if err := client.Available(ctx); err != nil {
+		log.Printf("llm: model %s is not ready at startup: %v", cfg.OllamaModel, err)
+	} else {
+		log.Printf("llm: model %s is ready on %s", cfg.OllamaModel, cfg.OllamaURL)
+	}
+	return client
+}
+
+func newSupportBot(repository *supportrepository.Repository, client *llm.Client) *supportservice.Bot {
+	if client == nil {
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), llmProbeTimeout)
+	defer cancel()
+
+	// Ник служебного пользователя в коде и в миграции 00024 обязаны совпадать: ответ бота
+	// находит автора джойном по нику. Разъехавшись, они не дают ошибки — вставка просто
+	// возвращает ноль строк, и бот молчит на каждом обращении, а в логе это неотличимо от
+	// «обращение уже не ждёт ответа». Поэтому сверяем один раз на старте и говорим прямо.
+	switch exists, err := repository.BotUserExists(ctx, supportservice.BotNickname); {
+	case err != nil:
+		log.Printf("support bot: cannot check user %q, replies may be silent: %v",
+			supportservice.BotNickname, err)
+	case !exists:
+		log.Printf("support bot is disabled: user %q is missing, apply migrations (00024)",
+			supportservice.BotNickname)
+		return nil
+	}
+
+	return supportservice.NewBot(repository, client)
+}
+
+// drainWorker ждёт, пока фоновый воркер дочитает очередь, и снимает его силой, если он
+// на это не уложился.
+func drainWorker(name string, done <-chan struct{}, stop context.CancelFunc) {
+	select {
+	case <-done:
+	case <-time.After(workerShutdownTimeout):
+		log.Printf("%s worker drain timed out, forcing shutdown", name)
+		stop()
+		<-done
 	}
 }
 

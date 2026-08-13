@@ -1,7 +1,7 @@
 import { memo } from "react";
 import axios from "axios";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useFieldArray, useForm, useWatch } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
@@ -9,13 +9,13 @@ import styles from "./Styles.module.scss";
 import { createItem, getCategories } from "../../../../Api/items/items";
 import {
   createChainFormSchema,
-  photoUrlSchema,
   type TCreateChainForm,
 } from "./shemaCreateChain";
 import type { TCreateItemRequest } from "../../../../Api/items/items.types";
 import { Input } from "../../../UI/Input/Input";
 import { Button } from "../../../UI/Button/Button";
-import { PhotoGallery } from "../../../UI/PhotoGallery/PhotoGallery";
+import { PhotoUploader } from "../../../UI/PhotoUploader/PhotoUploader";
+import { ItemAIAssistant } from "../../../UI/ItemAIAssistant/ItemAIAssistant";
 
 const getRequestErrorMessage = (error: unknown) => {
   if (axios.isAxiosError<{ error?: string }>(error)) {
@@ -40,6 +40,7 @@ const CreateChainComponent = () => {
     control,
     handleSubmit,
     setError,
+    setValue,
     formState: { errors },
   } = useForm<TCreateChainForm>({
     resolver: zodResolver(createChainFormSchema),
@@ -47,28 +48,15 @@ const CreateChainComponent = () => {
       title: "",
       category: "",
       description: "",
-      photo_urls: [{ url: "" }],
+      photo_urls: [],
       wants: [],
+      search_filters: {
+        max_chain_length: 5,
+        min_participant_rating: 0,
+        prefer_reliable_participants: true,
+      },
     },
   });
-
-  const {
-    fields: photoFields,
-    append: appendPhoto,
-    remove: removePhoto,
-  } = useFieldArray({
-    control,
-    name: "photo_urls",
-  });
-
-  const photoValues = useWatch({
-    control,
-    name: "photo_urls",
-  });
-
-  const previewUrls = (photoValues ?? [])
-    .map((photo) => photo.url.trim())
-    .filter((url) => photoUrlSchema.safeParse(url).success);
 
   const createItemMutation = useMutation({
     mutationFn: (request: TCreateItemRequest) => createItem(request),
@@ -94,8 +82,9 @@ const CreateChainComponent = () => {
       title: formData.title.trim(),
       category: formData.category,
       description: formData.description.trim(),
-      photo_urls: formData.photo_urls.map(({ url }) => url.trim()),
+      photo_urls: formData.photo_urls,
       wants: formData.wants,
+      search_filters: formData.search_filters,
     });
   };
 
@@ -123,66 +112,48 @@ const CreateChainComponent = () => {
         >
           <div className={styles.createChain__content}>
             <div className={styles.createChain__photosColumn}>
-              <PhotoGallery
-                urls={previewUrls}
-                alt="Предпросмотр товара"
-                empty={
-                  <div className={styles.createChain__photoPlaceholder}>
-                    <span className={styles.createChain__photoPlus}>+</span>
+              <span className={styles.createChain__label}>
+                Фотографии <b className={styles.createChain__required}>*</b>
+              </span>
 
-                    <strong className={styles.createChain__photoTitle}>
-                      Добавить фотографии
-                    </strong>
-
-                    <small className={styles.createChain__photoHint}>
-                      Вставьте ссылки, до 10 фотографий
-                    </small>
-                  </div>
-                }
+              <Controller
+                control={control}
+                name="photo_urls"
+                render={({ field }) => (
+                  <PhotoUploader
+                    urls={field.value}
+                    onChange={field.onChange}
+                    disabled={createItemMutation.isPending}
+                  />
+                )}
               />
 
-              <div className={styles.createChain__photoFields}>
-                {photoFields.map((field, index) => (
-                  <div
-                    className={styles.createChain__photoField}
-                    key={field.id}
-                  >
-                    <Input
-                      label={`Ссылка на фото ${index + 1}`}
-                      type="url"
-                      placeholder="https://example.com/photo.jpg"
-                      autoComplete="url"
-                      error={errors.photo_urls?.[index]?.url?.message}
-                      {...register(`photo_urls.${index}.url`)}
-                    />
-
-                    {photoFields.length > 1 && (
-                      <button
-                        className={styles.createChain__removePhoto}
-                        type="button"
-                        aria-label={`Удалить фотографию ${index + 1}`}
-                        onClick={() => removePhoto(index)}
-                      >
-                        ×
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              <Button
-                className={styles.createChain__addPhoto}
-                color="light"
-                size="s"
-                type="button"
-                disabled={photoFields.length >= 10}
-                onClick={() => appendPhoto({ url: "" })}
-              >
-                Добавить ещё фото
-              </Button>
+              {errors.photo_urls && (
+                <span className={styles.createChain__fieldError}>
+                  {errors.photo_urls.message}
+                </span>
+              )}
             </div>
 
             <div className={styles.createChain__fieldsColumn}>
+              <ItemAIAssistant
+                disabled={createItemMutation.isPending}
+                onApply={(suggestion) => {
+                  setValue("title", suggestion.title, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  });
+                  setValue("description", suggestion.description, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  });
+                  setValue("category", suggestion.category_slug, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  });
+                }}
+              />
+
               <Input
                 label="Название"
                 required
@@ -271,6 +242,64 @@ const CreateChainComponent = () => {
                     {errors.wants.message}
                   </span>
                 )}
+              </fieldset>
+
+              <fieldset className={styles.createChain__wants}>
+                <legend className={styles.createChain__label}>
+                  Настройки поиска
+                </legend>
+
+                <label className={styles.createChain__field}>
+                  <span className={styles.createChain__label}>
+                    Максимальная длина цепочки
+                  </span>
+                  <select
+                    className={styles.createChain__select}
+                    disabled={createItemMutation.isPending}
+                    {...register("search_filters.max_chain_length", {
+                      valueAsNumber: true,
+                    })}
+                  >
+                    <option value={2}>2 участника</option>
+                    <option value={3}>До 3 участников</option>
+                    <option value={4}>До 4 участников</option>
+                    <option value={5}>До 5 участников</option>
+                  </select>
+                </label>
+
+                <label className={styles.createChain__field}>
+                  <span className={styles.createChain__label}>
+                    Минимальный рейтинг участников
+                  </span>
+                  <select
+                    className={styles.createChain__select}
+                    disabled={createItemMutation.isPending}
+                    {...register("search_filters.min_participant_rating", {
+                      valueAsNumber: true,
+                    })}
+                  >
+                    <option value={0}>Не учитывать рейтинг</option>
+                    <option value={3}>От 3.0</option>
+                    <option value={3.5}>От 3.5</option>
+                    <option value={4}>От 4.0</option>
+                    <option value={4.5}>От 4.5</option>
+                    <option value={5}>Только 5.0</option>
+                  </select>
+                </label>
+
+                <label className={styles.createChain__category}>
+                  <input
+                    className={styles.createChain__categoryInput}
+                    disabled={createItemMutation.isPending}
+                    type="checkbox"
+                    {...register(
+                      "search_filters.prefer_reliable_participants",
+                    )}
+                  />
+                  <span className={styles.createChain__categoryLabel}>
+                    Сначала показывать обмены с надёжными участниками
+                  </span>
+                </label>
               </fieldset>
             </div>
           </div>

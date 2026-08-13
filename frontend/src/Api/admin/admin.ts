@@ -2,6 +2,10 @@ import axios from "axios";
 
 import api from "../client";
 import {
+  AdminAntiscamCaseSchema,
+  AdminAntiscamCasesSchema,
+  AdminAntiscamMessagesSchema,
+  AdminAntiscamParamsSchema,
   AdminAuditLogParamsSchema,
   AdminAuditLogSchema,
   AdminExchangesParamsSchema,
@@ -21,6 +25,10 @@ import {
   UpdatePickupPointSchema,
   type TAdminAuditLog,
   type TAdminAuditLogParams,
+  type TAdminAntiscamCase,
+  type TAdminAntiscamCases,
+  type TAdminAntiscamMessages,
+  type TAdminAntiscamParams,
   type TAdminExchanges,
   type TAdminExchangesParams,
   type TAdminReport,
@@ -36,6 +44,44 @@ import {
   type TPickupPoint,
   type TUpdatePickupPoint,
 } from "./admin.types";
+
+export const getAdminAntiscamCases = async (
+  request: TAdminAntiscamParams = {},
+): Promise<TAdminAntiscamCases> => {
+  const params = AdminAntiscamParamsSchema.parse(request);
+  const { data } = await api.get("/admin/antiscam/cases", { params });
+  return AdminAntiscamCasesSchema.parse(data);
+};
+
+export const getAdminAntiscamCase = async (
+  id: string,
+): Promise<TAdminAntiscamCase> => {
+  const { data } = await api.get(`/admin/antiscam/cases/${id}`);
+  return AdminAntiscamCaseSchema.parse(data);
+};
+
+export const getAdminAntiscamMessages = async (
+  id: string,
+): Promise<TAdminAntiscamMessages> => {
+  const { data } = await api.get(`/admin/antiscam/cases/${id}/messages`);
+  return AdminAntiscamMessagesSchema.parse(data);
+};
+
+const decideAdminAntiscamCase = async (
+  id: string,
+  action: "confirm" | "dismiss",
+  comment: string,
+): Promise<TAdminAntiscamCase> => {
+  const { data } = await api.post(`/admin/antiscam/cases/${id}/${action}`, {
+    comment,
+  });
+  return AdminAntiscamCaseSchema.parse(data);
+};
+
+export const confirmAdminAntiscamCase = (id: string, comment: string) =>
+  decideAdminAntiscamCase(id, "confirm", comment);
+export const dismissAdminAntiscamCase = (id: string, comment: string) =>
+  decideAdminAntiscamCase(id, "dismiss", comment);
 
 export const getAdminErrorMessage = (
   error: unknown,

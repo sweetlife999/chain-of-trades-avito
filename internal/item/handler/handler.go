@@ -54,7 +54,7 @@ func (h *Handler) RegisterRoutes(router chi.Router, requireAuth func(http.Handle
 
 // @Summary     Создать объявление
 // @Description Требует cookie `access_token`. Владелец берётся из токена, а не из тела запроса.
-// @Description Нужна хотя бы одна фотография (ссылкой) и хотя бы одна желаемая категория —
+// @Description Нужна хотя бы одна фотография и хотя бы одна желаемая категория —
 // @Description без них объявление не участвует в подборе обменов. Список категорий: GET /categories.
 // @Tags        items
 // @Accept      json
@@ -79,12 +79,13 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	item, err := h.service.Create(r.Context(), itemservice.CreateInput{
-		OwnerID:     ownerID,
-		Category:    request.Category,
-		Title:       request.Title,
-		Description: request.Description,
-		PhotoURLs:   request.PhotoURLs,
-		Wants:       request.Wants,
+		OwnerID:       ownerID,
+		Category:      request.Category,
+		Title:         request.Title,
+		Description:   request.Description,
+		PhotoURLs:     request.PhotoURLs,
+		Wants:         request.Wants,
+		SearchFilters: searchFiltersFromRequest(request.SearchFilters),
 	})
 	if err != nil {
 		handleServiceError(w, err)
@@ -147,8 +148,9 @@ func (h *Handler) getByID(w http.ResponseWriter, r *http.Request) {
 
 // @Summary     Изменить своё объявление
 // @Description Требует cookie `access_token`, менять можно только свои объявления. Достаточно одного поля.
-// @Description `photo_urls` и `wants` заменяются целиком: чтобы добавить фотографию, пришлите старые
-// @Description ссылки вместе с новой. Пустой список запрещён — у объявления всегда есть хотя бы одно фото.
+// @Description `photo_urls` и `wants` заменяются целиком: чтобы добавить фотографию, загрузите её
+// @Description через POST /uploads и пришлите старые ссылки вместе с новой. Пустой список запрещён —
+// @Description у объявления всегда есть хотя бы одно фото.
 // @Tags        items
 // @Accept      json
 // @Produce     json
@@ -181,11 +183,12 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	item, err := h.service.Update(r.Context(), id, userID, itemservice.UpdateInput{
-		Category:    request.Category,
-		Title:       request.Title,
-		Description: request.Description,
-		PhotoURLs:   request.PhotoURLs,
-		Wants:       request.Wants,
+		Category:      request.Category,
+		Title:         request.Title,
+		Description:   request.Description,
+		PhotoURLs:     request.PhotoURLs,
+		Wants:         request.Wants,
+		SearchFilters: searchFiltersFromRequest(request.SearchFilters),
 	})
 	if err != nil {
 		handleServiceError(w, err)
@@ -193,6 +196,18 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, itemdto.FromModel(item))
+}
+
+func searchFiltersFromRequest(request *itemdto.SearchFiltersRequest) *itemmodel.SearchFilters {
+	if request == nil {
+		return nil
+	}
+
+	return &itemmodel.SearchFilters{
+		MaxChainLength:             request.MaxChainLength,
+		MinParticipantRating:       request.MinParticipantRating,
+		PreferReliableParticipants: request.PreferReliableParticipants,
+	}
 }
 
 // @Summary     Удалить своё объявление

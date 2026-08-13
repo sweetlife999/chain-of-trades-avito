@@ -16,12 +16,16 @@ import (
 	exchangeservice "github.com/sweetlife999/chain-of-trades-avito/internal/exchange/service"
 	itemmodel "github.com/sweetlife999/chain-of-trades-avito/internal/item/model"
 	itemrepository "github.com/sweetlife999/chain-of-trades-avito/internal/item/repository"
+	uploadservice "github.com/sweetlife999/chain-of-trades-avito/internal/upload/service"
 )
 
 const (
 	maxTitleLength = 120
 	maxPhotos      = 10
 	maxWants       = 10
+	minChainLength = 2
+	maxChainLength = 5
+	maxRating      = 5.0
 )
 
 var (
@@ -70,22 +74,24 @@ type Service struct {
 }
 
 type CreateInput struct {
-	OwnerID     uuid.UUID
-	Category    string
-	Title       string
-	Description string
-	PhotoURLs   []string
-	Wants       []string
+	OwnerID       uuid.UUID
+	Category      string
+	Title         string
+	Description   string
+	PhotoURLs     []string
+	Wants         []string
+	SearchFilters *itemmodel.SearchFilters
 }
 
 // Списки различают nil («поле не передали») и пустой срез («передали пустым»):
 // второе — ошибка, иначе объявление осталось бы без фото или без желаний.
 type UpdateInput struct {
-	Category    *string
-	Title       *string
-	Description *string
-	PhotoURLs   []string
-	Wants       []string
+	Category      *string
+	Title         *string
+	Description   *string
+	PhotoURLs     []string
+	Wants         []string
+	SearchFilters *itemmodel.SearchFilters
 }
 
 type ValidationError struct {
@@ -141,14 +147,19 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (itemmodel.Item
 	if err != nil {
 		return itemmodel.Item{}, err
 	}
+	filters, err := cleanSearchFilters(input.SearchFilters)
+	if err != nil {
+		return itemmodel.Item{}, err
+	}
 
 	created, err := s.repository.Create(ctx, itemmodel.NewItem{
-		OwnerID:     input.OwnerID,
-		Category:    category,
-		Title:       title,
-		Description: strings.TrimSpace(input.Description),
-		PhotoURLs:   photoURLs,
-		Wants:       wants,
+		OwnerID:       input.OwnerID,
+		Category:      category,
+		Title:         title,
+		Description:   strings.TrimSpace(input.Description),
+		PhotoURLs:     photoURLs,
+		Wants:         wants,
+		SearchFilters: filters,
 	})
 	if err != nil {
 		return itemmodel.Item{}, err
@@ -173,7 +184,7 @@ func (s *Service) Update(
 	input UpdateInput,
 ) (itemmodel.Item, error) {
 	if input.Category == nil && input.Title == nil && input.Description == nil &&
-		input.PhotoURLs == nil && input.Wants == nil {
+		input.PhotoURLs == nil && input.Wants == nil && input.SearchFilters == nil {
 		return itemmodel.Item{}, validationError("at least one field must be provided")
 	}
 
@@ -220,11 +231,19 @@ func (s *Service) Update(
 		}
 		changes.Wants = wants
 	}
+	if input.SearchFilters != nil {
+		filters, err := cleanSearchFilters(input.SearchFilters)
+		if err != nil {
+			return itemmodel.Item{}, err
+		}
+		changes.SearchFilters = &filters
+	}
 
 	// Именно изменение значения, а не наличие поля в теле: клиент присылает объявление
 	// целиком, и правка одного заголовка иначе выглядела бы как смена условий обмена.
 	compatibilityChanged := (changes.Category != nil && *changes.Category != current.Category) ||
-		(changes.Wants != nil && !sameWants(changes.Wants, current.Wants))
+		(changes.Wants != nil && !sameWants(changes.Wants, current.Wants)) ||
+		(changes.SearchFilters != nil && *changes.SearchFilters != current.SearchFilters)
 	if compatibilityChanged {
 		hasOpenExchange, err := s.repository.HasOpenExchange(ctx, id)
 		if err != nil {
@@ -348,10 +367,17 @@ func sameWants(a []string, b []string) bool {
 }
 
 func (s *Service) findExchange(ctx context.Context, item itemmodel.Item) {
-	s.scheduleSearch(ctx, exchangemodel.Node{
-		ItemID:  item.ID,
-		OwnerID: item.OwnerID,
-	})
+	s.scheduleSearch(ctx, searchNode(item))
+}
+
+func searchNode(item itemmodel.Item) exchangemodel.Node {
+	return exchangemodel.Node{
+		ItemID:                     item.ID,
+		OwnerID:                    item.OwnerID,
+		MaxChainLength:             item.SearchFilters.MaxChainLength,
+		MinParticipantRating:       item.SearchFilters.MinParticipantRating,
+		PreferReliableParticipants: item.SearchFilters.PreferReliableParticipants,
+	}
 }
 
 func (s *Service) scheduleSearch(ctx context.Context, node exchangemodel.Node) {
@@ -374,8 +400,10 @@ func validateTitle(title string) error {
 	return nil
 }
 
-// Фотографии хранятся ссылками, поэтому строка обязана быть абсолютным http(s)-адресом:
-// относительный путь или mailto: в карточке останутся битой картинкой.
+// Фотографии хранятся ссылками: либо путь загруженного файла, либо абсолютный http(s)-адрес.
+// Внешние ссылки остаются валидными ради объявлений, созданных до загрузки файлов: иначе их
+// нельзя было бы отредактировать, не переснимая вещь заново. Всё остальное — относительный
+// путь, mailto: — в карточке осталось бы битой картинкой.
 func cleanPhotoURLs(photoURLs []string) ([]string, error) {
 	cleaned := make([]string, 0, len(photoURLs))
 	for _, photoURL := range photoURLs {
@@ -384,9 +412,11 @@ func cleanPhotoURLs(photoURLs []string) ([]string, error) {
 			continue
 		}
 
-		parsed, err := url.Parse(photoURL)
-		if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
-			return nil, validationError("photo url must be an absolute http(s) link")
+		if !uploadservice.IsPath(photoURL) {
+			parsed, err := url.Parse(photoURL)
+			if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+				return nil, validationError("photo url must be an uploaded file or an absolute http(s) link")
+			}
 		}
 
 		cleaned = append(cleaned, photoURL)
@@ -429,6 +459,23 @@ func cleanWants(wants []string) ([]string, error) {
 	}
 
 	return cleaned, nil
+}
+
+func cleanSearchFilters(filters *itemmodel.SearchFilters) (itemmodel.SearchFilters, error) {
+	if filters == nil {
+		return itemmodel.SearchFilters{
+			MaxChainLength:             maxChainLength,
+			PreferReliableParticipants: true,
+		}, nil
+	}
+	if filters.MaxChainLength < minChainLength || filters.MaxChainLength > maxChainLength {
+		return itemmodel.SearchFilters{}, validationError("max chain length must be between 2 and 5")
+	}
+	if filters.MinParticipantRating < 0 || filters.MinParticipantRating > maxRating {
+		return itemmodel.SearchFilters{}, validationError("minimum participant rating must be between 0 and 5")
+	}
+
+	return *filters, nil
 }
 
 func validationError(message string) error {

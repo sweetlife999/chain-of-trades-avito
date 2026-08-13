@@ -82,12 +82,33 @@ func (q *Queries) CloseSupportThreadByUser(ctx context.Context, arg CloseSupport
 
 const countAdminSupportThreads = `-- name: CountAdminSupportThreads :one
 SELECT count(*)
-FROM support_threads
-WHERE ($1::text = '' OR status::text = $1)
+FROM support_threads AS thread
+WHERE ($1::text = '' OR thread.status::text = $1)
+  -- needs_human оставляет только то, что действительно ждёт модератора: обращения с
+  -- отметкой эскалации плюс те, на которые со стороны сервиса вообще никто не ответил.
+  -- Вторая половина обязательна: без неё из очереди пропали бы обращения, пришедшие
+  -- когда автоответчик был выключен, недоступен или ещё не существовал, — то есть
+  -- поломка модели прятала бы обращения вместо того, чтобы их показывать.
+  AND (
+      NOT $2::boolean
+      OR thread.escalated_at IS NOT NULL
+      OR NOT EXISTS (
+          SELECT 1
+          FROM support_messages AS answer
+          JOIN users AS responder ON responder.id = answer.author_id
+          WHERE answer.thread_id = thread.id
+            AND responder.is_admin
+      )
+  )
 `
 
-func (q *Queries) CountAdminSupportThreads(ctx context.Context, statusFilter string) (int64, error) {
-	row := q.db.QueryRow(ctx, countAdminSupportThreads, statusFilter)
+type CountAdminSupportThreadsParams struct {
+	StatusFilter string
+	NeedsHuman   bool
+}
+
+func (q *Queries) CountAdminSupportThreads(ctx context.Context, arg CountAdminSupportThreadsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countAdminSupportThreads, arg.StatusFilter, arg.NeedsHuman)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -155,11 +176,86 @@ func (q *Queries) CreateAdminSupportMessage(ctx context.Context, arg CreateAdmin
 	return i, err
 }
 
+const createBotSupportMessage = `-- name: CreateBotSupportMessage :one
+WITH created AS (
+    INSERT INTO support_messages (thread_id, author_id, body)
+    SELECT thread.id, bot.id, $1
+    FROM support_threads AS thread
+    JOIN users AS bot ON lower(bot.nickname) = lower($2::text)
+    WHERE thread.id = $3
+      -- Только пока обращение никто не взял: администратор мог назначить его на себя,
+      -- пока считала модель.
+      AND thread.status = 'open'
+      -- Один автоответ на обращение. Повтор отсекается здесь, а не проверкой перед
+      -- вставкой, — тот же приём, что UNIQUE у жалоб.
+      AND NOT EXISTS (
+          SELECT 1
+          FROM support_messages AS previous
+          WHERE previous.thread_id = thread.id
+            AND previous.author_id = bot.id
+      )
+    RETURNING id, thread_id, author_id, body, created_at
+)
+SELECT
+    created.id,
+    created.thread_id,
+    created.author_id,
+    created.body,
+    created.created_at,
+    author.nickname AS author_nickname,
+    author.photo_url AS author_photo_url,
+    author.is_admin AS author_is_admin
+FROM created
+JOIN users AS author ON author.id = created.author_id
+`
+
+type CreateBotSupportMessageParams struct {
+	Body        string
+	BotNickname string
+	ThreadID    pgtype.UUID
+}
+
+type CreateBotSupportMessageRow struct {
+	ID             pgtype.UUID
+	ThreadID       pgtype.UUID
+	AuthorID       pgtype.UUID
+	Body           string
+	CreatedAt      pgtype.Timestamptz
+	AuthorNickname string
+	AuthorPhotoUrl pgtype.Text
+	AuthorIsAdmin  bool
+}
+
+// Ответ автоответчика. Отдельный запрос, а не CreateAdminSupportMessage, по трём
+// причинам: тот требует назначенного администратора и статус in_progress, а бот не
+// берёт обращение на себя (иначе тред ушёл бы из очереди «открытые»); тот ставит
+// admin_read_at, то есть погасил бы непрочитанное у живых модераторов; и updated_at
+// бот намеренно не двигает, чтобы порядок очереди не зависел от его ответа.
+//
+// Автор находится джойном по нику из миграции 00024, поэтому UUID служебного
+// пользователя в Go не хранится. Ноль строк — нормальный ответ: значит обращение
+// закрыли, взяли в работу или бот в нём уже отвечал.
+func (q *Queries) CreateBotSupportMessage(ctx context.Context, arg CreateBotSupportMessageParams) (CreateBotSupportMessageRow, error) {
+	row := q.db.QueryRow(ctx, createBotSupportMessage, arg.Body, arg.BotNickname, arg.ThreadID)
+	var i CreateBotSupportMessageRow
+	err := row.Scan(
+		&i.ID,
+		&i.ThreadID,
+		&i.AuthorID,
+		&i.Body,
+		&i.CreatedAt,
+		&i.AuthorNickname,
+		&i.AuthorPhotoUrl,
+		&i.AuthorIsAdmin,
+	)
+	return i, err
+}
+
 const createSupportThread = `-- name: CreateSupportThread :one
 WITH created_thread AS (
     INSERT INTO support_threads (user_id, subject)
     VALUES ($1, $2)
-    RETURNING id, user_id, subject, status, assigned_admin_id, user_read_at, admin_read_at, created_at, updated_at, closed_at
+    RETURNING id, user_id, subject, status, assigned_admin_id, user_read_at, admin_read_at, created_at, updated_at, closed_at, escalated_at
 ), created_message AS (
     INSERT INTO support_messages (thread_id, author_id, body)
     SELECT id, user_id, $3
@@ -227,7 +323,11 @@ WITH created AS (
 ), touched AS (
     UPDATE support_threads AS thread
     SET updated_at = created.created_at,
-        user_read_at = created.created_at
+        user_read_at = created.created_at,
+        -- Сюда попадает только повторное сообщение: первое вставляет CreateSupportThread.
+        -- Значит автоответ не решил вопрос и обращению нужен человек. COALESCE держит
+        -- метку на моменте первой эскалации, а не последнего сообщения.
+        escalated_at = COALESCE(thread.escalated_at, created.created_at)
     FROM created
     WHERE thread.id = created.thread_id
 )
@@ -277,6 +377,25 @@ func (q *Queries) CreateUserSupportMessage(ctx context.Context, arg CreateUserSu
 	return i, err
 }
 
+const escalateSupportThread = `-- name: EscalateSupportThread :execrows
+UPDATE support_threads
+SET escalated_at = clock_timestamp()
+WHERE id = $1
+  AND escalated_at IS NULL
+  AND status <> 'closed'
+`
+
+// Пометить, что обращению нужен человек. Вызывает автоответчик, когда не справился:
+// модель отнесла обращение к теме `other` или не ответила вовсе. Идемпотентно — повторный
+// вызов метку не двигает, а закрытое обращение не эскалирует.
+func (q *Queries) EscalateSupportThread(ctx context.Context, threadID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, escalateSupportThread, threadID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getAdminSupportThread = `-- name: GetAdminSupportThread :one
 SELECT
     thread.id,
@@ -289,7 +408,8 @@ SELECT
     admin.nickname AS assigned_admin_nickname,
     thread.created_at,
     thread.updated_at,
-    thread.closed_at
+    thread.closed_at,
+    thread.escalated_at
 FROM support_threads AS thread
 JOIN users AS customer ON customer.id = thread.user_id
 LEFT JOIN users AS admin ON admin.id = thread.assigned_admin_id
@@ -308,6 +428,7 @@ type GetAdminSupportThreadRow struct {
 	CreatedAt             pgtype.Timestamptz
 	UpdatedAt             pgtype.Timestamptz
 	ClosedAt              pgtype.Timestamptz
+	EscalatedAt           pgtype.Timestamptz
 }
 
 func (q *Queries) GetAdminSupportThread(ctx context.Context, threadID pgtype.UUID) (GetAdminSupportThreadRow, error) {
@@ -325,6 +446,7 @@ func (q *Queries) GetAdminSupportThread(ctx context.Context, threadID pgtype.UUI
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ClosedAt,
+		&i.EscalatedAt,
 	)
 	return i, err
 }
@@ -393,7 +515,11 @@ SELECT
     thread.created_at,
     thread.updated_at,
     thread.closed_at,
-    last_message.body AS last_message_body,
+    thread.escalated_at,
+    -- COALESCE, потому что sqlc типизирует эту колонку как NOT NULL по исходному
+    -- столбцу и не учитывает LEFT JOIN: NULL здесь — не пустое превью, а 500 на
+    -- весь список.
+    COALESCE(last_message.body, '') AS last_message_body,
     last_message.created_at AS last_message_created_at,
     count(unread.id) AS unread_count
 FROM support_threads AS thread
@@ -403,6 +529,16 @@ LEFT JOIN LATERAL (
     SELECT message.body, message.created_at
     FROM support_messages AS message
     WHERE message.thread_id = thread.id
+      -- В очереди модерации превью — последнее сообщение автора обращения, а не ответ
+      -- поддержки: иначе автоответчик, который отвечает почти сразу, сделал бы превью
+      -- всех обращений одинаковым и спрятал бы из очереди сам вопрос.
+      --
+      -- Условие именно «автор обращения», а не «не администратор»: администратор тоже
+      -- обычный пользователь и может написать в поддержку сам. По «не администратор»
+      -- такой тред не давал ни одной строки, а NULL в last_message_body ронял 500 на
+      -- всю страницу очереди, потому что sqlc типизирует эту колонку как NOT NULL.
+      -- Тот же признак стоит у подсчёта непрочитанного ниже.
+      AND message.author_id = thread.user_id
     ORDER BY message.created_at DESC, message.id DESC
     LIMIT 1
 ) AS last_message ON true
@@ -411,18 +547,35 @@ LEFT JOIN support_messages AS unread
    AND unread.created_at > COALESCE(thread.admin_read_at, '-infinity'::timestamptz)
    AND unread.author_id = thread.user_id
 WHERE ($1::text = '' OR thread.status::text = $1)
+  -- needs_human оставляет только то, что действительно ждёт модератора: обращения с
+  -- отметкой эскалации плюс те, на которые со стороны сервиса вообще никто не ответил.
+  -- Вторая половина обязательна: без неё из очереди пропали бы обращения, пришедшие
+  -- когда автоответчик был выключен, недоступен или ещё не существовал, — то есть
+  -- поломка модели прятала бы обращения вместо того, чтобы их показывать.
+  AND (
+      NOT $2::boolean
+      OR thread.escalated_at IS NOT NULL
+      OR NOT EXISTS (
+          SELECT 1
+          FROM support_messages AS answer
+          JOIN users AS responder ON responder.id = answer.author_id
+          WHERE answer.thread_id = thread.id
+            AND responder.is_admin
+      )
+  )
 GROUP BY thread.id, customer.nickname, customer.photo_url, admin.nickname,
          last_message.body, last_message.created_at
 ORDER BY
     CASE thread.status WHEN 'open' THEN 0 WHEN 'in_progress' THEN 1 ELSE 2 END,
     thread.updated_at DESC,
     thread.id DESC
-LIMIT $3
-OFFSET $2
+LIMIT $4
+OFFSET $3
 `
 
 type ListAdminSupportThreadsParams struct {
 	StatusFilter string
+	NeedsHuman   bool
 	PageOffset   int32
 	PageLimit    int32
 }
@@ -439,13 +592,19 @@ type ListAdminSupportThreadsRow struct {
 	CreatedAt             pgtype.Timestamptz
 	UpdatedAt             pgtype.Timestamptz
 	ClosedAt              pgtype.Timestamptz
+	EscalatedAt           pgtype.Timestamptz
 	LastMessageBody       string
 	LastMessageCreatedAt  pgtype.Timestamptz
 	UnreadCount           int64
 }
 
 func (q *Queries) ListAdminSupportThreads(ctx context.Context, arg ListAdminSupportThreadsParams) ([]ListAdminSupportThreadsRow, error) {
-	rows, err := q.db.Query(ctx, listAdminSupportThreads, arg.StatusFilter, arg.PageOffset, arg.PageLimit)
+	rows, err := q.db.Query(ctx, listAdminSupportThreads,
+		arg.StatusFilter,
+		arg.NeedsHuman,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -465,6 +624,7 @@ func (q *Queries) ListAdminSupportThreads(ctx context.Context, arg ListAdminSupp
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.ClosedAt,
+			&i.EscalatedAt,
 			&i.LastMessageBody,
 			&i.LastMessageCreatedAt,
 			&i.UnreadCount,
@@ -545,7 +705,10 @@ SELECT
     thread.created_at,
     thread.updated_at,
     thread.closed_at,
-    last_message.body AS last_message_body,
+    -- COALESCE, потому что sqlc типизирует эту колонку как NOT NULL по исходному
+    -- столбцу и не учитывает LEFT JOIN: NULL здесь — не пустое превью, а 500 на
+    -- весь список.
+    COALESCE(last_message.body, '') AS last_message_body,
     last_message.created_at AS last_message_created_at,
     count(unread.id) AS unread_count
 FROM support_threads AS thread
@@ -645,4 +808,21 @@ func (q *Queries) MarkSupportThreadReadByUser(ctx context.Context, arg MarkSuppo
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const supportBotUserExists = `-- name: SupportBotUserExists :one
+SELECT EXISTS (
+    SELECT 1 FROM users
+    WHERE lower(nickname) = lower($1::text)
+      AND is_admin
+)
+`
+
+// Совпадает ли ник служебного пользователя в коде с ником из миграции. Проверяется на
+// старте: разъехавшись, они дают молчание бота на каждом обращении вместо ошибки.
+func (q *Queries) SupportBotUserExists(ctx context.Context, botNickname string) (bool, error) {
+	row := q.db.QueryRow(ctx, supportBotUserExists, botNickname)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
