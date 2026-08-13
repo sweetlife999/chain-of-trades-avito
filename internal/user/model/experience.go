@@ -4,7 +4,7 @@ const (
 	// ExperiencePerCompletedDeal keeps the progression tied to the only action
 	// that cannot be rolled back or farmed by accepting and cancelling a deal.
 	ExperiencePerCompletedDeal int32 = 100
-	MaxExperienceLevel               = 5
+	MaxExperienceLevel         int32 = 5
 )
 
 var experienceLevelDeals = [...]int32{0, 1, 3, 6, 10}
