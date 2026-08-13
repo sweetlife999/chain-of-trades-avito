@@ -10,6 +10,8 @@ type TButton = {
   type?: "button" | "submit";
   disabled?: boolean;
   className?: string;
+  mascotAnchor?: string;
+  tutorialTarget?: string;
 };
 
 const ButtonComponent = ({
@@ -21,6 +23,8 @@ const ButtonComponent = ({
   type = "button",
   disabled,
   className,
+  mascotAnchor,
+  tutorialTarget,
 }: TButton): JSX.Element => {
   const buttonClassName = [
     styles.button,
@@ -38,6 +42,8 @@ const ButtonComponent = ({
       onClick={onClick}
       type={type}
       disabled={disabled}
+      data-mascot-anchor={mascotAnchor}
+      data-tutorial-target={tutorialTarget}
     >
       {children}
     </button>

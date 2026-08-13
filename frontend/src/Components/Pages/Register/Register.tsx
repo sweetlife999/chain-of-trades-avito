@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
@@ -18,11 +18,16 @@ import {
 } from "../../../Api/auth/auth.types";
 import { useAuthDispatch } from "../../../Hooks/useAuthDispatch";
 import { setUserState } from "../../../Store/authSlice";
+import { useMascot } from "../../../Hooks/useMascot";
+import { saveTutorialProgress } from "../../../Features/Tutorial/tutorial";
+import { tutorialStarted } from "../../../Features/Tutorial/tutorialSlice";
 
 const RegisterComponent = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useAuthDispatch();
+  const { reactTo, reset } = useMascot();
+  const authenticationSucceededRef = useRef(false);
   const locationState = location.state as
     | { closeTo?: string; from?: string }
     | null;
@@ -48,11 +53,16 @@ const RegisterComponent = () => {
     mutationFn: (data: TRegister) => registerAndLogin(data),
 
     onSuccess: (data: TAuthenticatedUser) => {
+      authenticationSucceededRef.current = true;
+      reactTo("FORM_SUCCESS");
       dispatch(setUserState(data));
-      navigate(destination, { replace: true });
+      saveTutorialProgress(data.id, 0);
+      dispatch(tutorialStarted({ userId: data.id }));
+      navigate("/feed", { replace: true });
     },
 
     onError: () => {
+      reactTo("FORM_ERROR");
       setError("root", {
         type: "server",
         message: "Не удалось зарегистрироваться",
@@ -61,8 +71,19 @@ const RegisterComponent = () => {
   });
 
   const onSubmit = (data: TRegister) => {
+    reactTo("FORM_SUBMIT");
     registerMutation.mutate(data);
   };
+
+  useEffect(() => {
+    reactTo("AUTH_FORM_READY");
+
+    return () => {
+      if (!authenticationSucceededRef.current) {
+        reset();
+      }
+    };
+  }, [reactTo, reset]);
 
   const closeForm = () => {
     if (locationState?.closeTo) {
@@ -77,7 +98,7 @@ const RegisterComponent = () => {
     <Popup>
       <form
         className={styles.register}
-        onSubmit={handleSubmit(onSubmit)}
+        onSubmit={handleSubmit(onSubmit, () => reactTo("FORM_ERROR"))}
         noValidate
       >
         <div className={styles.register__header}>
@@ -150,6 +171,7 @@ const RegisterComponent = () => {
             type="submit"
             centered
             disabled={registerMutation.isPending}
+            mascotAnchor="form-submit"
           >
             {registerMutation.isPending
               ? "Регистрация..."

@@ -1,4 +1,12 @@
-import { type FormEvent, memo, useState } from "react";
+import {
+  type FormEvent,
+  type KeyboardEvent,
+  memo,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
 import { CheckCircle2, Headset, Send, UserCheck } from "lucide-react";
@@ -50,6 +58,12 @@ const AdminSupportComponent = () => {
   const [needsHuman, setNeedsHuman] = useState(true);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const endRef = useRef<HTMLDivElement>(null);
+  const messageInputRef = useRef<HTMLTextAreaElement>(null);
+
+  const restoreMessageFocus = () => {
+    window.requestAnimationFrame(() => messageInputRef.current?.focus());
+  };
 
   const listQuery = useQuery({
     queryKey: ["admin-support", "threads", filter, needsHuman],
@@ -62,6 +76,17 @@ const AdminSupportComponent = () => {
     enabled: Boolean(selectedID),
     refetchInterval: 3000,
   });
+  const messages = useMemo(
+    () => messagesQuery.data?.messages ?? [],
+    [messagesQuery.data?.messages],
+  );
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }, [messages.length, selectedID]);
 
   const refresh = async () => {
     await Promise.all([
@@ -81,9 +106,14 @@ const AdminSupportComponent = () => {
     onSuccess: async () => {
       setMessage("");
       setError("");
+      restoreMessageFocus();
       await refresh();
+      restoreMessageFocus();
     },
-    onError: (requestError) => mutationError(requestError, "Не удалось отправить ответ"),
+    onError: (requestError) => {
+      mutationError(requestError, "Не удалось отправить ответ");
+      restoreMessageFocus();
+    },
   });
   const closeMutation = useMutation({
     mutationFn: closeAdminSupportThread,
@@ -99,10 +129,29 @@ const AdminSupportComponent = () => {
     next.set("thread", id);
     setSearchParams(next);
   };
+  const sendCurrentMessage = () => {
+    const value = message.trim();
+
+    if (!selectedID || !value || sendMutation.isPending) {
+      return;
+    }
+
+    sendMutation.mutate({ threadID: selectedID, body: value });
+  };
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (selectedID && message.trim()) {
-      sendMutation.mutate({ threadID: selectedID, body: message.trim() });
+    sendCurrentMessage();
+  };
+  const handleMessageKeyDown = (
+    event: KeyboardEvent<HTMLTextAreaElement>,
+  ) => {
+    if (
+      event.key === "Enter" &&
+      !event.shiftKey &&
+      !event.nativeEvent.isComposing
+    ) {
+      event.preventDefault();
+      sendCurrentMessage();
     }
   };
 
@@ -146,15 +195,25 @@ const AdminSupportComponent = () => {
                 </div>
               </header>
               <div className={styles.support__messages}>
-                {(messagesQuery.data?.messages ?? []).map((item) => {
+                {messages.map((item) => {
                   const adminMessage = item.author.is_admin;
                   return <article className={clsx(styles.support__message, adminMessage && styles.support__message_admin)} key={item.id}><strong>{item.author.nickname}{adminMessage ? " · администратор" : ""}</strong><p>{item.body}</p><time>{formatDate(item.created_at)}</time></article>;
                 })}
+                <div ref={endRef} />
               </div>
               {error && <p className={styles.support__error}>{error}</p>}
               {thread.status === "in_progress" && assignedToMe ? (
                 <form className={styles.support__composer} onSubmit={submit}>
-                  <textarea maxLength={4000} placeholder="Ответ пользователю..." required rows={2} value={message} onChange={(event) => setMessage(event.target.value)} />
+                  <textarea
+                    maxLength={4000}
+                    placeholder="Ответ пользователю..."
+                    ref={messageInputRef}
+                    required
+                    rows={2}
+                    value={message}
+                    onChange={(event) => setMessage(event.target.value)}
+                    onKeyDown={handleMessageKeyDown}
+                  />
                   <button aria-label="Отправить" disabled={sendMutation.isPending || !message.trim()} type="submit"><Send size={20} /></button>
                 </form>
               ) : thread.status !== "closed" ? (

@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -21,6 +21,7 @@ import { Button } from "../../UI/Button/Button";
 import { Input } from "../../UI/Input/Input";
 import { Rating } from "../../UI/Rating/Rating";
 import { RatingInput } from "../../UI/Rating/RatingInput";
+import { useMascot } from "../../../Hooks/useMascot";
 
 const pageSize = 20;
 
@@ -68,6 +69,7 @@ const EditRatingForm = ({
   onSaved,
 }: TEditRatingFormProps) => {
   const queryClient = useQueryClient();
+  const { reactTo } = useMascot();
   const {
     formState: { errors },
     handleSubmit,
@@ -93,20 +95,28 @@ const EditRatingForm = ({
         queryClient.invalidateQueries({ queryKey: ["users", userId] }),
         queryClient.invalidateQueries({ queryKey: ["ratings", userId] }),
       ]);
+      reactTo("FORM_SUCCESS");
       onSaved();
     },
-    onError: (error) =>
+    onError: (error) => {
+      reactTo("FORM_ERROR");
       setError("root", {
         type: "server",
         message: getRatingError(error, "Не удалось изменить отзыв"),
-      }),
+      });
+    },
   });
+
+  const onSubmit = (values: TEditRatingForm) => {
+    reactTo("FORM_SUBMIT");
+    mutation.mutate(values);
+  };
 
   return (
     <form
       className={styles.ratings__editForm}
       noValidate
-      onSubmit={handleSubmit((values) => mutation.mutate(values))}
+      onSubmit={handleSubmit(onSubmit, () => reactTo("FORM_ERROR"))}
     >
       <RatingInput disabled={mutation.isPending} {...register("score")} />
       {errors.score && (
@@ -127,7 +137,12 @@ const EditRatingForm = ({
       )}
 
       <div className={styles.ratings__editButtons}>
-        <Button disabled={mutation.isPending} size="s" type="submit">
+        <Button
+          disabled={mutation.isPending}
+          mascotAnchor="form-submit"
+          size="s"
+          type="submit"
+        >
           {mutation.isPending ? "Сохраняем..." : "Сохранить изменения"}
         </Button>
         <Button
@@ -149,12 +164,15 @@ const ProfileRatingsComponent = ({
   ratingsCount,
 }: TProfileRatingsProps) => {
   const { user: currentUser } = useAuthSelector();
+  const queryClient = useQueryClient();
+  const { reactTo } = useMascot();
   const [page, setPage] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const [editingExchangeId, setEditingExchangeId] = useState<string | null>(
     null,
   );
   const [savedExchangeId, setSavedExchangeId] = useState<string | null>(null);
+  const previousRatingsCountRef = useRef(ratingsCount);
   const totalPages = Math.max(1, Math.ceil(ratingsCount / pageSize));
   const currentPage = Math.min(page, totalPages - 1);
   const offset = currentPage * pageSize;
@@ -197,6 +215,25 @@ const ProfileRatingsComponent = ({
     const deadline = new Date(exchange.rating!.rate_until).getTime();
     return Number.isFinite(deadline) && deadline > now;
   });
+
+  useEffect(() => {
+    const previousCount = previousRatingsCountRef.current;
+    previousRatingsCountRef.current = ratingsCount;
+
+    if (ratingsCount <= previousCount) {
+      return;
+    }
+
+    setPage(0);
+    void queryClient.invalidateQueries({ queryKey: ["ratings", userId] });
+    reactTo("NEW_REVIEW");
+  }, [queryClient, ratingsCount, reactTo, userId]);
+
+  useEffect(() => {
+    if (ratingsQuery.isError || exchangesQuery.isError) {
+      reactTo("ERROR");
+    }
+  }, [exchangesQuery.isError, ratingsQuery.isError, reactTo]);
 
   // Если профиль оставили открытым, кнопка редактирования сама исчезнет в rate_until.
   useEffect(() => {
@@ -309,6 +346,7 @@ const ProfileRatingsComponent = ({
           {ratings.map((rating, index) => (
             <li
               className={styles.ratings__item}
+              data-mascot-anchor={index === 0 ? "latest-review" : undefined}
               key={`${rating.created_at}-${rating.score}-${offset + index}`}
             >
               <div className={styles.ratings__head}>
