@@ -49,7 +49,7 @@ const MyChainsComponent = () => {
   const { isAuth } = useAuthSelector();
   const [tab, setTab] = useState<TTab>("active");
   const { user } = useAuthSelector();
-  const { reactTo } = useMascot();
+  const { anchor, mood, movement, reactTo, reset } = useMascot();
   const previousExchangeIdsRef = useRef<{
     userId: string | null;
     idsByTab: Map<TTab, Set<string>>;
@@ -76,6 +76,8 @@ const MyChainsComponent = () => {
     [data, tab, user?.id],
   );
   const exchangeIds = exchanges.map(({ id }) => id).join(":");
+  const emptyChainsReactionActive =
+    anchor === "chains-list" && mood === "bored" && movement === "wander";
 
   useEffect(() => {
     if (isPending || isError || !user?.id) {
@@ -89,7 +91,11 @@ const MyChainsComponent = () => {
       tracker.userId = user.id;
       tracker.idsByTab = new Map([[tab, currentIds]]);
       if (exchanges.length === 0) {
-        reactTo("EMPTY_CHAINS");
+        if (!emptyChainsReactionActive) {
+          reactTo("EMPTY_CHAINS");
+        }
+      } else if (emptyChainsReactionActive) {
+        reset();
       }
       return;
     }
@@ -99,7 +105,11 @@ const MyChainsComponent = () => {
 
     if (!previousIds) {
       if (exchanges.length === 0) {
-        reactTo("EMPTY_CHAINS");
+        if (!emptyChainsReactionActive) {
+          reactTo("EMPTY_CHAINS");
+        }
+      } else if (emptyChainsReactionActive) {
+        reset();
       }
       return;
     }
@@ -110,9 +120,23 @@ const MyChainsComponent = () => {
     }
 
     if (exchanges.length === 0) {
-      reactTo("EMPTY_CHAINS");
+      if (!emptyChainsReactionActive) {
+        reactTo("EMPTY_CHAINS");
+      }
+    } else if (emptyChainsReactionActive) {
+      reset();
     }
-  }, [exchangeIds, exchanges, isError, isPending, reactTo, tab, user?.id]);
+  }, [
+    emptyChainsReactionActive,
+    exchangeIds,
+    exchanges,
+    isError,
+    isPending,
+    reactTo,
+    reset,
+    tab,
+    user?.id,
+  ]);
 
   useEffect(() => {
     if (isError) {

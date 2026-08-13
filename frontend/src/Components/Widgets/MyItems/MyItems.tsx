@@ -24,7 +24,7 @@ const filters: { value: TFilter; label: string }[] = [
 const MyItemsComponent = () => {
   const [filter, setFilter] = useState<TFilter>("all");
   const { isAuth } = useAuthSelector();
-  const { reactTo } = useMascot();
+  const { anchor, reactTo, reset } = useMascot();
   const { data = [], isPending, isError, isSuccess } = useQuery({
     queryKey: ["items"],
     queryFn: getItems,
@@ -33,10 +33,21 @@ const MyItemsComponent = () => {
   const items = filter === "all" ? data : data.filter(({ status }) => status === filter);
 
   useEffect(() => {
-    if (isSuccess && items.length === 0) {
-      reactTo("EMPTY_ITEMS");
+    if (!isSuccess) {
+      return;
     }
-  }, [isSuccess, items.length, reactTo]);
+
+    if (items.length === 0) {
+      if (anchor !== "items-empty") {
+        reactTo("EMPTY_ITEMS");
+      }
+      return;
+    }
+
+    if (anchor === "items-empty") {
+      reset();
+    }
+  }, [anchor, isSuccess, items.length, reactTo, reset]);
 
   useEffect(() => {
     if (isError) {

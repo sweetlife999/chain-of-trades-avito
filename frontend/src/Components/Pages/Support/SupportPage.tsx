@@ -48,6 +48,7 @@ const SupportPageComponent = () => {
   const [firstMessage, setFirstMessage] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const endRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLTextAreaElement>(null);
 
   const restoreMessageFocus = () => {
@@ -77,6 +78,17 @@ const SupportPageComponent = () => {
     enabled: isAuth && Boolean(selectedID),
     refetchInterval: 3000,
   });
+  const messages = useMemo(
+    () => messagesQuery.data?.messages ?? [],
+    [messagesQuery.data?.messages],
+  );
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }, [messages.length, selectedID]);
 
   const refresh = async () => {
     await Promise.all([
@@ -237,7 +249,7 @@ const SupportPageComponent = () => {
                 )}
               </div>
               <div className={styles.support__messages}>
-                {(messagesQuery.data?.messages ?? []).map((item) => {
+                {messages.map((item) => {
                   const own = item.author.id === user?.id;
                   return (
                     <article className={clsx(styles.support__message, own && styles.support__message_own)} key={item.id}>
@@ -246,6 +258,7 @@ const SupportPageComponent = () => {
                     </article>
                   );
                 })}
+                <div ref={endRef} />
               </div>
               {error && <p className={styles.support__error}>{error}</p>}
               {selectedThread.status !== "closed" ? (

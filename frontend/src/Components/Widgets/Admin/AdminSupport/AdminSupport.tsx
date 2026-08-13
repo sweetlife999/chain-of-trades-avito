@@ -2,6 +2,8 @@ import {
   type FormEvent,
   type KeyboardEvent,
   memo,
+  useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -53,6 +55,7 @@ const AdminSupportComponent = () => {
   const [filter, setFilter] = useState<TFilter>("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const endRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLTextAreaElement>(null);
 
   const restoreMessageFocus = () => {
@@ -70,6 +73,17 @@ const AdminSupportComponent = () => {
     enabled: Boolean(selectedID),
     refetchInterval: 3000,
   });
+  const messages = useMemo(
+    () => messagesQuery.data?.messages ?? [],
+    [messagesQuery.data?.messages],
+  );
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }, [messages.length, selectedID]);
 
   const refresh = async () => {
     await Promise.all([
@@ -177,10 +191,11 @@ const AdminSupportComponent = () => {
                 </div>
               </header>
               <div className={styles.support__messages}>
-                {(messagesQuery.data?.messages ?? []).map((item) => {
+                {messages.map((item) => {
                   const adminMessage = item.author.is_admin;
                   return <article className={clsx(styles.support__message, adminMessage && styles.support__message_admin)} key={item.id}><strong>{item.author.nickname}{adminMessage ? " · администратор" : ""}</strong><p>{item.body}</p><time>{formatDate(item.created_at)}</time></article>;
                 })}
+                <div ref={endRef} />
               </div>
               {error && <p className={styles.support__error}>{error}</p>}
               {thread.status === "in_progress" && assignedToMe ? (

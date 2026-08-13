@@ -57,12 +57,13 @@ const ProfileComponent = () => {
   const queryClient = useQueryClient();
   const { id } = useParams();
   const { user: currentUser } = useAuthSelector();
-  const { reactTo, reset } = useMascot();
+  const { reactTo, reset, setGuideSuppressed } = useMascot();
   const [blockAction, setBlockAction] = useState<TBlockAction | null>(null);
   const [activeBlockedUserId, setActiveBlockedUserId] = useState<string | null>(
     null,
   );
   const blockedListRef = useRef<HTMLDivElement>(null);
+  const blockedReactionActiveRef = useRef(false);
   const blockedUserRefs = useRef(new Map<string, HTMLDivElement>());
   const [blockedAssistantPosition, setBlockedAssistantPosition] =
     useState<TBlockedAssistantPosition>({
@@ -96,6 +97,7 @@ const ProfileComponent = () => {
       queryClient.invalidateQueries({ queryKey: ["users", "blocks"] }),
       queryClient.invalidateQueries({ queryKey: ["exchanges"] }),
     ]);
+    blockedReactionActiveRef.current = false;
     setActiveBlockedUserId(null);
     reset();
     setBlockAction(null);
@@ -123,6 +125,16 @@ const ProfileComponent = () => {
     profileQuery.isError,
     reactTo,
   ]);
+
+  useEffect(
+    () => () => {
+      setGuideSuppressed(false);
+      if (blockedReactionActiveRef.current) {
+        reset();
+      }
+    },
+    [reset, setGuideSuppressed],
+  );
 
   const moveBlockedAssistant = useCallback(
     (userId: string, rowElement?: HTMLDivElement | null) => {
@@ -239,6 +251,7 @@ const ProfileComponent = () => {
       return;
     }
 
+    blockedReactionActiveRef.current = true;
     setActiveBlockedUserId(userId);
     reactTo("BLOCKED_USER_HOVERED");
   };
@@ -248,6 +261,7 @@ const ProfileComponent = () => {
       return;
     }
 
+    blockedReactionActiveRef.current = false;
     setActiveBlockedUserId(null);
     reset();
   };
@@ -384,7 +398,19 @@ const ProfileComponent = () => {
       )}
 
       {isOwnProfile && currentUser && (
-        <section className={styles.profile__blocked}>
+        <section
+          className={styles.profile__blocked}
+          onMouseEnter={() => setGuideSuppressed(true)}
+          onMouseLeave={(event) => {
+            setGuideSuppressed(false);
+
+            if (!event.currentTarget.contains(document.activeElement)) {
+              blockedReactionActiveRef.current = false;
+              setActiveBlockedUserId(null);
+              reset();
+            }
+          }}
+        >
           <div className={styles.profile__blockedHeader}>
             <h2 className={styles.profile__blockedTitle}>
               Заблокированные пользователи

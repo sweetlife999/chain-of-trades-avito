@@ -10,7 +10,7 @@ import { ExchangeSearchStatus } from "../ExchangeSearchStatus/ExchangeSearchStat
 import { useMascot } from "../../../Hooks/useMascot";
 
 const PostsListComponent = () => {
-  const { reactTo } = useMascot();
+  const { anchor, mood, movement, reactTo, reset } = useMascot();
   const previousExchangeIdsRef = useRef<Set<string> | null>(null);
   const exchangesQuery = useQuery({
     queryKey: ["exchanges"],
@@ -31,6 +31,10 @@ const PostsListComponent = () => {
     [exchangesQuery.data],
   );
   const exchangeIds = exchanges.map(({ id }) => id).join(":");
+  const emptyExchangesReactionActive =
+    anchor === "exchanges-empty" &&
+    mood === "bored" &&
+    movement === "wander";
 
   useEffect(() => {
     if (!exchangesQuery.isSuccess) {
@@ -43,7 +47,11 @@ const PostsListComponent = () => {
 
     if (previousIds === null) {
       if (exchanges.length === 0) {
-        reactTo("EMPTY_EXCHANGES");
+        if (!emptyExchangesReactionActive) {
+          reactTo("EMPTY_EXCHANGES");
+        }
+      } else if (emptyExchangesReactionActive) {
+        reset();
       }
       return;
     }
@@ -56,9 +64,20 @@ const PostsListComponent = () => {
     }
 
     if (exchanges.length === 0) {
-      reactTo("EMPTY_EXCHANGES");
+      if (!emptyExchangesReactionActive) {
+        reactTo("EMPTY_EXCHANGES");
+      }
+    } else if (emptyExchangesReactionActive) {
+      reset();
     }
-  }, [exchangeIds, exchanges, exchangesQuery.isSuccess, reactTo]);
+  }, [
+    emptyExchangesReactionActive,
+    exchangeIds,
+    exchanges,
+    exchangesQuery.isSuccess,
+    reactTo,
+    reset,
+  ]);
 
   useEffect(() => {
     if (exchangesQuery.isError) {

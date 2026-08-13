@@ -1,7 +1,11 @@
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import { mascotReacted, mascotReset } from "../Features/Mascot/mascotSlice";
+import {
+  mascotGuideSuppressionSet,
+  mascotReacted,
+  mascotReset,
+} from "../Features/Mascot/mascotSlice";
 import type { MascotEvent } from "../Features/Mascot/mascot.types";
 import type { AuthDispatch, RootState } from "../Store/store";
 
@@ -14,6 +18,10 @@ export const useMascot = () => {
     [dispatch],
   );
   const reset = useCallback(() => dispatch(mascotReset()), [dispatch]);
+  const setGuideSuppressed = useCallback(
+    (suppressed: boolean) => dispatch(mascotGuideSuppressionSet(suppressed)),
+    [dispatch],
+  );
 
-  return { ...mascot, reactTo, reset };
+  return { ...mascot, reactTo, reset, setGuideSuppressed };
 };

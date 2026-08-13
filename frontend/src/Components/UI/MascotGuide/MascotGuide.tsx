@@ -257,7 +257,14 @@ const createCandidates = (
 
 const MascotGuideComponent = () => {
   const { pathname } = useLocation();
-  const { anchor, message, movement, reset, revision } = useMascot();
+  const {
+    anchor,
+    guideSuppressed,
+    message,
+    movement,
+    reset,
+    revision,
+  } = useMascot();
   const guideRef = useRef<HTMLElement>(null);
   const previousPathRef = useRef(pathname);
   const [roamStep, setRoamStep] = useState(0);
@@ -273,7 +280,10 @@ const MascotGuideComponent = () => {
   const renderedLocally =
     anchor === "notifications-preview" || movement === "kick";
   const enabled =
-    shouldShowMascotGuide(pathname) && !tutorialActive && !renderedLocally;
+    shouldShowMascotGuide(pathname) &&
+    !tutorialActive &&
+    !renderedLocally &&
+    !guideSuppressed;
 
   useLayoutEffect(() => {
     const previousPath = previousPathRef.current;

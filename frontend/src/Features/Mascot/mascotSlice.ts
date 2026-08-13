@@ -10,6 +10,7 @@ import type {
 } from "./mascot.types";
 
 type MascotState = {
+  guideSuppressed: boolean;
   mood: MascotMood;
   mode: MascotMode;
   message: string | null;
@@ -20,6 +21,7 @@ type MascotState = {
 };
 
 const initialState: MascotState = {
+  guideSuppressed: false,
   mood: "idle",
   mode: "ambient",
   message: null,
@@ -33,6 +35,12 @@ const mascotSlice = createSlice({
   name: "mascot",
   initialState,
   reducers: {
+    mascotGuideSuppressionSet: (
+      state,
+      action: PayloadAction<boolean>,
+    ) => {
+      state.guideSuppressed = action.payload;
+    },
     mascotReacted: (state, action: PayloadAction<MascotEvent>) => {
       const reaction = mascotReactions[action.payload];
       state.mood = reaction.mood;
@@ -67,5 +75,10 @@ const mascotSlice = createSlice({
   },
 });
 
-export const { mascotReacted, mascotReset, mascotSettled } = mascotSlice.actions;
+export const {
+  mascotGuideSuppressionSet,
+  mascotReacted,
+  mascotReset,
+  mascotSettled,
+} = mascotSlice.actions;
 export default mascotSlice.reducer;

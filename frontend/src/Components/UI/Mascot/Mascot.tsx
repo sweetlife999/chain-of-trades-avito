@@ -68,6 +68,7 @@ const MascotComponent = ({
   const visibleMode = modeOverride ?? mode;
   const visibleMood = moodOverride ?? mood;
   const visibleMovement = movementOverride ?? movement;
+  const eyeY = visibleMood === "angry" ? 76 : 83;
   const visibleMessage = message === undefined ? stateMessage : message;
   const bubbleVisible =
     showBubble &&
@@ -179,8 +180,8 @@ const MascotComponent = ({
             <rect className={styles.mascot__headShell} x="49" y="48" width="142" height="96" rx="38" />
             <rect className={styles.mascot__face} x="63" y="63" width="114" height="65" rx="26" />
             <g className={styles.mascot__eyes}>
-              <rect className={styles.mascot__eye} x="84" y="83" width="16" height="20" rx="8" />
-              <rect className={styles.mascot__eye} x="140" y="83" width="16" height="20" rx="8" />
+              <rect className={styles.mascot__eye} x="84" y={eyeY} width="16" height="20" rx="8" />
+              <rect className={styles.mascot__eye} x="140" y={eyeY} width="16" height="20" rx="8" />
             </g>
             <path
               className={styles.mascot__mouth}
