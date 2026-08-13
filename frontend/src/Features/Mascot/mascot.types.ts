@@ -37,6 +37,7 @@ export type MascotAnchor =
   | "blocked-users";
 
 export type MascotEvent =
+  | "APP_OPENED"
   | "AUTH_FORM_READY"
   | "FORM_SUBMIT"
   | "FORM_SUCCESS"

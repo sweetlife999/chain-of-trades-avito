@@ -1,6 +1,14 @@
 import type { MascotEvent, MascotReaction } from "./mascot.types";
 
 export const mascotReactions: Record<MascotEvent, MascotReaction> = {
+  APP_OPENED: {
+    mood: "hello",
+    mode: "ambient",
+    message: null,
+    durationMs: 3200,
+    anchor: null,
+    movement: "roam",
+  },
   AUTH_FORM_READY: {
     mood: "pointing",
     mode: "attention",
