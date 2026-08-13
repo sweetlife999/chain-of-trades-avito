@@ -9,6 +9,7 @@ import { Button } from "../../../UI/Button/Button";
 import { Loader } from "../../../UI/Loader/Loader";
 import { CancelExchangeButton } from "../CancelExchangeButton/CancelExchangeButton";
 import { MarkDeliveredButton } from "../MarkDeliveredButton/MarkDeliveredButton";
+import { exchangeStatusPresentation } from "../../../../Features/Exchange/exchangeStatus";
 
 const PAGE_SIZE = 5;
 
@@ -16,15 +17,6 @@ type TAdminUserExchangesProps = {
   userId: string;
   userNickname: string;
 };
-
-const statusLabels = {
-  proposed: "Ожидает подтверждения",
-  confirmed: "Подтверждён",
-  delivering: "Доставляется",
-  delivered: "Ожидает получения",
-  completed: "Завершён",
-  cancelled: "Отменён",
-} as const;
 
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat("ru-RU", {
@@ -169,7 +161,7 @@ export const AdminUserExchanges = ({
                   <span
                     className={`${styles.exchanges__status} ${styles[`exchanges__status_${exchange.status}`]}`}
                   >
-                    {statusLabels[exchange.status]}
+                    {exchangeStatusPresentation[exchange.status].adminLabel}
                   </span>
                 </div>
 

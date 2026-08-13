@@ -3,6 +3,7 @@ import clsx from "clsx";
 
 import styles from "./Styles.module.scss";
 import type { TExchangeStatus } from "../../../../Api/exchanges/exchanges.types";
+import { exchangeStatusPresentation } from "../../../../Features/Exchange/exchangeStatus";
 
 type TProps = {
   status: TExchangeStatus;
@@ -16,17 +17,8 @@ const steps = [
   "Доставка",
   "Получение",
 ];
-const currentStep: Record<TExchangeStatus, number> = {
-  proposed: 1,
-  confirmed: 2,
-  delivering: 3,
-  delivered: 4,
-  completed: 5,
-  cancelled: 1,
-};
-
 const ExchangeProgressComponent = ({ status, compact }: TProps) => {
-  const current = currentStep[status];
+  const current = exchangeStatusPresentation[status].progressStep;
 
   return (
     <div className={clsx(styles.progress, compact && styles.progress_compact)}>

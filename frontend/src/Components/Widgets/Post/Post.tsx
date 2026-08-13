@@ -4,20 +4,11 @@ import { Link, useNavigate } from "react-router-dom";
 import styles from "./Styles.module.scss";
 import type {
   TExchange,
-  TExchangeStatus,
 } from "../../../Api/exchanges/exchanges.types";
+import { exchangeStatusPresentation } from "../../../Features/Exchange/exchangeStatus";
 
 type TProps = {
   exchange: TExchange;
-};
-
-const statusLabels: Record<TExchangeStatus, string> = {
-  proposed: "Предложение обмена",
-  confirmed: "Обмен подтверждён",
-  delivering: "Вещи доставляются",
-  delivered: "Вещь ожидает в ПВЗ",
-  completed: "Обмен завершён",
-  cancelled: "Обмен отменён",
 };
 
 const getTitle = (exchange: TExchange) => {
@@ -52,7 +43,7 @@ const PostComponent = ({ exchange }: TProps) => {
         <span
           className={`${styles.post__status} ${styles[`post__status_${exchange.status}`]}`}
         >
-          {statusLabels[exchange.status]}
+          {exchangeStatusPresentation[exchange.status].feedLabel}
         </span>
         <span className={styles.post__participantsCount}>
           {exchange.participants.length} участников
