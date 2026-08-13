@@ -22,6 +22,9 @@ import (
 	admindashboardservice "github.com/sweetlife999/chain-of-trades-avito/internal/admindashboard/service"
 	adminexchangehandler "github.com/sweetlife999/chain-of-trades-avito/internal/adminexchange/handler"
 	adminexchangeservice "github.com/sweetlife999/chain-of-trades-avito/internal/adminexchange/service"
+	antiscamhandler "github.com/sweetlife999/chain-of-trades-avito/internal/antiscam/handler"
+	antiscamrepository "github.com/sweetlife999/chain-of-trades-avito/internal/antiscam/repository"
+	antiscamservice "github.com/sweetlife999/chain-of-trades-avito/internal/antiscam/service"
 	authhandler "github.com/sweetlife999/chain-of-trades-avito/internal/auth/handler"
 	authmiddleware "github.com/sweetlife999/chain-of-trades-avito/internal/auth/middleware"
 	authservice "github.com/sweetlife999/chain-of-trades-avito/internal/auth/service"
@@ -110,11 +113,11 @@ func main() {
 	}
 	exchanges := exchangeservice.New(exchangesRepository, searchQueue)
 	searchWorker := exchangesearch.NewWorker(searchQueue, exchanges)
-	workerCtx, stopWorker := context.WithCancel(context.Background())
-	workerDone := make(chan struct{})
+	searchWorkerCtx, stopSearchWorker := context.WithCancel(context.Background())
+	searchWorkerDone := make(chan struct{})
 	go func() {
-		searchWorker.Run(workerCtx)
-		close(workerDone)
+		searchWorker.Run(searchWorkerCtx)
+		close(searchWorkerDone)
 	}()
 	exchangesHandler := exchangehandler.New(exchanges)
 	items := itemservice.New(itemrepository.New(pool), exchanges)
@@ -137,9 +140,25 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Модель — не зависимость API, а инструмент отдельных фич, поэтому её состояние
-	// только пишется в лог и никогда не мешает старту.
+	// Модель — не зависимость API: без неё антискам продолжает работать на строгих
+	// правилах, а накопленные задания не задерживают отправку сообщений.
 	logLLMState(cfg.OllamaURL, cfg.OllamaModel)
+	var antiscamModel antiscamservice.Generator
+	if cfg.OllamaURL != "" {
+		antiscamModel = llm.New(cfg.OllamaURL, cfg.OllamaModel)
+	}
+	antiscamRepository := antiscamrepository.New(queries)
+	antiscamAdmin := antiscamservice.NewAdmin(antiscamRepository, exchangesRepository)
+	antiscamWorker := antiscamservice.NewWorker(
+		antiscamRepository,
+		antiscamservice.NewAnalyzer(antiscamModel, cfg.OllamaModel),
+	)
+	antiscamWorkerCtx, stopAntiscamWorker := context.WithCancel(context.Background())
+	antiscamWorkerDone := make(chan struct{})
+	go func() {
+		antiscamWorker.Run(antiscamWorkerCtx)
+		close(antiscamWorkerDone)
+	}()
 
 	tokens := authtoken.NewManager(cfg.JWTSecret, authTokenTTL)
 	authenticator := authmiddleware.New(tokens, users)
@@ -178,6 +197,7 @@ func main() {
 		reporthandler.NewAdmin(adminReports).RegisterRoutes(adminRouter)
 		adminaudithandler.New(adminAudit).RegisterRoutes(adminRouter)
 		supporthandler.NewAdmin(adminSupport).RegisterRoutes(adminRouter)
+		antiscamhandler.New(antiscamAdmin).RegisterRoutes(adminRouter)
 	})
 
 	router.Get("/health", health)
@@ -222,13 +242,22 @@ func main() {
 	// Новые HTTP-задачи уже не появятся. Закрытие канала даёт worker дочитать буфер.
 	searchQueue.Close()
 	select {
-	case <-workerDone:
+	case <-searchWorkerDone:
 	case <-time.After(workerShutdownTimeout):
 		log.Print("search worker drain timed out, forcing shutdown")
-		stopWorker()
-		<-workerDone
+		stopSearchWorker()
+		<-searchWorkerDone
 	}
-	stopWorker()
+	stopSearchWorker()
+
+	// PostgreSQL хранит оставшиеся задания антискама, поэтому при остановке достаточно
+	// завершить текущий вызов: после запуска job снова подберётся по lease.
+	stopAntiscamWorker()
+	select {
+	case <-antiscamWorkerDone:
+	case <-time.After(workerShutdownTimeout):
+		log.Print("antiscam worker shutdown timed out")
+	}
 
 	if serverErr != nil {
 		log.Printf("HTTP server stopped with error: %v", serverErr)
