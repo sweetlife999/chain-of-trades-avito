@@ -2,7 +2,7 @@
 export
 
 
-.PHONY: lint run up db llm down reset migrate-up migrate-down migrate-status sqlc smoke swagger test-ratings-integration test-exchange-integration test-user-blocks-integration test-exchange-recovery-integration test-exchange-refusal-integration test-exchange-messages-integration test-item-search-visibility-integration test-delivery-integration test-reports-integration test-admin-audit-integration test-notifications-integration test-antiscam test-support-bot-llm test-support-admin-integration
+.PHONY: lint run up db llm down reset migrate-up migrate-down migrate-status sqlc smoke swagger test-ratings-integration test-exchange-integration test-user-blocks-integration test-exchange-recovery-integration test-exchange-refusal-integration test-exchange-messages-integration test-item-search-visibility-integration test-delivery-integration test-reports-integration test-admin-audit-integration test-notifications-integration test-antiscam test-support-bot-llm test-item-assistant-llm test-support-admin-integration
 
 # Линтер. Требует golangci-lint v2 той же версии, что пиннится в CI:
 # go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
@@ -132,6 +132,13 @@ test-support-bot-llm:
 	OLLAMA_URL=$${OLLAMA_URL:-http://localhost:11434} \
 	go test -tags=integration ./internal/support/service \
 		-run TestSupportBotAccuracy -count=1 -v
+
+# Живой набор объявлений проверяет и текст, и выбор категории на той же 0.5B-модели,
+# что используется в проде. Без поднятой Ollama тест скипается.
+test-item-assistant-llm:
+	OLLAMA_URL=$${OLLAMA_URL:-http://localhost:11434} \
+	go test -tags=integration ./internal/itemassistant/service \
+		-run TestItemAssistantModel -count=1 -v
 
 # Живой сценарий очереди модерации поддержки: превью берётся из сообщения автора
 # обращения, в том числе когда автор — сам администратор. Тест написан по факту падения:

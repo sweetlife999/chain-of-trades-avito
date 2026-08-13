@@ -36,6 +36,10 @@ const (
 	// Более длинный означает, что модель ушла не туда, и оборвать его дешевле, чем
 	// дочитать.
 	maxResponseTokens = 32
+	// Развёрнутому структурированному ответу (например, карточке объявления) нужно
+	// больше места, чем классификатору. Верхняя граница защищает одноядерный сервер
+	// от случайного запроса на тысячи токенов.
+	maxDetailedResponseTokens = 256
 	// Окно контекста. Больше не нужно: вызывающий обрезает вход, и вместе с промптом
 	// в запрос уходит порядка 400 токенов. Значение одно на всех вызывающих
 	// намеренно — см. inferenceThreads.
@@ -60,6 +64,11 @@ type Client struct {
 	model   string
 	http    *http.Client
 }
+
+// inferenceGate общий для клиентов пакета: main собирает антискам, поддержку и
+// помощника объявлений независимо, но физически они обращаются к одной Ollama на
+// одном ядре. Параллельные запросы не ускоряют модель, а только отнимают CPU у API.
+var inferenceGate = make(chan struct{}, 1)
 
 func New(baseURL, model string) *Client {
 	return &Client{
@@ -124,6 +133,28 @@ func (c *Client) Generate(
 	user string,
 	format json.RawMessage,
 ) (string, error) {
+	return c.generate(ctx, system, user, format, maxResponseTokens)
+}
+
+// GenerateDetailed выполняет тот же структурированный запрос, но оставляет модели
+// место для короткого пользовательского текста. Классификаторы продолжают ходить
+// через Generate и сохраняют прежний лимит в 32 токена.
+func (c *Client) GenerateDetailed(
+	ctx context.Context,
+	system string,
+	user string,
+	format json.RawMessage,
+) (string, error) {
+	return c.generate(ctx, system, user, format, maxDetailedResponseTokens)
+}
+
+func (c *Client) generate(
+	ctx context.Context,
+	system string,
+	user string,
+	format json.RawMessage,
+	responseTokens int,
+) (string, error) {
 	body := chatRequest{
 		Model: c.model,
 		// Ответ нужен целиком и сразу: он короткий, а поток заставил бы склеивать
@@ -135,7 +166,7 @@ func (c *Client) Generate(
 			// температуре повторный запрос с тем же текстом даёт тот же ответ; ответ на
 			// чуть иначе сформулированный вопрос может отличаться заметно.
 			Temperature: 0,
-			NumPredict:  maxResponseTokens,
+			NumPredict:  responseTokens,
 			NumCtx:      contextWindow,
 			NumThread:   inferenceThreads,
 		},
@@ -160,6 +191,13 @@ func (c *Client) Generate(
 		return "", fmt.Errorf("build chat request: %w", err)
 	}
 	request.Header.Set("Content-Type", "application/json")
+
+	select {
+	case inferenceGate <- struct{}{}:
+		defer func() { <-inferenceGate }()
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
 
 	response, err := c.http.Do(request)
 	if err != nil {

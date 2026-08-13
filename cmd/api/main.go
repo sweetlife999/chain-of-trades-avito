@@ -39,6 +39,8 @@ import (
 	itemhandler "github.com/sweetlife999/chain-of-trades-avito/internal/item/handler"
 	itemrepository "github.com/sweetlife999/chain-of-trades-avito/internal/item/repository"
 	itemservice "github.com/sweetlife999/chain-of-trades-avito/internal/item/service"
+	itemassistanthandler "github.com/sweetlife999/chain-of-trades-avito/internal/itemassistant/handler"
+	itemassistantservice "github.com/sweetlife999/chain-of-trades-avito/internal/itemassistant/service"
 	"github.com/sweetlife999/chain-of-trades-avito/internal/llm"
 	notificationhandler "github.com/sweetlife999/chain-of-trades-avito/internal/notification/handler"
 	notificationrepository "github.com/sweetlife999/chain-of-trades-avito/internal/notification/repository"
@@ -120,7 +122,8 @@ func main() {
 		close(searchWorkerDone)
 	}()
 	exchangesHandler := exchangehandler.New(exchanges)
-	items := itemservice.New(itemrepository.New(pool), exchanges)
+	itemsRepository := itemrepository.New(pool)
+	items := itemservice.New(itemsRepository, exchanges)
 	pickupPoints := pickuppointservice.New(pickuppointrepository.New(queries))
 	adminDashboard := admindashboardservice.New(admindashboardrepository.New(queries))
 	adminExchanges := adminexchangeservice.New(usersRepository, exchangesRepository)
@@ -131,9 +134,10 @@ func main() {
 	notifications := notificationservice.New(notificationrepository.New(queries))
 	ratings := ratingservice.New(ratingrepository.New(queries))
 	supportRepository := supportrepository.New(queries)
+	modelClient := newLLMClient(cfg)
 	// Модель — не зависимость API, а инструмент одной фичи: пустой OLLAMA_URL отдаёт
 	// нулевого бота, и поддержка работает как раньше, только без автоответов.
-	supportBot := newSupportBot(cfg, supportRepository)
+	supportBot := newSupportBot(supportRepository, modelClient)
 	supportBotDone := make(chan struct{})
 	go func() {
 		supportBot.Run(workerCtx)
@@ -152,8 +156,8 @@ func main() {
 	// задания не задерживают отправку сообщений. Готовность Ollama уже проверена
 	// при создании бота поддержки выше.
 	var antiscamModel antiscamservice.Generator
-	if cfg.OllamaURL != "" {
-		antiscamModel = llm.New(cfg.OllamaURL, cfg.OllamaModel)
+	if modelClient != nil {
+		antiscamModel = modelClient
 	}
 	antiscamRepository := antiscamrepository.New(queries)
 	antiscamAdmin := antiscamservice.NewAdmin(antiscamRepository, exchangesRepository)
@@ -167,6 +171,18 @@ func main() {
 		antiscamWorker.Run(antiscamWorkerCtx)
 		close(antiscamWorkerDone)
 	}()
+	var itemAssistant *itemassistantservice.Service
+	itemAssistantDone := make(chan struct{})
+	itemAssistantCtx, stopItemAssistant := context.WithCancel(context.Background())
+	if modelClient != nil {
+		itemAssistant = itemassistantservice.New(itemsRepository, modelClient)
+		go func() {
+			itemAssistant.Run(itemAssistantCtx)
+			close(itemAssistantDone)
+		}()
+	} else {
+		close(itemAssistantDone)
+	}
 	tokens := authtoken.NewManager(cfg.JWTSecret, authTokenTTL)
 	authenticator := authmiddleware.New(tokens, users)
 	adminAuthorizer := authmiddleware.NewAdminAuthorizer(users)
@@ -174,6 +190,7 @@ func main() {
 
 	userhandler.New(users).RegisterRoutes(router, authenticator.RequireAuthentication)
 	itemhandler.New(items).RegisterRoutes(router, authenticator.RequireAuthentication)
+	itemassistanthandler.New(itemAssistant).RegisterRoutes(router, authenticator.RequireAuthentication)
 	authhandler.New(auth, cfg.CookieSecure, authTokenTTL).
 		RegisterRoutes(router, authenticator.RequireAuthentication)
 	exchangesHandler.RegisterRoutes(router, authenticator.RequireAuthentication)
@@ -261,6 +278,12 @@ func main() {
 	case <-time.After(workerShutdownTimeout):
 		log.Print("antiscam worker shutdown timed out")
 	}
+	stopItemAssistant()
+	select {
+	case <-itemAssistantDone:
+	case <-time.After(workerShutdownTimeout):
+		log.Print("item assistant worker shutdown timed out")
+	}
 
 	if serverErr != nil {
 		log.Printf("HTTP server stopped with error: %v", serverErr)
@@ -276,7 +299,7 @@ func main() {
 // ответ, Ollama в это время может ещё качать веса, а обращения появятся позже. Пустой
 // OLLAMA_URL — это выключенная фича, и тогда возвращается nil: методы Bot на нём
 // безопасны, поддержка работает без автоответов.
-func newSupportBot(cfg config.Config, repository *supportrepository.Repository) *supportservice.Bot {
+func newLLMClient(cfg config.Config) *llm.Client {
 	if cfg.OllamaURL == "" {
 		log.Print("llm: OLLAMA_URL is empty, model-backed features are disabled")
 		return nil
@@ -292,6 +315,16 @@ func newSupportBot(cfg config.Config, repository *supportrepository.Repository) 
 	} else {
 		log.Printf("llm: model %s is ready on %s", cfg.OllamaModel, cfg.OllamaURL)
 	}
+	return client
+}
+
+func newSupportBot(repository *supportrepository.Repository, client *llm.Client) *supportservice.Bot {
+	if client == nil {
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), llmProbeTimeout)
+	defer cancel()
 
 	// Ник служебного пользователя в коде и в миграции 00024 обязаны совпадать: ответ бота
 	// находит автора джойном по нику. Разъехавшись, они не дают ошибки — вставка просто
