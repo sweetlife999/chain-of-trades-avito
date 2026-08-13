@@ -1,5 +1,14 @@
-import { memo, useEffect, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import clsx from "clsx";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { CalendarDays, CircleCheck, CircleX } from "lucide-react";
 
@@ -28,6 +37,14 @@ type TBlockAction = {
   nickname: string;
 };
 
+type TBlockedAssistantPosition = {
+  height: number;
+  left: number;
+  ready: boolean;
+  top: number;
+  width: number;
+};
+
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat("ru-RU", {
     day: "2-digit",
@@ -45,6 +62,16 @@ const ProfileComponent = () => {
   const [activeBlockedUserId, setActiveBlockedUserId] = useState<string | null>(
     null,
   );
+  const blockedListRef = useRef<HTMLDivElement>(null);
+  const blockedUserRefs = useRef(new Map<string, HTMLDivElement>());
+  const [blockedAssistantPosition, setBlockedAssistantPosition] =
+    useState<TBlockedAssistantPosition>({
+      height: 0,
+      left: 0,
+      ready: false,
+      top: 0,
+      width: 0,
+    });
   const isOwnProfile = !id || id === currentUser?.id;
   const profileUserId = id ?? currentUser?.id;
 
@@ -97,6 +124,78 @@ const ProfileComponent = () => {
     reactTo,
   ]);
 
+  const moveBlockedAssistant = useCallback(
+    (userId: string, rowElement?: HTMLDivElement | null) => {
+      const listElement = blockedListRef.current;
+      const blockedUserElement =
+        rowElement ?? blockedUserRefs.current.get(userId);
+      const slotElement =
+        blockedUserElement?.querySelector<HTMLElement>(
+          "[data-blocked-assistant-slot]",
+        );
+
+      if (!listElement || !slotElement) {
+        return;
+      }
+
+      const listRect = listElement.getBoundingClientRect();
+      const slotRect = slotElement.getBoundingClientRect();
+      setBlockedAssistantPosition({
+        height: Math.round(slotRect.height),
+        left: Math.round(slotRect.left - listRect.left),
+        ready: true,
+        top: Math.round(slotRect.top - listRect.top),
+        width: Math.round(slotRect.width),
+      });
+    },
+    [],
+  );
+
+  useLayoutEffect(() => {
+    if (!activeBlockedUserId) {
+      return;
+    }
+
+    const listElement = blockedListRef.current;
+    const blockedUserElement = blockedUserRefs.current.get(activeBlockedUserId);
+
+    if (!listElement || !blockedUserElement) {
+      return;
+    }
+
+    const updatePosition = () =>
+      moveBlockedAssistant(activeBlockedUserId, blockedUserElement);
+    const resizeObserver = new ResizeObserver(updatePosition);
+
+    updatePosition();
+    resizeObserver.observe(listElement);
+    resizeObserver.observe(blockedUserElement);
+    window.addEventListener("resize", updatePosition);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updatePosition);
+    };
+  }, [activeBlockedUserId, moveBlockedAssistant]);
+
+  const firstBlockedUserId = blockedUsers[0]?.id;
+  useLayoutEffect(() => {
+    if (
+      !isOwnProfile ||
+      blockedAssistantPosition.ready ||
+      !firstBlockedUserId
+    ) {
+      return;
+    }
+
+    moveBlockedAssistant(firstBlockedUserId);
+  }, [
+    blockedAssistantPosition.ready,
+    firstBlockedUserId,
+    isOwnProfile,
+    moveBlockedAssistant,
+  ]);
+
   if (!isOwnProfile && profileQuery.isPending) {
     return <p className={styles.profile__empty}>Загрузка профиля...</p>;
   }
@@ -130,7 +229,12 @@ const ProfileComponent = () => {
     unblockMutation.mutate(blockAction.userId);
   };
 
-  const activateBlockedUser = (userId: string) => {
+  const activateBlockedUser = (
+    userId: string,
+    rowElement: HTMLDivElement,
+  ) => {
+    moveBlockedAssistant(userId, rowElement);
+
     if (activeBlockedUserId === userId) {
       return;
     }
@@ -147,6 +251,13 @@ const ProfileComponent = () => {
     setActiveBlockedUserId(null);
     reset();
   };
+
+  const blockedAssistantStyle = {
+    "--blocked-assistant-height": `${blockedAssistantPosition.height}px`,
+    "--blocked-assistant-left": `${blockedAssistantPosition.left}px`,
+    "--blocked-assistant-top": `${blockedAssistantPosition.top}px`,
+    "--blocked-assistant-width": `${blockedAssistantPosition.width}px`,
+  } as CSSProperties;
 
   return (
     <div className={styles.profile}>
@@ -311,11 +422,21 @@ const ProfileComponent = () => {
           {!blockedUsersQuery.isPending &&
             !blockedUsersQuery.isError &&
             blockedUsers.length > 0 && (
-              <div className={styles.profile__blockedList}>
+              <div
+                className={styles.profile__blockedList}
+                ref={blockedListRef}
+              >
                 {blockedUsers.map((blockedUser) => (
                   <div
                     className={styles.profile__blockedUser}
                     key={blockedUser.id}
+                    ref={(element) => {
+                      if (element) {
+                        blockedUserRefs.current.set(blockedUser.id, element);
+                      } else {
+                        blockedUserRefs.current.delete(blockedUser.id);
+                      }
+                    }}
                     onBlur={(event) => {
                       if (
                         event.relatedTarget instanceof Node &&
@@ -325,8 +446,12 @@ const ProfileComponent = () => {
                       }
                       deactivateBlockedUser(blockedUser.id);
                     }}
-                    onFocus={() => activateBlockedUser(blockedUser.id)}
-                    onMouseEnter={() => activateBlockedUser(blockedUser.id)}
+                    onFocus={(event) =>
+                      activateBlockedUser(blockedUser.id, event.currentTarget)
+                    }
+                    onMouseEnter={(event) =>
+                      activateBlockedUser(blockedUser.id, event.currentTarget)
+                    }
                     onMouseLeave={(event) => {
                       if (event.currentTarget.contains(document.activeElement)) {
                         return;
@@ -364,22 +489,11 @@ const ProfileComponent = () => {
                       </span>
                     </Link>
 
-                    {activeBlockedUserId === blockedUser.id && (
-                      <div
-                        aria-live="polite"
-                        className={styles.profile__blockedAssistant}
-                      >
-                        <Mascot
-                          className={styles.profile__blockedAssistantMascot}
-                          message="Плохой! Плохой!"
-                          mode="attention"
-                          mood="angry"
-                          movement="kick"
-                          placement="chat"
-                          size="tiny"
-                        />
-                      </div>
-                    )}
+                    <span
+                      aria-hidden="true"
+                      className={styles.profile__blockedAssistantSlot}
+                      data-blocked-assistant-slot
+                    />
 
                     <Button
                       className={styles.profile__blockedAction}
@@ -399,6 +513,27 @@ const ProfileComponent = () => {
                     </Button>
                   </div>
                 ))}
+                <div
+                  aria-hidden={!activeBlockedUserId}
+                  aria-live="polite"
+                  className={clsx(
+                    styles.profile__blockedAssistant,
+                    activeBlockedUserId &&
+                      blockedAssistantPosition.ready &&
+                      styles.profile__blockedAssistant_visible,
+                  )}
+                  style={blockedAssistantStyle}
+                >
+                  <Mascot
+                    className={styles.profile__blockedAssistantMascot}
+                    message="Плохой! Плохой!"
+                    mode="attention"
+                    mood="angry"
+                    movement="kick"
+                    placement="chat"
+                    size="tiny"
+                  />
+                </div>
               </div>
             )}
         </section>

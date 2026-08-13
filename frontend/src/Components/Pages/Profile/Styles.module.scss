@@ -181,15 +181,17 @@
   }
 
   &__blockedList {
+    position: relative;
+
     display: flex;
     flex-direction: column;
     gap: 10px;
   }
 
   &__blockedUser {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(250px, 330px) auto;
     align-items: center;
-    justify-content: space-between;
     gap: 16px;
 
     padding: 12px 14px;
@@ -215,8 +217,39 @@
   }
 
   &__blockedAssistant {
-    min-width: 250px;
-    flex: 0 1 330px;
+    position: absolute;
+    z-index: 2;
+    top: var(--blocked-assistant-top);
+    left: var(--blocked-assistant-left);
+    width: var(--blocked-assistant-width);
+    height: var(--blocked-assistant-height);
+
+    display: flex;
+    align-items: center;
+
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(34px) scale(.96);
+    transition:
+      top .58s cubic-bezier(.2, .78, .2, 1),
+      left .58s cubic-bezier(.2, .78, .2, 1),
+      opacity .22s ease,
+      transform .58s cubic-bezier(.2, .78, .2, 1),
+      visibility 0s linear .58s;
+
+    &_visible {
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(0) scale(1);
+      transition-delay: 0s;
+    }
+  }
+
+  &__blockedAssistantSlot {
+    width: 100%;
+    min-width: 0;
+    min-height: 76px;
   }
 
   &__blockedAssistantMascot {
@@ -381,14 +414,13 @@
     }
 
     &__blockedUser {
+      grid-template-columns: minmax(0, 1fr);
       align-items: stretch;
-      flex-direction: column;
     }
 
-    &__blockedAssistant {
+    &__blockedAssistantSlot {
       width: 100%;
       min-width: 0;
-      flex-basis: auto;
     }
 
     &__blockedAction {

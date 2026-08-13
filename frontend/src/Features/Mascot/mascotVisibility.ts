@@ -7,6 +7,6 @@ export const shouldShowMascotGuide = (pathname: string) => {
     return false;
   }
 
-  // В карточке обмена уже живёт локальный Уми чата: второй экземпляр мешал бы ему.
+  // На странице обмена проводник не появляется поверх обычного чата.
   return !/^\/exchanges\/[^/]+$/.test(pathname);
 };

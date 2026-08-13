@@ -32,6 +32,18 @@ type TProps = {
   movement?: MascotMovement;
 };
 
+const defaultMouth = "M105 111 Q120 121 135 111";
+const mouthByMood: Partial<Record<MascotMood, string>> = {
+  happy: "M101 108 Q120 127 139 108",
+  celebrate: "M99 106 Q120 130 141 106",
+  concerned: "M105 119 Q120 108 135 119",
+  excited: "M99 106 Q120 130 141 106",
+  sad: "M104 121 Q120 108 136 121",
+  bored: "M108 116 Q120 114 132 116",
+  reading: "M108 114 Q120 118 132 114",
+  angry: "M105 118 Q120 111 135 118",
+};
+
 const MascotComponent = ({
   bubbleAction,
   size = "medium",
@@ -170,7 +182,10 @@ const MascotComponent = ({
               <rect className={styles.mascot__eye} x="84" y="83" width="16" height="20" rx="8" />
               <rect className={styles.mascot__eye} x="140" y="83" width="16" height="20" rx="8" />
             </g>
-            <path className={styles.mascot__mouth} d="M105 111 Q120 121 135 111" />
+            <path
+              className={styles.mascot__mouth}
+              d={mouthByMood[visibleMood] ?? defaultMouth}
+            />
             <circle className={styles.mascot__cheek} cx="82" cy="111" r="4" />
             <circle className={styles.mascot__cheek} cx="158" cy="111" r="4" />
           </g>

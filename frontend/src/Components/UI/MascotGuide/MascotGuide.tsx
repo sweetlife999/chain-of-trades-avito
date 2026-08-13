@@ -349,19 +349,35 @@ const MascotGuideComponent = () => {
         x: Math.round(next.x),
         y: Math.round(next.y),
       };
-      const animate =
+
+      if (
         current.visible &&
-        isSafePath(
+        !isSafePoint(
+          current,
+          guideWidth,
+          guideHeight,
+          protectedRects,
+        )
+      ) {
+        return { ...current, animate: false, visible: false };
+      }
+
+      if (
+        current.visible &&
+        !isSafePath(
           current,
           nextPoint,
           guideWidth,
           guideHeight,
           protectedRects,
-        );
+        )
+      ) {
+        return current;
+      }
 
       return {
         ...nextPoint,
-        animate,
+        animate: current.visible,
         visible: true,
       };
     });

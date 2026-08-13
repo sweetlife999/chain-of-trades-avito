@@ -1,4 +1,12 @@
-import { type FormEvent, memo, useEffect, useMemo, useState } from "react";
+import {
+  type FormEvent,
+  type KeyboardEvent,
+  memo,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
 import { CheckCircle2, Headset, Plus, Send, X } from "lucide-react";
@@ -40,6 +48,11 @@ const SupportPageComponent = () => {
   const [firstMessage, setFirstMessage] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const messageInputRef = useRef<HTMLTextAreaElement>(null);
+
+  const restoreMessageFocus = () => {
+    window.requestAnimationFrame(() => messageInputRef.current?.focus());
+  };
 
   const selectedID = searchParams.get("thread") ?? "";
   const threadsQuery = useQuery({
@@ -91,10 +104,13 @@ const SupportPageComponent = () => {
     onSuccess: async () => {
       setMessage("");
       setError("");
+      restoreMessageFocus();
       await refresh();
+      restoreMessageFocus();
     },
     onError: (requestError) => {
       setError(getSupportError(requestError, "Не удалось отправить сообщение"));
+      restoreMessageFocus();
     },
   });
   const closeMutation = useMutation({
@@ -123,10 +139,29 @@ const SupportPageComponent = () => {
     event.preventDefault();
     createMutation.mutate({ subject: subject.trim(), body: firstMessage.trim() });
   };
+  const sendCurrentMessage = () => {
+    const value = message.trim();
+
+    if (!selectedID || !value || sendMutation.isPending) {
+      return;
+    }
+
+    sendMutation.mutate({ threadID: selectedID, body: value });
+  };
   const submitMessage = (event: FormEvent) => {
     event.preventDefault();
-    if (selectedID && message.trim()) {
-      sendMutation.mutate({ threadID: selectedID, body: message.trim() });
+    sendCurrentMessage();
+  };
+  const handleMessageKeyDown = (
+    event: KeyboardEvent<HTMLTextAreaElement>,
+  ) => {
+    if (
+      event.key === "Enter" &&
+      !event.shiftKey &&
+      !event.nativeEvent.isComposing
+    ) {
+      event.preventDefault();
+      sendCurrentMessage();
     }
   };
 
@@ -219,10 +254,12 @@ const SupportPageComponent = () => {
                     aria-label="Сообщение"
                     maxLength={4000}
                     placeholder="Напишите сообщение..."
+                    ref={messageInputRef}
                     required
                     rows={2}
                     value={message}
                     onChange={(event) => setMessage(event.target.value)}
+                    onKeyDown={handleMessageKeyDown}
                   />
                   <button aria-label="Отправить" disabled={sendMutation.isPending || !message.trim()} type="submit"><Send size={20} /></button>
                 </form>
