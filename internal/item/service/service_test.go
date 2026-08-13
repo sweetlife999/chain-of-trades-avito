@@ -203,6 +203,27 @@ func TestCreateValidation(t *testing.T) {
 	}
 }
 
+func TestSearchFilterValidation(t *testing.T) {
+	t.Parallel()
+	for _, filters := range []*itemmodel.SearchFilters{
+		{MaxChainLength: 1},
+		{MaxChainLength: 6},
+		{MaxChainLength: 5, MinParticipantRating: -0.1},
+		{MaxChainLength: 5, MinParticipantRating: 5.1},
+	} {
+		if _, err := cleanSearchFilters(filters); !errors.Is(err, ErrValidation) {
+			t.Fatalf("cleanSearchFilters(%+v) error = %v, want validation", filters, err)
+		}
+	}
+	defaults, err := cleanSearchFilters(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if defaults.MaxChainLength != 5 || !defaults.PreferReliableParticipants {
+		t.Fatalf("defaults = %+v", defaults)
+	}
+}
+
 func TestCreateAcceptsTenPhotosAndWants(t *testing.T) {
 	t.Parallel()
 

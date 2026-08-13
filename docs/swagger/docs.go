@@ -4537,6 +4537,9 @@ const docTemplate = `{
                         "/uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg"
                     ]
                 },
+                "search_filters": {
+                    "$ref": "#/definitions/dto.SearchFiltersRequest"
+                },
                 "title": {
                     "type": "string",
                     "example": "Велосипед"
@@ -4763,6 +4766,9 @@ const docTemplate = `{
                         }
                     ],
                     "x-nullable": true
+                },
+                "search_filters": {
+                    "$ref": "#/definitions/dto.SearchFiltersResponse"
                 },
                 "status": {
                     "type": "string"
@@ -5121,6 +5127,41 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.SearchFiltersRequest": {
+            "type": "object",
+            "properties": {
+                "max_chain_length": {
+                    "type": "integer",
+                    "maximum": 5,
+                    "minimum": 2,
+                    "example": 3
+                },
+                "min_participant_rating": {
+                    "type": "number",
+                    "maximum": 5,
+                    "minimum": 0,
+                    "example": 4
+                },
+                "prefer_reliable_participants": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "dto.SearchFiltersResponse": {
+            "type": "object",
+            "properties": {
+                "max_chain_length": {
+                    "type": "integer"
+                },
+                "min_participant_rating": {
+                    "type": "number"
+                },
+                "prefer_reliable_participants": {
+                    "type": "boolean"
+                }
+            }
+        },
         "dto.SetPickupPointRequest": {
             "type": "object",
             "properties": {
@@ -5205,6 +5246,9 @@ const docTemplate = `{
                     "example": [
                         "/uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg"
                     ]
+                },
+                "search_filters": {
+                    "$ref": "#/definitions/dto.SearchFiltersRequest"
                 },
                 "title": {
                     "type": "string",

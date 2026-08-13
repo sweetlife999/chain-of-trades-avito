@@ -35,7 +35,7 @@ func (q *Queries) DeleteItemWants(ctx context.Context, itemID pgtype.UUID) error
 
 const getItemByID = `-- name: GetItemByID :one
 SELECT
-    i.id, i.owner_id, i.category_id, i.title, i.description, i.status, i.created_at, i.updated_at, i.photo_urls, i.pickup_point_id,
+    i.id, i.owner_id, i.category_id, i.title, i.description, i.status, i.created_at, i.updated_at, i.photo_urls, i.pickup_point_id, i.max_chain_length, i.min_participant_rating, i.prefer_reliable_participants,
     c.slug AS category,
     COALESCE(
         (SELECT array_agg(want_category.slug ORDER BY want_category.slug)
@@ -53,20 +53,23 @@ WHERE i.id = $1
 `
 
 type GetItemByIDRow struct {
-	ID                 pgtype.UUID
-	OwnerID            pgtype.UUID
-	CategoryID         int16
-	Title              string
-	Description        string
-	Status             ItemStatus
-	CreatedAt          pgtype.Timestamptz
-	UpdatedAt          pgtype.Timestamptz
-	PhotoUrls          []string
-	PickupPointID      pgtype.UUID
-	Category           string
-	Wants              []string
-	PickupPointName    pgtype.Text
-	PickupPointAddress pgtype.Text
+	ID                         pgtype.UUID
+	OwnerID                    pgtype.UUID
+	CategoryID                 int16
+	Title                      string
+	Description                string
+	Status                     ItemStatus
+	CreatedAt                  pgtype.Timestamptz
+	UpdatedAt                  pgtype.Timestamptz
+	PhotoUrls                  []string
+	PickupPointID              pgtype.UUID
+	MaxChainLength             int32
+	MinParticipantRating       float64
+	PreferReliableParticipants bool
+	Category                   string
+	Wants                      []string
+	PickupPointName            pgtype.Text
+	PickupPointAddress         pgtype.Text
 }
 
 // Пункт выдачи джойнится LEFT: у вещи дома его нет, и INNER молча выбросил бы её из
@@ -85,6 +88,9 @@ func (q *Queries) GetItemByID(ctx context.Context, id pgtype.UUID) (GetItemByIDR
 		&i.UpdatedAt,
 		&i.PhotoUrls,
 		&i.PickupPointID,
+		&i.MaxChainLength,
+		&i.MinParticipantRating,
+		&i.PreferReliableParticipants,
 		&i.Category,
 		&i.Wants,
 		&i.PickupPointName,
@@ -95,23 +101,38 @@ func (q *Queries) GetItemByID(ctx context.Context, id pgtype.UUID) (GetItemByIDR
 
 const insertItem = `-- name: InsertItem :one
 
-INSERT INTO items (owner_id, category_id, title, description, photo_urls)
+INSERT INTO items (
+    owner_id,
+    category_id,
+    title,
+    description,
+    photo_urls,
+    max_chain_length,
+    min_participant_rating,
+    prefer_reliable_participants
+)
 VALUES (
     $1,
     (SELECT id FROM categories WHERE slug = $2),
     $3,
     $4,
-    $5
+    $5,
+    $6,
+    $7,
+    $8
 )
 RETURNING id
 `
 
 type InsertItemParams struct {
-	OwnerID     pgtype.UUID
-	Category    string
-	Title       string
-	Description string
-	PhotoUrls   []string
+	OwnerID                    pgtype.UUID
+	Category                   string
+	Title                      string
+	Description                string
+	PhotoUrls                  []string
+	MaxChainLength             int32
+	MinParticipantRating       float64
+	PreferReliableParticipants bool
 }
 
 // Категории приходят из API слагами, а не числовыми id: slug — стабильный публичный ключ.
@@ -124,6 +145,9 @@ func (q *Queries) InsertItem(ctx context.Context, arg InsertItemParams) (pgtype.
 		arg.Title,
 		arg.Description,
 		arg.PhotoUrls,
+		arg.MaxChainLength,
+		arg.MinParticipantRating,
+		arg.PreferReliableParticipants,
 	)
 	var id pgtype.UUID
 	err := row.Scan(&id)
@@ -169,7 +193,7 @@ func (q *Queries) ItemHasOpenExchange(ctx context.Context, itemID pgtype.UUID) (
 
 const listItemsByOwner = `-- name: ListItemsByOwner :many
 SELECT
-    i.id, i.owner_id, i.category_id, i.title, i.description, i.status, i.created_at, i.updated_at, i.photo_urls, i.pickup_point_id,
+    i.id, i.owner_id, i.category_id, i.title, i.description, i.status, i.created_at, i.updated_at, i.photo_urls, i.pickup_point_id, i.max_chain_length, i.min_participant_rating, i.prefer_reliable_participants,
     c.slug AS category,
     COALESCE(
         (SELECT array_agg(want_category.slug ORDER BY want_category.slug)
@@ -188,20 +212,23 @@ ORDER BY i.created_at DESC, i.id
 `
 
 type ListItemsByOwnerRow struct {
-	ID                 pgtype.UUID
-	OwnerID            pgtype.UUID
-	CategoryID         int16
-	Title              string
-	Description        string
-	Status             ItemStatus
-	CreatedAt          pgtype.Timestamptz
-	UpdatedAt          pgtype.Timestamptz
-	PhotoUrls          []string
-	PickupPointID      pgtype.UUID
-	Category           string
-	Wants              []string
-	PickupPointName    pgtype.Text
-	PickupPointAddress pgtype.Text
+	ID                         pgtype.UUID
+	OwnerID                    pgtype.UUID
+	CategoryID                 int16
+	Title                      string
+	Description                string
+	Status                     ItemStatus
+	CreatedAt                  pgtype.Timestamptz
+	UpdatedAt                  pgtype.Timestamptz
+	PhotoUrls                  []string
+	PickupPointID              pgtype.UUID
+	MaxChainLength             int32
+	MinParticipantRating       float64
+	PreferReliableParticipants bool
+	Category                   string
+	Wants                      []string
+	PickupPointName            pgtype.Text
+	PickupPointAddress         pgtype.Text
 }
 
 // Колонки те же и в том же порядке, что у GetItemByID: sqlc генерит идентичную
@@ -226,6 +253,9 @@ func (q *Queries) ListItemsByOwner(ctx context.Context, ownerID pgtype.UUID) ([]
 			&i.UpdatedAt,
 			&i.PhotoUrls,
 			&i.PickupPointID,
+			&i.MaxChainLength,
+			&i.MinParticipantRating,
+			&i.PreferReliableParticipants,
 			&i.Category,
 			&i.Wants,
 			&i.PickupPointName,
@@ -246,19 +276,28 @@ UPDATE items SET
     title       = COALESCE($1, title),
     description = COALESCE($2, description),
     photo_urls  = COALESCE($3::text[], photo_urls),
+    max_chain_length = COALESCE($4, max_chain_length),
+    min_participant_rating = COALESCE($5, min_participant_rating),
+    prefer_reliable_participants = COALESCE(
+        $6,
+        prefer_reliable_participants
+    ),
     category_id = CASE
-        WHEN $4::text IS NULL THEN items.category_id
-        ELSE (SELECT c.id FROM categories c WHERE c.slug = $4)
+        WHEN $7::text IS NULL THEN items.category_id
+        ELSE (SELECT c.id FROM categories c WHERE c.slug = $7)
     END
-WHERE items.id = $5
+WHERE items.id = $8
 `
 
 type UpdateItemParams struct {
-	Title       pgtype.Text
-	Description pgtype.Text
-	PhotoUrls   []string
-	Category    pgtype.Text
-	ID          pgtype.UUID
+	Title                      pgtype.Text
+	Description                pgtype.Text
+	PhotoUrls                  []string
+	MaxChainLength             pgtype.Int4
+	MinParticipantRating       pgtype.Float8
+	PreferReliableParticipants pgtype.Bool
+	Category                   pgtype.Text
+	ID                         pgtype.UUID
 }
 
 // NULL в аргументе означает «не менять поле» — тот же приём, что в UpdateUserProfile.
@@ -269,6 +308,9 @@ func (q *Queries) UpdateItem(ctx context.Context, arg UpdateItemParams) error {
 		arg.Title,
 		arg.Description,
 		arg.PhotoUrls,
+		arg.MaxChainLength,
+		arg.MinParticipantRating,
+		arg.PreferReliableParticipants,
 		arg.Category,
 		arg.ID,
 	)

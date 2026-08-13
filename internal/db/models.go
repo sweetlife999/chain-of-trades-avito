@@ -749,16 +749,19 @@ type ChainRating struct {
 }
 
 type Item struct {
-	ID            pgtype.UUID
-	OwnerID       pgtype.UUID
-	CategoryID    int16
-	Title         string
-	Description   string
-	Status        ItemStatus
-	CreatedAt     pgtype.Timestamptz
-	UpdatedAt     pgtype.Timestamptz
-	PhotoUrls     []string
-	PickupPointID pgtype.UUID
+	ID                         pgtype.UUID
+	OwnerID                    pgtype.UUID
+	CategoryID                 int16
+	Title                      string
+	Description                string
+	Status                     ItemStatus
+	CreatedAt                  pgtype.Timestamptz
+	UpdatedAt                  pgtype.Timestamptz
+	PhotoUrls                  []string
+	PickupPointID              pgtype.UUID
+	MaxChainLength             int32
+	MinParticipantRating       float64
+	PreferReliableParticipants bool
 }
 
 type ItemRefusal struct {

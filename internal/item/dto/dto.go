@@ -9,22 +9,30 @@ import (
 // Фотография — это ссылка, которую вернул POST /uploads. Внешние http(s)-адреса тоже
 // принимаются: с ними живут объявления, созданные до загрузки файлов.
 type CreateItemRequest struct {
-	Category    string   `json:"category"    example:"bikes"`
-	Title       string   `json:"title"       example:"Велосипед"`
-	Description string   `json:"description" example:"Почти новый, катался год"`
-	PhotoURLs   []string `json:"photo_urls"  example:"/uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg"`
-	Wants       []string `json:"wants"       example:"consoles,phones"`
+	Category      string                `json:"category"    example:"bikes"`
+	Title         string                `json:"title"       example:"Велосипед"`
+	Description   string                `json:"description" example:"Почти новый, катался год"`
+	PhotoURLs     []string              `json:"photo_urls"  example:"/uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg"`
+	Wants         []string              `json:"wants"       example:"consoles,phones"`
+	SearchFilters *SearchFiltersRequest `json:"search_filters"`
+}
+
+type SearchFiltersRequest struct {
+	MaxChainLength             int32   `json:"max_chain_length"              minimum:"2" maximum:"5" example:"3"`
+	MinParticipantRating       float64 `json:"min_participant_rating"        minimum:"0" maximum:"5" example:"4"`
+	PreferReliableParticipants bool    `json:"prefer_reliable_participants" example:"true"`
 }
 
 // Пропущенный в JSON список приходит как nil, а переданный пустым — как пустой срез.
 // На этой разнице держится запрет «удалить все фотографии»: `[]` доедет до сервиса
 // и получит 400, а не будет принят за «поле не трогали».
 type UpdateItemRequest struct {
-	Category    *string  `json:"category"    example:"bikes"`
-	Title       *string  `json:"title"       example:"Велосипед городской"`
-	Description *string  `json:"description" example:"Добавил фото рамы"`
-	PhotoURLs   []string `json:"photo_urls"  example:"/uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg"`
-	Wants       []string `json:"wants"       example:"consoles"`
+	Category      *string               `json:"category"    example:"bikes"`
+	Title         *string               `json:"title"       example:"Велосипед городской"`
+	Description   *string               `json:"description" example:"Добавил фото рамы"`
+	PhotoURLs     []string              `json:"photo_urls"  example:"/uploads/8db9f3e2-8a45-4a70-b3d1-167b4f97e121.jpg"`
+	Wants         []string              `json:"wants"       example:"consoles"`
+	SearchFilters *SearchFiltersRequest `json:"search_filters"`
 }
 
 type SetPickupPointRequest struct {
@@ -40,18 +48,25 @@ type ItemPickupPoint struct {
 }
 
 type ItemResponse struct {
-	ID          string   `json:"id"`
-	OwnerID     string   `json:"owner_id"`
-	Category    string   `json:"category"`
-	Title       string   `json:"title"`
-	Description string   `json:"description"`
-	PhotoURLs   []string `json:"photo_urls"`
-	Wants       []string `json:"wants"`
-	Status      string   `json:"status"`
+	ID            string                `json:"id"`
+	OwnerID       string                `json:"owner_id"`
+	Category      string                `json:"category"`
+	Title         string                `json:"title"`
+	Description   string                `json:"description"`
+	PhotoURLs     []string              `json:"photo_urls"`
+	Wants         []string              `json:"wants"`
+	SearchFilters SearchFiltersResponse `json:"search_filters"`
+	Status        string                `json:"status"`
 	// null — вещь дома у владельца.
 	PickupPoint *ItemPickupPoint `json:"pickup_point" extensions:"x-nullable"`
 	CreatedAt   time.Time        `json:"created_at"`
 	UpdatedAt   time.Time        `json:"updated_at"`
+}
+
+type SearchFiltersResponse struct {
+	MaxChainLength             int32   `json:"max_chain_length"`
+	MinParticipantRating       float64 `json:"min_participant_rating"`
+	PreferReliableParticipants bool    `json:"prefer_reliable_participants"`
 }
 
 type CategoryResponse struct {
@@ -74,6 +89,11 @@ func FromModel(item itemmodel.Item) ItemResponse {
 		Description: item.Description,
 		PhotoURLs:   item.PhotoURLs,
 		Wants:       item.Wants,
+		SearchFilters: SearchFiltersResponse{
+			MaxChainLength:             item.SearchFilters.MaxChainLength,
+			MinParticipantRating:       item.SearchFilters.MinParticipantRating,
+			PreferReliableParticipants: item.SearchFilters.PreferReliableParticipants,
+		},
 		Status:      item.Status,
 		PickupPoint: pickupPointFromModel(item.PickupPoint),
 		CreatedAt:   item.CreatedAt,

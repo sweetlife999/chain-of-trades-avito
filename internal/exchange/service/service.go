@@ -40,6 +40,7 @@ type Repository interface {
 	FindNeighbors(context.Context, uuid.UUID) ([]exchangemodel.Node, error)
 	HasUserBlockConflict(context.Context, uuid.UUID, []uuid.UUID) (bool, error)
 	GetSearchUserStats(context.Context, []uuid.UUID) (map[uuid.UUID]exchangemodel.SearchUserStats, error)
+	GetSearchItemFilters(context.Context, []uuid.UUID) (map[uuid.UUID]exchangemodel.SearchItemFilters, error)
 	SaveExchange(context.Context, exchangemodel.Exchange) (uuid.UUID, error)
 	ListByUser(context.Context, uuid.UUID) ([]exchangemodel.Details, error)
 	GetByID(context.Context, uuid.UUID, uuid.UUID) (exchangemodel.Details, error)
@@ -133,7 +134,7 @@ func (s *Service) findCycles(
 		for _, next := range neighbors {
 			// На глубине 5 ещё можно замкнуть путь, но нельзя добавить шестого участника.
 			if next.ItemID == start.ItemID {
-				if len(path) >= 2 {
+				if len(path) >= 2 && cycleLengthAllowed(path) {
 					candidate := append([]exchangemodel.Node(nil), path...)
 					composition := compositionKey(candidate)
 					if _, excluded := excludedCompositions[composition]; excluded {
@@ -153,7 +154,10 @@ func (s *Service) findCycles(
 				continue
 			}
 
-			if len(path) >= maxParticipants {
+			if len(path) >= maxParticipants || len(path)+1 > normalizedMaxChainLength(next) {
+				continue
+			}
+			if len(path)+1 > pathMaxChainLength(path) {
 				continue
 			}
 
@@ -317,8 +321,14 @@ func (s *Service) findAndSave(
 		if err != nil {
 			return exchangeIDs, fmt.Errorf("load exchange ranking stats: %w", err)
 		}
+		candidateCount := len(cycles)
+		filters, err := s.repository.GetSearchItemFilters(ctx, cycleItemIDs(cycles))
+		if err != nil {
+			return exchangeIDs, fmt.Errorf("load exchange search filters: %w", err)
+		}
+		cycles = filterCycles(cycles, stats, filters)
 
-		for _, cycle := range exchangesearch.RankCycles(cycles, stats) {
+		for _, cycle := range exchangesearch.RankCyclesWithFilters(cycles, stats, filters) {
 			exchangeID, err := s.SaveCycle(ctx, cycle)
 			if errors.Is(err, ErrDuplicateExchange) || errors.Is(err, ErrStaleSearchResult) {
 				continue
@@ -336,7 +346,7 @@ func (s *Service) findAndSave(
 		// A partially filled pool means every start node was exhausted. A full
 		// pool may have more candidates, so another batch is useful when some
 		// ranked candidates became duplicate or stale before persistence.
-		if len(cycles) < candidateLimit {
+		if candidateCount < candidateLimit {
 			break
 		}
 	}
@@ -367,6 +377,82 @@ func (s *Service) findCandidateCycles(
 	}
 
 	return cycles, nil
+}
+
+func normalizedMaxChainLength(node exchangemodel.Node) int {
+	if node.MaxChainLength < 2 || node.MaxChainLength > maxParticipants {
+		return maxParticipants
+	}
+	return int(node.MaxChainLength)
+}
+
+func pathMaxChainLength(path []exchangemodel.Node) int {
+	maximum := maxParticipants
+	for _, node := range path {
+		maximum = min(maximum, normalizedMaxChainLength(node))
+	}
+	return maximum
+}
+
+func cycleLengthAllowed(cycle []exchangemodel.Node) bool {
+	return len(cycle) <= pathMaxChainLength(cycle)
+}
+
+func cycleItemIDs(cycles [][]exchangemodel.Node) []uuid.UUID {
+	unique := make(map[uuid.UUID]struct{})
+	for _, cycle := range cycles {
+		for _, node := range cycle {
+			unique[node.ItemID] = struct{}{}
+		}
+	}
+	result := make([]uuid.UUID, 0, len(unique))
+	for id := range unique {
+		result = append(result, id)
+	}
+	return result
+}
+
+func filterCycles(
+	cycles [][]exchangemodel.Node,
+	stats map[uuid.UUID]exchangemodel.SearchUserStats,
+	filters map[uuid.UUID]exchangemodel.SearchItemFilters,
+) [][]exchangemodel.Node {
+	result := make([][]exchangemodel.Node, 0, len(cycles))
+	for _, cycle := range cycles {
+		if cycleMatchesFilters(cycle, stats, filters) {
+			result = append(result, cycle)
+		}
+	}
+	return result
+}
+
+func cycleMatchesFilters(
+	cycle []exchangemodel.Node,
+	stats map[uuid.UUID]exchangemodel.SearchUserStats,
+	filters map[uuid.UUID]exchangemodel.SearchItemFilters,
+) bool {
+	for _, requester := range cycle {
+		filter, found := filters[requester.ItemID]
+		if !found {
+			filter.MaxChainLength = maxParticipants
+		}
+		if filter.MaxChainLength >= 2 && len(cycle) > int(filter.MaxChainLength) {
+			return false
+		}
+		for _, participant := range cycle {
+			if participant.OwnerID == requester.OwnerID {
+				continue
+			}
+			rating := 3.0
+			if participantStats, exists := stats[participant.OwnerID]; exists {
+				rating = participantStats.Rating
+			}
+			if rating < filter.MinParticipantRating {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func cycleOwnerIDs(cycles [][]exchangemodel.Node) []uuid.UUID {
