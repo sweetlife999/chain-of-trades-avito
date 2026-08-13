@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 
 import styles from "./Styles.module.scss";
 import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
+import { useMascot } from "../../../Hooks/useMascot";
+import { Mascot } from "../../UI/Mascot/Mascot";
 
 const steps: [string, string, string][] = [
   ["01", "Добавь вещь", "Опиши, что отдаёшь и что хочешь получить взамен."],
@@ -94,9 +96,17 @@ const faq: [string, string][] = [
 const LandingComponent = () => {
   const navigate = useNavigate();
   const { isAuth } = useAuthSelector();
+  const { reactTo } = useMascot();
   const rootRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
 
+  // Задержка совпадает с animation-delay у .heroMascot: без неё приветствие
+  // (взмах рукой, подскок) проигрывалось, пока маскот ещё opacity: 0.
+  useEffect(() => {
+    const hello = window.setTimeout(() => reactTo("APP_OPENED"), 2100);
+
+    return () => window.clearTimeout(hello);
+  }, [reactTo]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -167,6 +177,10 @@ const LandingComponent = () => {
         <section className={`${styles.section} ${styles.hero}`}>
           <div className={styles.heroGrid}>
             <div className={styles.heroCopy}>
+              <span className={`${styles.heroEyebrow} ${styles.heroReveal}`}>
+                <span className={styles.heroEyebrowDot} />
+                У — ваш проводник по обмену
+              </span>
               <h1 className={styles.heroTitle}>
                 <span className={`${styles.heroLine} ${styles.heroReveal}`}>
                   Отдай <span className={styles.heroGive}>ненужное</span>.
@@ -194,17 +208,32 @@ const LandingComponent = () => {
               </div>
             </div>
 
+            <div className={`${styles.heroMascot} ${styles.heroReveal}`}>
+              <div className={styles.heroMascotGlow} aria-hidden="true" />
+              <Mascot size="large" placement="landing" />
+              <span className={styles.heroMascotCaption}>
+                Реагирует на этапы обмена и помогает в чатах
+              </span>
+            </div>
           </div>
         </section>
 
         <section className={styles.section} id="how">
-          <span className={styles.kicker}>Как это работает</span>
+          <h2 className={styles.kicker}>Как это работает</h2>
+
+          <div className={styles.sectionMascot}>
+            <Mascot
+              size="small"
+              mood="hint"
+              message="Шесть шагов — и вещь у нового владельца."
+            />
+          </div>
 
           <div className={styles.steps}>
             {steps.map(([number, title, text]) => (
               <div className={styles.step} key={number}>
                 <span className={styles.stepNumber}>{number}</span>
-                <h2 className={styles.stepTitle}>{title}</h2>
+                <h3 className={styles.stepTitle}>{title}</h3>
                 <p className={styles.stepText}>{text}</p>
               </div>
             ))}
@@ -212,7 +241,15 @@ const LandingComponent = () => {
         </section>
 
         <section className={styles.section} id="benefits">
-          <span className={styles.kicker}>Преимущества обмена цепочкой</span>
+          <h2 className={styles.kicker}>Преимущества обмена цепочкой</h2>
+
+          <div className={styles.sectionMascot}>
+            <Mascot
+              size="small"
+              mood="happy"
+              message="Цепочка находит то, что обмен один на один не найдёт."
+            />
+          </div>
 
           <div className={styles.benefits}>
             {benefits.map(({ icon, title, text }) => (
@@ -226,7 +263,15 @@ const LandingComponent = () => {
         </section>
 
         <section className={styles.section} id="faq">
-          <span className={styles.kicker}>FAQ</span>
+          <h2 className={styles.kicker}>FAQ</h2>
+
+          <div className={styles.sectionMascot}>
+            <Mascot
+              size="small"
+              mood="thinking"
+              message="Здесь спрашивают чаще всего."
+            />
+          </div>
 
           <div className={styles.faq}>
             {faq.map(([question, answer]) => (
@@ -241,7 +286,15 @@ const LandingComponent = () => {
 
       <section className={`${styles.section} ${styles.cta}`}>
         <div className={styles.ctaInner}>
-          <h3 className={styles.ctaTitle}>Готовы обменяться?</h3>
+          <div className={`${styles.sectionMascot} ${styles.ctaMascot}`}>
+            <Mascot
+              className={styles.ctaMascotSkin}
+              size="small"
+              mood="celebrate"
+              message="Жду вас в первой цепочке!"
+            />
+          </div>
+          <h2 className={styles.ctaTitle}>Готовы обменяться?</h2>
           <div className={styles.ctaActions}>
             <button
               className={`${styles.btn} ${styles.btnInverse}`}

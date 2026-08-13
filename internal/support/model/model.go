@@ -31,6 +31,10 @@ type Thread struct {
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 	ClosedAt      *time.Time
+	// EscalatedAt — момент, когда стало ясно, что автоответ не решил вопрос: пользователь
+	// написал повторно или бот не справился с первого сообщения. Не статус: обращение
+	// остаётся эскалированным и после того, как его взяли в работу.
+	EscalatedAt *time.Time
 }
 
 type Message struct {
@@ -43,8 +47,11 @@ type Message struct {
 
 type AdminFilter struct {
 	Status string
-	Limit  int32
-	Offset int32
+	// NeedsHuman оставляет в очереди только то, что ждёт модератора: эскалированные
+	// обращения и те, на которые со стороны сервиса никто не ответил.
+	NeedsHuman bool
+	Limit      int32
+	Offset     int32
 }
 
 type AdminPage struct {

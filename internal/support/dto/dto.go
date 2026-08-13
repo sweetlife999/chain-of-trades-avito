@@ -34,6 +34,9 @@ type ThreadResponse struct {
 	CreatedAt     time.Time       `json:"created_at"`
 	UpdatedAt     time.Time       `json:"updated_at"`
 	ClosedAt      *time.Time      `json:"closed_at"`
+	// Непустое — автоответ не решил вопрос и обращение ждёт человека. В очереди
+	// модерации по этому полю рисуется пометка.
+	EscalatedAt *time.Time `json:"escalated_at"`
 }
 
 type MessageResponse struct {
@@ -67,6 +70,7 @@ func ThreadFromModel(thread supportmodel.Thread) ThreadResponse {
 		LastMessage: thread.LastMessage, LastMessageAt: thread.LastMessageAt,
 		UnreadCount: thread.UnreadCount, CreatedAt: thread.CreatedAt,
 		UpdatedAt: thread.UpdatedAt, ClosedAt: thread.ClosedAt,
+		EscalatedAt: thread.EscalatedAt,
 	}
 }
 

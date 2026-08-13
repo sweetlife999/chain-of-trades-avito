@@ -38,6 +38,7 @@ func (h *AdminHandler) RegisterRoutes(router chi.Router) {
 // @Tags        admin-support
 // @Produce     json
 // @Param       status query string false "Статус" Enums(open,in_progress,closed)
+// @Param       needs_human query bool false "Только ждущие модератора: эскалированные и те, на которые никто не ответил" default(false)
 // @Param       limit query int false "Размер страницы (1-100)" default(20)
 // @Param       offset query int false "Смещение" default(0)
 // @Success     200 {object} supportdto.AdminPageResponse
@@ -203,6 +204,15 @@ func adminFilter(r *http.Request) (supportmodel.AdminFilter, error) {
 	}
 	if raw := r.URL.Query().Get("offset"); raw != "" {
 		filter.Offset, err = parseInt32(raw)
+		if err != nil {
+			return filter, err
+		}
+	}
+	// Умолчание — показать всё: очередь без параметров обязана оставаться полной, а
+	// сужает её тот, кто явно попросил. Отсеивать по умолчанию на уровне API значило бы
+	// прятать обращения от любого клиента, который про этот параметр не знает.
+	if raw := r.URL.Query().Get("needs_human"); raw != "" {
+		filter.NeedsHuman, err = strconv.ParseBool(raw)
 		if err != nil {
 			return filter, err
 		}

@@ -59,6 +59,8 @@ export const closeSupportThread = async (
 
 export const getAdminSupportThreads = async (params: {
   status?: string;
+  /** Только ждущие модератора: эскалированные и те, на которые никто не ответил. */
+  needs_human?: boolean;
   limit?: number;
   offset?: number;
 } = {}): Promise<TAdminSupportPage> => {
