@@ -2759,6 +2759,121 @@ const docTemplate = `{
                 }
             }
         },
+        "/items/ai-suggestions": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Принимает рассказ пользователя, ставит генерацию в фоновую очередь и сразу возвращает ID задачи.\nРезультат не применяется автоматически: пользователь должен проверить и принять подсказку на фронте.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "items"
+                ],
+                "summary": "Запустить ИИ-помощника объявления",
+                "parameters": [
+                    {
+                        "description": "Описание вещи своими словами",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.SubmitRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/handler.JobResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Текст короче 10 или длиннее 1200 символов",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Нет или истекла cookie access_token",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Очередь модели заполнена",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/items/ai-suggestions/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Задача доступна только создавшему её пользователю и хранится 30 минут.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "items"
+                ],
+                "summary": "Получить результат ИИ-помощника",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID задачи",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.JobResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный UUID",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Нет или истекла cookie access_token",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Чужая задача",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Задача не найдена или истекла",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/items/{id}": {
             "get": {
                 "description": "Публичная карточка вещи: фотографии, желаемые категории и статус. Аутентификация не нужна.",
@@ -5703,6 +5818,73 @@ const docTemplate = `{
             "properties": {
                 "error": {
                     "type": "string"
+                }
+            }
+        },
+        "handler.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.JobResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "pending",
+                        "processing",
+                        "completed",
+                        "failed"
+                    ]
+                },
+                "suggestion": {
+                    "$ref": "#/definitions/handler.SuggestionResponse"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.SubmitRequest": {
+            "type": "object",
+            "properties": {
+                "input": {
+                    "type": "string",
+                    "example": "старый пленочный фотоаппарат, рабочий, есть чехол"
+                }
+            }
+        },
+        "handler.SuggestionResponse": {
+            "type": "object",
+            "properties": {
+                "category_name": {
+                    "type": "string",
+                    "example": "Электроника"
+                },
+                "category_slug": {
+                    "type": "string",
+                    "example": "electronics"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Рабочий плёночный фотоаппарат. В комплекте чехол."
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Плёночный фотоаппарат с чехлом"
                 }
             }
         },

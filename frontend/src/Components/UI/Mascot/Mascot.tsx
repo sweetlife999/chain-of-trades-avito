@@ -63,7 +63,7 @@ const MascotComponent = ({
   className,
   showBubble = true,
   message,
-  label = "У — помощник по обмену",
+  label = "Уми — помощник по обмену",
   mode: modeOverride,
   mood: moodOverride,
   movement: movementOverride,
@@ -127,7 +127,7 @@ const MascotComponent = ({
           )}
           data-mascot-bubble
         >
-          <strong className={styles.mascot__bubbleName}>У</strong>
+          <strong className={styles.mascot__bubbleName}>Уми</strong>
           <span className={styles.mascot__bubbleText}>{visibleMessage}</span>
           {bubbleAction && (
             <span className={styles.mascot__bubbleFooter}>

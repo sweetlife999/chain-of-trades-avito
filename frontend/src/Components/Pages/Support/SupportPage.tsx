@@ -2,7 +2,6 @@ import {
   type FormEvent,
   type KeyboardEvent,
   memo,
-  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -25,17 +24,24 @@ import {
 import type { TSupportThread } from "../../../Api/support/support.types";
 import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
 import { AuthRequiredState } from "../../UI/AuthRequiredState/AuthRequiredState";
-import type {
-  MascotMood,
-  MascotMovement,
-} from "../../../Features/Mascot/mascot.types";
-import { SupportAssistant } from "./SupportAssistant";
+import { Mascot } from "../../UI/Mascot/Mascot";
 
 const statusLabels: Record<TSupportThread["status"], string> = {
   open: "Ждёт ответа",
   in_progress: "В работе",
   closed: "Закрыто",
 };
+
+// По одной заготовке на тему, которую различает автоответчик (delivery, exchange,
+// payment, complaint): на них у него есть написанный руками ответ. Темы account и other
+// сюда не попали — по account вопрос слишком личный для кнопки, а other означает, что
+// ответа нет и обращение всё равно уедет к модератору.
+const quickReplies = [
+  "Вещь не пришла в пункт выдачи",
+  "Цепочка долго не собирается",
+  "Сколько стоит обмен?",
+  "Участник просит деньги",
+];
 
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat("ru-RU", {
@@ -54,42 +60,8 @@ const SupportPageComponent = () => {
   const [firstMessage, setFirstMessage] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [assistantMood, setAssistantMood] = useState<MascotMood>("idle");
-  const [assistantMovement, setAssistantMovement] =
-    useState<MascotMovement>("roam");
-  const assistantTimerRef = useRef<number | null>(null);
-  const messagesRef = useRef<HTMLDivElement>(null);
+  const endRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLTextAreaElement>(null);
-
-  const showAssistantReaction = useCallback(
-    (
-      nextMood: MascotMood,
-      nextMovement: MascotMovement = "roam",
-      durationMs = 2200,
-    ) => {
-      if (assistantTimerRef.current !== null) {
-        window.clearTimeout(assistantTimerRef.current);
-      }
-
-      setAssistantMood(nextMood);
-      setAssistantMovement(nextMovement);
-      assistantTimerRef.current = window.setTimeout(() => {
-        setAssistantMood("idle");
-        setAssistantMovement("roam");
-        assistantTimerRef.current = null;
-      }, durationMs);
-    },
-    [],
-  );
-
-  useEffect(
-    () => () => {
-      if (assistantTimerRef.current !== null) {
-        window.clearTimeout(assistantTimerRef.current);
-      }
-    },
-    [],
-  );
 
   const restoreMessageFocus = () => {
     window.requestAnimationFrame(() => messageInputRef.current?.focus());
@@ -124,11 +96,9 @@ const SupportPageComponent = () => {
   );
 
   useEffect(() => {
-    const messagesElement = messagesRef.current;
-
-    messagesElement?.scrollTo({
+    endRef.current?.scrollIntoView({
       behavior: "smooth",
-      top: messagesElement.scrollHeight,
+      block: "start",
     });
   }, [messages.length, selectedID]);
 
@@ -158,14 +128,12 @@ const SupportPageComponent = () => {
     onSuccess: async () => {
       setMessage("");
       setError("");
-      showAssistantReaction("happy");
       restoreMessageFocus();
       await refresh();
       restoreMessageFocus();
     },
     onError: (requestError) => {
       setError(getSupportError(requestError, "Не удалось отправить сообщение"));
-      showAssistantReaction("sad");
       restoreMessageFocus();
     },
   });
@@ -202,7 +170,6 @@ const SupportPageComponent = () => {
       return;
     }
 
-    showAssistantReaction("thinking");
     sendMutation.mutate({ threadID: selectedID, body: value });
   };
   const submitMessage = (event: FormEvent) => {
@@ -220,14 +187,6 @@ const SupportPageComponent = () => {
       event.preventDefault();
       sendCurrentMessage();
     }
-  };
-  const selectSupportHint = (hint: string) => {
-    setMessage(hint);
-    showAssistantReaction("happy");
-    window.requestAnimationFrame(() => {
-      messageInputRef.current?.focus();
-      messageInputRef.current?.setSelectionRange(hint.length, hint.length);
-    });
   };
 
   return (
@@ -301,7 +260,7 @@ const SupportPageComponent = () => {
                   </button>
                 )}
               </div>
-              <div className={styles.support__messages} ref={messagesRef}>
+              <div className={styles.support__messages}>
                 {messages.map((item) => {
                   const own = item.author.id === user?.id;
                   return (
@@ -311,20 +270,35 @@ const SupportPageComponent = () => {
                     </article>
                   );
                 })}
+                <div ref={endRef} />
               </div>
               {error && <p className={styles.support__error}>{error}</p>}
               {selectedThread.status !== "closed" ? (
                 <div className={styles.support__composerArea}>
-                  <SupportAssistant
-                    level={user?.experience.level}
-                    mood={assistantMood}
-                    movement={assistantMovement}
-                    onHintPreview={() =>
-                      showAssistantReaction("hint", "approach")
-                    }
-                    onHintSelect={selectSupportHint}
-                  />
+                  <div className={styles.support__hints}>
+                    {quickReplies.map((reply) => (
+                      // Заготовка подставляется в поле, а не отправляется сразу: её почти
+                      // всегда нужно дополнить номером обмена или подробностями.
+                      <button
+                        className={styles.support__hint}
+                        key={reply}
+                        type="button"
+                        onClick={() => {
+                          setMessage(reply);
+                          restoreMessageFocus();
+                        }}
+                      >
+                        {reply}
+                      </button>
+                    ))}
+                  </div>
                   <form className={styles.support__composer} onSubmit={submitMessage}>
+                    <Mascot
+                      className={styles.support__composerMascot}
+                      placement="chat"
+                      showBubble={false}
+                      size="tiny"
+                    />
                     <textarea
                       aria-label="Сообщение"
                       maxLength={4000}
@@ -333,12 +307,7 @@ const SupportPageComponent = () => {
                       required
                       rows={2}
                       value={message}
-                      onChange={(event) => {
-                        if (!message && event.target.value) {
-                          showAssistantReaction("listening");
-                        }
-                        setMessage(event.target.value);
-                      }}
+                      onChange={(event) => setMessage(event.target.value)}
                       onKeyDown={handleMessageKeyDown}
                     />
                     <button aria-label="Отправить" disabled={sendMutation.isPending || !message.trim()} type="submit"><Send size={20} /></button>

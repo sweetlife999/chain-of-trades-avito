@@ -15,6 +15,7 @@ import type { TCreateItemRequest } from "../../../../Api/items/items.types";
 import { Input } from "../../../UI/Input/Input";
 import { Button } from "../../../UI/Button/Button";
 import { PhotoUploader } from "../../../UI/PhotoUploader/PhotoUploader";
+import { ItemAIAssistant } from "../../../UI/ItemAIAssistant/ItemAIAssistant";
 
 const getRequestErrorMessage = (error: unknown) => {
   if (axios.isAxiosError<{ error?: string }>(error)) {
@@ -39,6 +40,7 @@ const CreateChainComponent = () => {
     control,
     handleSubmit,
     setError,
+    setValue,
     formState: { errors },
   } = useForm<TCreateChainForm>({
     resolver: zodResolver(createChainFormSchema),
@@ -134,6 +136,24 @@ const CreateChainComponent = () => {
             </div>
 
             <div className={styles.createChain__fieldsColumn}>
+              <ItemAIAssistant
+                disabled={createItemMutation.isPending}
+                onApply={(suggestion) => {
+                  setValue("title", suggestion.title, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  });
+                  setValue("description", suggestion.description, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  });
+                  setValue("category", suggestion.category_slug, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  });
+                }}
+              />
+
               <Input
                 label="Название"
                 required
