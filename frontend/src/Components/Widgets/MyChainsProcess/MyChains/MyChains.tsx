@@ -36,14 +36,18 @@ const getTitle = (exchange: TExchange, userId?: string) => {
 
 const MyChainsComponent = () => {
   const navigate = useNavigate();
-  const { isAuth } = useAuthSelector();
+  const { isAuth, user } = useAuthSelector();
   const [tab, setTab] = useState<TExchangeStatusTab>("active");
-  const { user } = useAuthSelector();
   const { anchor, mood, movement, reactTo, reset } = useMascot();
+
   const previousExchangeIdsRef = useRef<{
     userId: string | null;
-    idsByTab: Map<TTab, Set<string>>;
-  }>({ userId: null, idsByTab: new Map() });
+    idsByTab: Map<TExchangeStatusTab, Set<string>>;
+  }>({
+    userId: null,
+    idsByTab: new Map(),
+  });
+
   const {
     data = [],
     isPending,
@@ -55,13 +59,19 @@ const MyChainsComponent = () => {
     refetchIntervalInBackground: false,
   });
 
-  const exchanges = data.filter(
-    (exchange) =>
-      exchange.participants.some(
-        (participant) => participant.user.id === user?.id,
-      ) && exchangeStatusPresentation[exchange.status].tab === tab,
+  const exchanges = useMemo(
+    () =>
+      data.filter(
+        (exchange) =>
+          exchange.participants.some(
+            (participant) => participant.user.id === user?.id,
+          ) && exchangeStatusPresentation[exchange.status].tab === tab,
+      ),
+    [data, tab, user?.id],
   );
+
   const exchangeIds = exchanges.map(({ id }) => id).join(":");
+
   const emptyChainsReactionActive =
     anchor === "chains-list" && mood === "bored" && movement === "wander";
 
