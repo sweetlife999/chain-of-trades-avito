@@ -12,6 +12,7 @@ import {
   withdrawItemFromSearch,
 } from "../../../Api/items/items";
 import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
+import { useCategoryName } from "../../../Hooks/useCategoryName";
 import { Button } from "../../UI/Button/Button";
 import { ConfirmationPopup } from "../../UI/ConfirmationPopup/ConfirmationPopup";
 import { PhotoGallery } from "../../UI/PhotoGallery/PhotoGallery";
@@ -33,6 +34,7 @@ const ItemDetailsComponent = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuthSelector();
+  const categoryName = useCategoryName();
   const [deletePopupOpen, setDeletePopupOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string>();
   const [searchAction, setSearchAction] = useState<TSearchAction | null>(null);
@@ -142,14 +144,14 @@ const ItemDetailsComponent = () => {
           <div className={styles.item__info}>
             <ItemStatusBadge item={item} />
             <h1 className={styles.item__title}>{item.title}</h1>
-            <small className={styles.item__category}>{item.category}</small>
+            <small className={styles.item__category}>{categoryName(item.category)}</small>
             <p className={styles.item__description}>{item.description}</p>
 
             <h2 className={styles.item__wantsTitle}>Хочу получить</h2>
             <div className={styles.item__wants}>
               {item.wants.map((want) => (
                 <span className={styles.item__want} key={want}>
-                  {want}
+                  {categoryName(want)}
                 </span>
               ))}
             </div>
