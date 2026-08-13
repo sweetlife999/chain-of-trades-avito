@@ -38,7 +38,7 @@ SELECT
     i.id, i.owner_id, i.category_id, i.title, i.description, i.status, i.created_at, i.updated_at, i.photo_urls, i.pickup_point_id, i.max_chain_length, i.min_participant_rating, i.prefer_reliable_participants,
     c.slug AS category,
     COALESCE(
-        (SELECT array_agg(want_category.slug ORDER BY want_category.slug)
+        (SELECT array_agg(want_category.name ORDER BY want_category.slug)
          FROM item_wants w
          JOIN categories want_category ON want_category.id = w.category_id
          WHERE w.item_id = i.id),
@@ -196,7 +196,7 @@ SELECT
     i.id, i.owner_id, i.category_id, i.title, i.description, i.status, i.created_at, i.updated_at, i.photo_urls, i.pickup_point_id, i.max_chain_length, i.min_participant_rating, i.prefer_reliable_participants,
     c.slug AS category,
     COALESCE(
-        (SELECT array_agg(want_category.slug ORDER BY want_category.slug)
+        (SELECT array_agg(want_category.name ORDER BY want_category.slug)
          FROM item_wants w
          JOIN categories want_category ON want_category.id = w.category_id
          WHERE w.item_id = i.id),
