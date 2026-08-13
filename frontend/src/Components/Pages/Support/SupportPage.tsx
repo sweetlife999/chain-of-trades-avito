@@ -24,12 +24,24 @@ import {
 import type { TSupportThread } from "../../../Api/support/support.types";
 import { useAuthSelector } from "../../../Hooks/useAuthDispatch";
 import { AuthRequiredState } from "../../UI/AuthRequiredState/AuthRequiredState";
+import { Mascot } from "../../UI/Mascot/Mascot";
 
 const statusLabels: Record<TSupportThread["status"], string> = {
   open: "Ждёт ответа",
   in_progress: "В работе",
   closed: "Закрыто",
 };
+
+// По одной заготовке на тему, которую различает автоответчик (delivery, exchange,
+// payment, complaint): на них у него есть написанный руками ответ. Темы account и other
+// сюда не попали — по account вопрос слишком личный для кнопки, а other означает, что
+// ответа нет и обращение всё равно уедет к модератору.
+const quickReplies = [
+  "Вещь не пришла в пункт выдачи",
+  "Цепочка долго не собирается",
+  "Сколько стоит обмен?",
+  "Участник просит деньги",
+];
 
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat("ru-RU", {
@@ -262,20 +274,45 @@ const SupportPageComponent = () => {
               </div>
               {error && <p className={styles.support__error}>{error}</p>}
               {selectedThread.status !== "closed" ? (
-                <form className={styles.support__composer} onSubmit={submitMessage}>
-                  <textarea
-                    aria-label="Сообщение"
-                    maxLength={4000}
-                    placeholder="Напишите сообщение..."
-                    ref={messageInputRef}
-                    required
-                    rows={2}
-                    value={message}
-                    onChange={(event) => setMessage(event.target.value)}
-                    onKeyDown={handleMessageKeyDown}
-                  />
-                  <button aria-label="Отправить" disabled={sendMutation.isPending || !message.trim()} type="submit"><Send size={20} /></button>
-                </form>
+                <div className={styles.support__composerArea}>
+                  <div className={styles.support__hints}>
+                    {quickReplies.map((reply) => (
+                      // Заготовка подставляется в поле, а не отправляется сразу: её почти
+                      // всегда нужно дополнить номером обмена или подробностями.
+                      <button
+                        className={styles.support__hint}
+                        key={reply}
+                        type="button"
+                        onClick={() => {
+                          setMessage(reply);
+                          restoreMessageFocus();
+                        }}
+                      >
+                        {reply}
+                      </button>
+                    ))}
+                  </div>
+                  <form className={styles.support__composer} onSubmit={submitMessage}>
+                    <Mascot
+                      className={styles.support__composerMascot}
+                      placement="chat"
+                      showBubble={false}
+                      size="tiny"
+                    />
+                    <textarea
+                      aria-label="Сообщение"
+                      maxLength={4000}
+                      placeholder="Напишите сообщение..."
+                      ref={messageInputRef}
+                      required
+                      rows={2}
+                      value={message}
+                      onChange={(event) => setMessage(event.target.value)}
+                      onKeyDown={handleMessageKeyDown}
+                    />
+                    <button aria-label="Отправить" disabled={sendMutation.isPending || !message.trim()} type="submit"><Send size={20} /></button>
+                  </form>
+                </div>
               ) : (
                 <p className={styles.support__closed}>Обращение закрыто. Можно создать новое.</p>
               )}

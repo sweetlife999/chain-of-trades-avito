@@ -69,7 +69,7 @@ func TestAdminSupportQueueIntegration(t *testing.T) {
 	// Автоответчик отвечает почти сразу — и до правки именно его ответ вытеснял вопрос
 	// из превью очереди, а на этом треде оставлял превью пустым. Ник строкой, а не
 	// константой из service: тот пакет импортирует этот, и ссылка назад дала бы цикл.
-	if _, err := repository.CreateBotMessage(ctx, thread.ID, "У-бот", "автоответ"); err != nil {
+	if _, err := repository.CreateBotMessage(ctx, thread.ID, "Уми", "автоответ"); err != nil {
 		t.Fatalf("create bot message: %v", err)
 	}
 
