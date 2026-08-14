@@ -2,7 +2,7 @@
 export
 
 
-.PHONY: lint run up db llm down reset migrate-up migrate-down migrate-status sqlc smoke swagger test-ratings-integration test-exchange-integration test-user-blocks-integration test-exchange-recovery-integration test-exchange-refusal-integration test-exchange-messages-integration test-item-search-visibility-integration test-delivery-integration test-reports-integration test-admin-audit-integration test-notifications-integration test-antiscam test-support-bot-llm test-item-assistant-llm test-support-admin-integration
+.PHONY: lint run up db llm down reset migrate-up migrate-down migrate-status sqlc smoke swagger test-ratings-integration test-exchange-integration test-user-blocks-integration test-exchange-recovery-integration test-exchange-refusal-integration test-exchange-messages-integration test-item-search-visibility-integration test-delivery-integration test-reports-integration test-admin-audit-integration test-notifications-integration test-antiscam test-antiscam-integration test-support-bot-llm test-item-assistant-llm test-support-admin-integration
 
 # Линтер. Требует golangci-lint v2 той же версии, что пиннится в CI:
 # go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
@@ -123,6 +123,13 @@ test-ratings-integration:
 
 test-antiscam:
 	go test ./internal/antiscam/... -count=1
+
+# Живой сценарий решения администратора по AI-подозрению: запрос присваивает enum-решение
+# и закрывает карточку, повтор по закрытой отдаёт конфликт. Подставным репозиторием не
+# ловится — ошибка типов видна только настоящей базе.
+test-antiscam-integration:
+	go test -tags=integration ./internal/antiscam/repository \
+		-run TestAntiscamDecideIntegration -count=1
 
 # Точность роутера поддержки на замороженном наборе обращений. Требует живую Ollama
 # (OLLAMA_URL) и нужна при любой правке промпта в internal/support/service/bot.go:
