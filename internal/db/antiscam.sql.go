@@ -154,7 +154,7 @@ const decideAntiscamCaseForAdmin = `-- name: DecideAntiscamCaseForAdmin :execrow
 UPDATE antiscam_cases
 SET
     status = CASE
-        WHEN $1::text = 'confirmed' THEN 'resolved'::antiscam_case_status
+        WHEN $1::antiscam_decision = 'confirmed' THEN 'resolved'::antiscam_case_status
         ELSE 'dismissed'::antiscam_case_status
     END,
     reviewed_by = $2,

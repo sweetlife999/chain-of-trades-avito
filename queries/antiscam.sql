@@ -186,7 +186,7 @@ ORDER BY created_at, message_id;
 UPDATE antiscam_cases
 SET
     status = CASE
-        WHEN sqlc.arg(decision)::text = 'confirmed' THEN 'resolved'::antiscam_case_status
+        WHEN sqlc.arg(decision)::antiscam_decision = 'confirmed' THEN 'resolved'::antiscam_case_status
         ELSE 'dismissed'::antiscam_case_status
     END,
     reviewed_by = sqlc.arg(admin_id),
